@@ -81,6 +81,18 @@ enum class reg_arg_kind
     dst_src
 };
 
+bool is_arg_dst(reg_arg_kind kind) 
+{
+    return kind == reg_arg_kind::dst || kind == reg_arg_kind::dst_src;
+}
+
+
+bool is_arg_src(reg_arg_kind kind) 
+{
+    return kind == reg_arg_kind::src || kind == reg_arg_kind::dst_src;
+}
+
+
 enum class reg_segment
 {
     local,

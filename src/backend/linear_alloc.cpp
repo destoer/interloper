@@ -922,141 +922,6 @@ void linear_setup_new_block(LinearAlloc& alloc, Block& block)
 //     }
 // }
 
-// void allocate_and_rewrite_var(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg)
-// {
-//     auto& ir_reg = reg_from_slot(slot,alloc);
-//     auto& reg_file = get_register_file(alloc,ir_reg);
-
-//     const auto opcode = node->value;
-//     const auto info = info_from_op(opcode);
-
-//     const b32 is_dst = is_arg_dst(info.type[reg]);
-//     const b32 is_src = is_arg_src(info.type[reg]);
-
-//     // just rewrite the register simply
-//     if(alloc.stack_only)
-//     {
-//         allocate_and_rewrite_var_stack(alloc,block,node,slot,reg);
-//         return;
-//     }
-
-//     ir_reg.cur_local_uses++;
-
-
-//     // var is allocated
-//     if(is_reg_locally_allocated(ir_reg))
-//     {
-//         node->value.v[reg] = make_lowered_operand(ir_reg.local_reg);
-//     }
-
-//     // Aquire a new register and reload it
-//     else
-//     {
-//         acquire_local_reg(alloc,ir_reg,reg_file,block,node);
-//         log_reg(alloc.print,*alloc.table,"Allocated %s to %r\n",reg_name(alloc.arch,ir_reg.local_reg),ir_reg.slot);
-
-//         node->value.v[reg] = make_lowered_operand(ir_reg.local_reg);
-
-//         // src do a reload
-//         if(is_src) 
-//         {
-//             // issue a load
-//             reload_reg(alloc,block,node,slot, ir_reg.local_reg,insertion_type::before);
-//         }
-//     }
-
-//     // Local uses have expried and it does not live beyond this block we can free the fregister
-//     if(ir_reg.cur_local_uses >= count(ir_reg.local_uses))
-//     {
-//         ir_reg.cur_local_uses = 0;
-
-//         // We still need to clear out the local uses!
-//         if(contains(block.live_out,ir_reg.slot))
-//         {
-//             clear_arr(ir_reg.local_uses);
-//         }
-
-//         else
-//         {
-//             log_reg(alloc.print,*alloc.table,"Mark %r in %s for expiry\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.local_reg));
-//             // Don't terminate the regs during it as we need them allocated
-//             alloc.dead_slot[alloc.dead_count++] = ir_reg.slot;
-//         }            
-//     }
-
-
-//     if(is_dst)
-//     {
-//         // If we have just loaded from memory then this is not dirty?
-//         mark_dirty(reg_file,ir_reg.local_reg);
-        
-//         if(!is_local_reg(ir_reg))
-//         {
-//             // if dst and not a local register it needs to be spilled
-//             spill(alloc,block,node,slot,insertion_type::after);
-//         }
-//     }
-// }
-
-// void rewrite_special_reg(LinearAlloc& alloc, Block& block, OpcodeNode* node, spec_reg spec, u32 reg)
-// {
-//     if(spec == spec_reg::null)
-//     {
-//         return;
-//     }
-
-//     const u32 location = special_reg_to_reg(alloc.arch,spec);
-//     auto& reg_file = get_register_file(alloc,find_reg_set(spec));
-
-//     const auto opcode = node->value;
-//     const auto info = info_from_op(opcode);
-//     const b32 is_dst = is_arg_dst(info.type[reg]);
-
-//     // Whatever is in a special reg is about to be clobbered
-//     if(is_dst)
-//     {
-//         const RegSlot saved_slot = reg_file.allocated[location];
-
-//         // Check reg is locked to prevent regs we never allocate from attempting to be saved
-//         if(!is_reg_free(reg_file,location) && !is_locked(reg_file,location) && !marked_for_expiry(alloc,saved_slot))
-//         {
-//             auto& ir_reg = reg_from_slot(saved_slot,alloc);
-
-//             log_reg(alloc.print,*alloc.table,"Saving %r clobbered in special reg %s (%s)\n",saved_slot,spec_reg_name(spec),reg_name(alloc.arch,ir_reg.local_reg));
-
-//             // Save the register if it has a later use.
-//             // But feel free to leave the current location for this rewrite
-//             // As the dst is last thing rewritten 
-//             save_reg(alloc,block,node,reg_file,ir_reg.local_reg,insertion_type::before);
-//         }
-
-//         lock_reg(reg_file,location);
-//         mark_dirty(reg_file,location);
-//     }
-
-//     // make sure the spec regs are marked as used
-//     mark_used(reg_file,location);
-//     node->value.v[reg] = make_lowered_operand(location);
-// }
-
-// void allocate_and_rewrite_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg)
-// {
-//     switch(slot.kind)
-//     {
-//         case reg_kind::sym:
-//         case reg_kind::tmp:
-//         {
-//             allocate_and_rewrite_var(alloc,block,node,slot,reg);
-//             break;
-//         }
-
-//         case reg_kind::spec:
-//         {
-//             rewrite_special_reg(alloc,block,node,slot.spec,reg);
-//             break;
-//         }
-//     }
-// }
 
 bool marked_for_expiry(LinearAlloc& alloc, RegSlot slot)
 {
@@ -1089,71 +954,130 @@ void clean_dead_regs(LinearAlloc& alloc)
     }    
 }
 
-// void allocate_and_rewrite(LinearAlloc& alloc, Block& block, OpcodeNode* node, u32 reg)
-// {
-//     Operand &operand = node->value.v[reg];
+lowered_reg_t allocate_var(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, reg_arg_kind arg_kind)
+{
+    auto& ir_reg = reg_from_slot(slot,alloc);
+    auto& reg_file = get_register_file(alloc,ir_reg);
 
-//     switch(operand.type)
-//     {
-//         case operand_type::decimal:
-//         {
-//             operand.lowered = bit_cast_from_f64(operand.decimal);
-//             operand.type = operand_type::lowered;
-//             break;
-//         }
 
-//         case operand_type::imm: 
-//         {
-//             operand.lowered = operand.imm;
-//             operand.type = operand_type::lowered;
-//             break;
-//         }
+    const b32 is_dst = is_arg_dst(arg_kind);
+    const b32 is_src = is_arg_src(arg_kind);
 
-//         case operand_type::reg: 
-//         {
-//             allocate_and_rewrite_reg(alloc,block,node,operand.reg,reg);
-//             break;
-//         }
+    // just rewrite the register simply
+    if(alloc.stack_only)
+    {
+        assert(false);
+        // return allocate_and_rewrite_var_stack(alloc,block,node,slot,reg);
+    }
 
-//         // allready written
-//         case operand_type::lowered: break;
+    ir_reg.cur_local_uses++;
+
+
+    // Acquire a new register and reload it
+    if(!is_reg_locally_allocated(ir_reg))
+    {
+        acquire_local_reg(alloc,ir_reg,reg_file,block,node);
+        log_reg(alloc.print,*alloc.table,"Allocated %s to %r\n",reg_name(alloc.arch,ir_reg.local_reg),ir_reg.slot);
+
+        // src do a reload
+        if(is_src) 
+        {
+            // issue a load
+            reload_reg(alloc,block,node,slot, ir_reg.local_reg,insertion_type::before);
+        }
+    }
+
+    // Local uses have expired and it does not live beyond this block we can free the fregister
+    if(ir_reg.cur_local_uses >= count(ir_reg.local_uses))
+    {
+        ir_reg.cur_local_uses = 0;
+
+        // We still need to clear out the local uses!
+        if(contains(block.live_out,ir_reg.slot))
+        {
+            clear_arr(ir_reg.local_uses);
+        }
+
+        else
+        {
+            log_reg(alloc.print,*alloc.table,"Mark %r in %s for expiry\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.local_reg));
+            // Don't terminate the regs during it as we need them allocated
+            alloc.dead_slot[alloc.dead_count++] = ir_reg.slot;
+        }            
+    }
+
+
+    if(is_dst)
+    {
+        // If we have just loaded from memory then this is not dirty?
+        mark_dirty(reg_file,ir_reg.local_reg);
         
-//         // rewrote on subsequent pass
-//         case operand_type::label: break;
-//         case operand_type::directive_reg: break;
-//     }
-// }
+        if(!is_local_reg(ir_reg))
+        {
+            // if dst and not a local register it needs to be spilled
+            spill(alloc,block,node,slot,insertion_type::after);
+        }
+    }
 
-// void rewrite_opcode(LinearAlloc& alloc,Block& block,OpcodeNode* node)
-// {
-//     const auto opcode = node->value;
-//     const auto info = info_from_op(opcode);
+    return ir_reg.local_reg;
+}
 
-//     // rewrite source
-//     for(u32 a = 1; a < info.args; a++)
-//     {
-//         allocate_and_rewrite(alloc,block,node,a);
-//     }
+lowered_reg_t allocate_special_reg(LinearAlloc& alloc, Block& block, OpcodeNode* node, spec_reg spec, reg_arg_kind arg_kind)
+{
+    if(spec == spec_reg::null)
+    {
+        return lowered_reg_t(spec);
+    }
 
-//     // free regs early to get reuse out of operands
-//     // NOTE: this cannot happen on a src
-//     // because otherwhise a reload will be inserted before
-//     // the current instruction that clobbers the var we have just rewritten
-//     if(info.type[0] == arg_type::dst_reg)
-//     {
-//         clean_dead_regs(alloc);
-//     }
+    const lowered_reg_t location = special_reg_to_reg(alloc.arch,spec);
+    auto& reg_file = get_register_file(alloc,spec_rtype(spec));
 
-//     // rewrite potential dst
-//     if(info.args >= 1)
-//     {
-//         allocate_and_rewrite(alloc,block,node,0);
-//     }
-// }
+    const b32 is_dst = is_arg_dst(arg_kind);
+
+    // Whatever is in a special reg is about to be clobbered
+    if(is_dst)
+    {
+        const RegSlot saved_slot = reg_file.allocated[location];
+
+        // Check reg is locked to prevent regs we never allocate from attempting to be saved
+        if(!is_reg_free(reg_file,location) && !is_locked(reg_file,location) && !marked_for_expiry(alloc,saved_slot))
+        {
+            auto& ir_reg = reg_from_slot(saved_slot,alloc);
+
+            log_reg(alloc.print,*alloc.table,"Saving %r clobbered in special reg %s (%s)\n",saved_slot,spec_reg_name(spec),reg_name(alloc.arch,ir_reg.local_reg));
+
+            // Save the register if it has a later use.
+            // But feel free to leave the current location for this rewrite
+            // As the dst is last thing rewritten 
+            save_reg(alloc,block,node,reg_file,ir_reg.local_reg,insertion_type::before);
+        }
+
+        lock_reg(reg_file,location);
+        mark_dirty(reg_file,location);
+    }
+
+    // make sure the spec regs are marked as used
+    mark_used(reg_file,location);
+    return location;
+}
+
 
 lowered_reg_t linear_allocate_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot reg, reg_arg_kind arg_kind)
 {
-    UNUSED(alloc); UNUSED(block); UNUSED(node); UNUSED(reg); UNUSED(arg_kind);
+    switch(reg.kind)
+    {
+        case reg_kind::sym:
+        case reg_kind::tmp:
+        {
+            return allocate_var(alloc,block,node,reg,arg_kind);
+        }
+
+        case reg_kind::spec:
+        {
+            return allocate_special_reg(alloc,block,node,reg.spec,arg_kind);
+        }
+    }
+
     assert(false);
 }
 

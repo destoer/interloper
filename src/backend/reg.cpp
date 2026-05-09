@@ -417,13 +417,13 @@ void log_reg(b32 print,SymbolTable& table, const String& fmt_string, ...)
 
 struct AbiInfo
 {
-    u32 gpr_rv;
-    u32 fpr_rv;
-    u32 sp;
-    u32 fp;
+    lowered_reg_t gpr_rv;
+    lowered_reg_t fpr_rv;
+    lowered_reg_t sp;
+    lowered_reg_t fp;
 
-    u32 gpr_args[MACHINE_REG_SIZE];
-    u32 gpr_arg_count;
+    lowered_reg_t gpr_args[MACHINE_REG_SIZE];
+    lowered_reg_t gpr_arg_count;
 };
 
 static constexpr AbiInfo ABI_INFO[] = 
@@ -446,28 +446,28 @@ const AbiInfo& get_abi_info(arch_target arch)
 }
 
 
-u32 arch_sp(arch_target arch)
+lowered_reg_t arch_sp(arch_target arch)
 {
     const auto info = get_abi_info(arch);
 
     return info.sp;
 }
 
-u32 arch_fp(arch_target arch)
+lowered_reg_t arch_fp(arch_target arch)
 {
     const auto& info = get_abi_info(arch);
 
     return info.fp;
 }
 
-u32 arch_rv(arch_target arch)
+lowered_reg_t arch_rv(arch_target arch)
 {
     const auto info = get_abi_info(arch);
 
     return info.gpr_rv;
 }
 
-u32 arch_frv(arch_target arch)
+lowered_reg_t arch_frv(arch_target arch)
 {
     const auto info = get_abi_info(arch);
 
@@ -475,7 +475,7 @@ u32 arch_frv(arch_target arch)
 }
 
 
-u32 special_reg_to_reg(arch_target arch,spec_reg spec)
+lowered_reg_t special_reg_to_reg(arch_target arch,spec_reg spec)
 {
     switch(spec)
     {

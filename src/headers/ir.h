@@ -45,7 +45,7 @@ static constexpr u32 MACHINE_REG_SIZE = 32;
 // TAC wont function on less than 3 regs
 static_assert(MACHINE_REG_SIZE >= 3);
 
-static constexpr u32 REG_FREE = 0xffff'ffff;
+static constexpr lowered_reg_t REG_FREE = 0xffff'ffff;
 
 struct Reg
 {
@@ -66,9 +66,9 @@ struct Reg
     u32 offset = 0;
 
     // Where is this register globally allocated if at all
-    u32 global_reg = REG_FREE;
+    lowered_reg_t global_reg = REG_FREE;
     // Where does this register reside in the current block?
-    u32 local_reg = REG_FREE;
+    lowered_reg_t local_reg = REG_FREE;
 
     // Registers that it has fixed interactions with
     // Attempt to allocate register into here to avoid shuffles.
