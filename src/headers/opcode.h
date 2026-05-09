@@ -74,6 +74,13 @@ enum class reg_kind
     spec,
 };
 
+enum class reg_arg_kind
+{
+    src,
+    dst,
+    dst_src
+};
+
 enum class reg_segment
 {
     local,
@@ -308,7 +315,7 @@ LoweredRegSpan make_lowered_reg_span(LoweredRegSpanStorage& storage)
 
 struct ConstLoweredRegSpan
 {
-    ConstLoweredRegSpan(const ConstLoweredRegSpan& span)
+    ConstLoweredRegSpan(const LoweredRegSpan& span)
     {   
         dst = span.dst;
         src = span.src;

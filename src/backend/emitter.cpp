@@ -34,7 +34,16 @@ void handle_dst_storage(Interloper& itl, Function& func, RegSlot dst_slot)
     }
 }
 
-const ConstIrRegSpan blank_reg_span(IrRegSpan& reg)
+const ConstIrRegSpan blank_ir_reg_span(IrRegSpan& reg)
+{
+    reg.dst.size = 0;
+    reg.src.size = 0;
+    reg.dst_src.size = 0;
+
+    return reg;
+}
+
+const ConstLoweredRegSpan blank_lowered_reg_span(LoweredRegSpan& reg)
 {
     reg.dst.size = 0;
     reg.src.size = 0;
@@ -103,7 +112,7 @@ RegSlot opcode_res2(Interloper& itl,Function& func, const T& v1, const Y& v2, co
 
 ConstIrRegSpan opcode_ir_reg_span(const Opcode& opcode, IrRegSpan& reg)
 {
-    blank_reg_span(reg);
+    blank_ir_reg_span(reg);
 
     // If we have lowered this opcode then there are no IR registers.
     if(opcode.lowered)

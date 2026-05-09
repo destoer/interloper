@@ -2,8 +2,6 @@
 template<typename type,const bool IS_LOAD, const bool STRUCT_ADDR,op_group group>
 ConstIrRegSpan addr_opcode_ir_reg_span(const AddrOpcode<type,IS_LOAD,STRUCT_ADDR,group>& addr_op, IrRegSpan& reg)
 {
-    blank_reg_span(reg);
-
     if constexpr(IS_LOAD)
     {
         reg.dst[reg.dst.size++] = addr_op.v1.ir;

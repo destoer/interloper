@@ -649,11 +649,7 @@ void clean_dead_reg(Interloper& itl, Function& func,LinearAlloc& alloc,ActiveReg
     for(i = 0; i < active.size; i++)
     {
         auto& cmp = active.arr[i];
-    /*
-        printf("clean %d %d: %x [%d,%d] : %x [%d,%d]\n",i,active.size,
-            cur.slot.handle,cur.start,cur.end,
-            cmp.slot.handle,cmp.start,cmp.end);
-    */
+
         // stopping point for purging entires
         if(cmp.end >= cur.start)
         {
@@ -667,7 +663,6 @@ void clean_dead_reg(Interloper& itl, Function& func,LinearAlloc& alloc,ActiveReg
             auto& ir_reg = reg_from_slot(itl,func,cmp.slot);
             auto& reg_file = get_register_file(alloc,ir_reg);
 
-            //printf("free %d %d: %x [%d,%d] -> %x\n",i,active.size,cmp.slot.handle,cmp.start,cmp.end,cmp.location);
             free_reg(reg_file,cmp.global_reg);
         }
     }
@@ -679,7 +674,6 @@ void clean_dead_reg(Interloper& itl, Function& func,LinearAlloc& alloc,ActiveReg
         active.size -= i;
     }
 
-    //putchar('\n');
 }
 
 void add_active(ActiveReg &active, const LinearRange& cur)
@@ -694,8 +688,6 @@ void add_active(ActiveReg &active, const LinearRange& cur)
             break;
         }
     }
-
-    //printf("add   %d %d: %x [%d,%d]\n",i,active.size,cur.slot.handle,cur.start,cur.end);
 
     // copy over by one 
     if(i < active.size)
@@ -719,17 +711,7 @@ void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
     auto range = find_range(itl,func);
     ActiveReg active;
 
-/*
-    printf("\n%s:\n",func.name.buf);
 
-    // print the range
-    for(u32 r = 0; r < count(range); r++)
-    {
-        const auto &entry = range[r];
-
-        printf("%x [%d,%d]\n",entry.slot.handle,entry.start,entry.end);
-    }
-*/
     // init our register set
     init_regs(alloc);
 
@@ -874,6 +856,9 @@ void compute_local_uses(LinearAlloc& alloc, Block& block)
 
         compute_local_uses_span(alloc,regs.src,pc);
         compute_local_uses_span(alloc,regs.dst_src,pc);
+
+        pc++;
+
         compute_local_uses_span(alloc,regs.dst,pc);
 
         pc++;
@@ -882,7 +867,7 @@ void compute_local_uses(LinearAlloc& alloc, Block& block)
 
 void linear_setup_new_block(LinearAlloc& alloc, Block& block) 
 {
-    // clean any local registers that aernt live in, so the register is in a correct state
+    // clean any local registers that aren't live in, so the register is in a correct state
     for(const RegSlot slot : block.def)
     {
         auto& ir_reg = reg_from_slot(slot,alloc);
@@ -1166,10 +1151,32 @@ void clean_dead_regs(LinearAlloc& alloc)
 //     }
 // }
 
-ConstLoweredRegSpan linear_allocate_registers(LinearAlloc& alloc,Block& block,OpcodeNode* node, const ConstIrRegSpan& ir_regs,LoweredRegSpan& lowered_regs)
+lowered_reg_t linear_allocate_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot reg, reg_arg_kind arg_kind)
 {
-    UNUSED(alloc); UNUSED(block); UNUSED(node); UNUSED(ir_regs); UNUSED(lowered_regs);
+    UNUSED(alloc); UNUSED(block); UNUSED(node); UNUSED(reg); UNUSED(arg_kind);
     assert(false);
+}
+
+void linear_allocate_reg_span(LinearAlloc& alloc,Block& block,OpcodeNode* node, const ConstSpan<RegSlot>& regs, 
+    reg_arg_kind arg_kind, Span<lowered_reg_t>& lowered)
+{
+    for(auto& reg : regs)
+    {
+        lowered[lowered.size++] = linear_allocate_reg(alloc,block,node,reg,arg_kind);
+    }
+}
+
+ConstLoweredRegSpan linear_allocate_registers(LinearAlloc& alloc,Block& block,OpcodeNode* node, const ConstIrRegSpan& ir_reg,LoweredRegSpan& lowered_reg)
+{
+    blank_lowered_reg_span(lowered_reg);
+
+    linear_allocate_reg_span(alloc,block,node,ir_reg.src,reg_arg_kind::src,lowered_reg.src);
+    linear_allocate_reg_span(alloc,block,node,ir_reg.dst_src,reg_arg_kind::dst_src,lowered_reg.dst_src);
+
+    clean_dead_regs(alloc);
+    linear_allocate_reg_span(alloc,block,node,ir_reg.dst,reg_arg_kind::dst,lowered_reg.dst);
+
+    return lowered_reg;
 }
 
 void finish_alloc(Reg& reg,LinearAlloc& alloc)
