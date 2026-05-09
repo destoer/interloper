@@ -159,7 +159,7 @@ void update_range(Interloper& itl, Function& func,HashTable<RegSlot,LinearRange>
 
     auto range_opt = lookup(table,slot);
 
-    // add the intial entry
+    // add the initial entry
     if(!range_opt)
     {
         LinearRange range;
@@ -507,7 +507,7 @@ void spill(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, inser
 {
     auto& ir_reg = reg_from_slot(slot,alloc);
 
-    // is actually in a reg and not immediatly spilled
+    // is actually in a reg and not immediately spilled
     if(is_reg_locally_allocated(ir_reg))
     {
         spill_reg(alloc,block,node,slot,ir_reg.local_reg,type);
@@ -1206,7 +1206,7 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
 
     Array<RegSlot> misplaced;
 
-    // Get a list of all register in the wrong posistion
+    // Get a list of all register in the wrong position
     for(const RegSlot slot : block.live_out)
     {
         auto& ir_reg = reg_from_slot(slot,alloc);

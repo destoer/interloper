@@ -10,7 +10,7 @@
 #include "backend/lower_ir.cpp"
 #include "backend/ir_x86.cpp"
 #include "backend/linear_alloc.cpp"
-// #include "backend/reg_allocator.cpp"
+#include "backend/reg_allocator.cpp"
 // #include "backend/elf.cpp"
 // #include "backend/x86_emitter.cpp"
 #include "backend/intrin.cpp"
@@ -465,21 +465,21 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
     }
 
 
-    // // perform register allocation on used functions
-    // for(auto& func : itl.func_table.used)
-    // {
-    //     allocate_registers(itl,*func);
+    // perform register allocation on used functions
+    for(auto& func : itl.func_table.used)
+    {
+        allocate_registers(itl,*func);
 
-    //     if(itl.print_stack_allocation || itl.print_reg_allocation)
-    //     {
-    //         putchar('\n');
-    //     }
-    // }
+        if(itl.print_stack_allocation || itl.print_reg_allocation)
+        {
+            putchar('\n');
+        }
+    }
 
-    // if(itl.print_ir)
-    // {
-    //     dump_reg_ir(itl);
-    // }
+    if(itl.print_ir)
+    {
+        dump_itl_ir(itl);
+    }
 
 
     auto end = std::chrono::high_resolution_clock::now();
