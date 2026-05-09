@@ -87,3 +87,20 @@ void cvt_if(Interloper& itl, Function& func, RegSlot dst, RegSlot v1)
 {
     emit_unary_reg_two(itl,func,dst,v1,unary_reg2_op::cvt_if);
 }
+
+
+Opcode mov_reg_lowered(lowered_reg_t dst, lowered_reg_t src, reg_type type)
+{
+    UnaryReg2<unary_reg2_op,op_group::unary_reg2> unary;
+    unary.dst.reg = dst;
+    unary.src.reg = src;
+    unary.type = type == reg_type::gpr_t? unary_reg2_op::mov_gpr_reg : unary_reg2_op::mov_fpr_reg; 
+
+    return unary;
+}
+
+
+Opcode mov_gpr_lowered(lowered_reg_t dst, lowered_reg_t src)
+{
+    return mov_reg_lowered(dst,src,reg_type::gpr_t);
+}

@@ -80,6 +80,11 @@ struct Reg
     u32 flags = 0;
 };
 
+reg_type rtype_from_ir(const struct Reg& reg)
+{
+    return reg.flags & REG_FLOAT? reg_type::float_t : reg_type::gpr_t;
+}
+
 struct Interloper;
 struct Function;
 struct Type;

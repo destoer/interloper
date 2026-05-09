@@ -1264,8 +1264,7 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
                     // Otherwise just move it
                     else
                     {
-                        const bool is_float = ir_reg.flags & REG_FLOAT;
-                        const auto opcode = make_lowered_reg2_instr(is_float? op_type::movf_reg : op_type::mov_reg,ir_reg.global_reg,ir_reg.local_reg);
+                        const auto opcode = mov_reg_lowered(ir_reg.global_reg,ir_reg.local_reg,rtype_from_ir(ir_reg));
                         insert_node(block.list,block.list.finish,opcode,insert_type);
 
                         log_reg(alloc.print,*alloc.table,"Copying %r from %s to %s\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,ir_reg.global_reg));
@@ -1325,7 +1324,7 @@ void force_into_reg(LinearAlloc& alloc,Block& block, OpcodeNode* node,RegisterFi
     // Copy the register and then free the other one
     else
     {
-        const auto copy = make_lowered_reg2_instr(ir_reg.flags & REG_FLOAT? op_type::movf_reg : op_type::mov_reg,reg, ir_reg.local_reg);
+        const auto copy = mov_reg_lowered(reg, ir_reg.local_reg,rtype_from_ir(ir_reg));
         free_ir_reg(ir_reg,reg_file);
         take_local_reg(reg_file,ir_reg,reg);
         insert_at(block.list,node,copy);
