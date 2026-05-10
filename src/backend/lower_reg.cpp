@@ -133,8 +133,7 @@ OpcodeNode* lower_directive_pass1(LinearAlloc& alloc,Block& block, OpcodeNode* n
                 stack_reserve_reg(alloc.stack_alloc,reg);
             }
 
-            node = remove(block.list,node);  
-            break;       
+            return remove(block.list,node);  
         }
 
         case directive_type::alloc_local_array:
@@ -151,8 +150,9 @@ OpcodeNode* lower_directive_pass1(LinearAlloc& alloc,Block& block, OpcodeNode* n
 
         case directive_type::spill_func_bounds:
         {
-            assert(false);
-            break;
+            // clear our any caller saved regs
+            save_caller_saved_regs(alloc,block,node);
+            return remove(block.list,node);
         }
 
         case directive_type::pool_addr:
@@ -164,8 +164,7 @@ OpcodeNode* lower_directive_pass1(LinearAlloc& alloc,Block& block, OpcodeNode* n
         default:
         {
             allocate_and_rewrite_opcode(alloc,block,node);
-            node = node->next;
-            break;
+            return node->next;
         }
     }
 
