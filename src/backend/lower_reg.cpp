@@ -1,6 +1,42 @@
+void allocate_and_rewrite_opcode(LinearAlloc& alloc, Block& block, OpcodeNode* node);
 
-void handle_directive_operation_pass1(Directive& directive)
+void lower_directive_regs(Directive& directive, const ConstLoweredRegSpan& regs)
 {
+    u32 src = 0;
+    u32 dst = 0;
+    u32 dst_src = 0;
+
+    for(auto& operand : directive.operand)
+    {
+        switch(operand.type)
+        {
+            case directive_operand_type::dst_src:
+            {
+                operand = make_lowered_reg_operand(regs.dst_src[dst_src++]);
+                break;
+            }
+
+            case directive_operand_type::dst:
+            {
+                operand = make_lowered_reg_operand(regs.dst_src[dst++]);
+                break;
+            }
+
+            case directive_operand_type::src:
+            {
+                operand = make_lowered_reg_operand(regs.src[src++]);
+                break;
+            }
+
+            default: break;
+        }
+    }
+}
+
+OpcodeNode* lower_directive_pass1(LinearAlloc& alloc,Block& block, OpcodeNode* node)
+{
+    auto& directive = node->value.directive;
+
     switch(directive.type)
     {
         case directive_type::load_const_float: 
@@ -84,8 +120,21 @@ void handle_directive_operation_pass1(Directive& directive)
 
         case directive_type::alloc_slot:
         {
-            assert(false);
-            break;
+            const auto slot = directive.operand[0].ir_reg;
+            auto& reg = reg_from_slot(slot,alloc);
+
+            const b32 force_lower = directive.operand[1].imm;
+
+            log_reg(alloc.print,*alloc.table,"alloc slot: %r : %s\n",slot,force_lower? "forced" : "unforced");
+
+            // explicitly force a stack alloc now
+            if(force_lower && reg.segment != reg_segment::global)
+            {
+                stack_reserve_reg(alloc.stack_alloc,reg);
+            }
+
+            node = remove(block.list,node);  
+            break;       
         }
 
         case directive_type::alloc_local_array:
@@ -112,49 +161,18 @@ void handle_directive_operation_pass1(Directive& directive)
             break;
         }
 
-        case directive_type::load:
-        case directive_type::spill:
+        default:
         {
+            allocate_and_rewrite_opcode(alloc,block,node);
+            node = node->next;
             break;
         }
     }
+
+    return node;
 }
 
 
-void lower_directive(Directive& directive, const ConstLoweredRegSpan& regs)
-{
-    handle_directive_operation_pass1(directive);
-
-    u32 src = 0;
-    u32 dst = 0;
-    u32 dst_src = 0;
-
-    for(auto& operand : directive.operand)
-    {
-        switch(operand.type)
-        {
-            case directive_operand_type::dst_src:
-            {
-                operand = make_lowered_reg_operand(regs.dst_src[dst_src++]);
-                break;
-            }
-
-            case directive_operand_type::dst:
-            {
-                operand = make_lowered_reg_operand(regs.dst_src[dst++]);
-                break;
-            }
-
-            case directive_operand_type::src:
-            {
-                operand = make_lowered_reg_operand(regs.src[src++]);
-                break;
-            }
-
-            default: break;
-        }
-    }
-}
 
 template<typename op_type,const bool IS_LOAD, op_group group>
 void lower_addr_struct(LinearAlloc& alloc, AddrOpcode<op_type,IS_LOAD,true,group>& addr, const ConstLoweredRegSpan& regs)
@@ -214,13 +232,11 @@ void lower_unary_reg2(UnaryReg2<op_type,group>& unary, const ConstLoweredRegSpan
 
 void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan& regs)
 {
-    UNUSED(regs);
-
     switch(opcode.group)
     {
         case op_group::directive:
         {
-            lower_directive(opcode.directive,regs);
+            lower_directive_regs(opcode.directive,regs);
             break;
         }
 
