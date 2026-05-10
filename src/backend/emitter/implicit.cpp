@@ -5,6 +5,14 @@ void emit_implicit(Interloper& itl, Function& func, implicit_type type)
     emit_block_func(itl,func,opcode);
 }
 
+Opcode make_lowered_implicit(implicit_type type)
+{
+    auto opcode = Opcode {Implicit {type}};
+    opcode.lowered = true;
+
+    return opcode;
+}
+
 void syscall(Interloper& itl, Function& func)
 {
     func.leaf_func = false;

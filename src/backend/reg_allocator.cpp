@@ -17,6 +17,12 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
 
     switch(opcode.group)
     {
+        case op_group::x86_fixed:
+        {
+            node = lower_x86_fixed(alloc,block,node); 
+            break;
+        }
+
         case op_group::directive:
         {
             node = lower_directive_pass1(alloc,block,node);

@@ -26,6 +26,15 @@ Opcode make_mov_imm(RegSlot dst, u64 imm)
     return Opcode(mov_imm);
 }
 
+Opcode mov_imm_lowered(lowered_reg_t dst, u64 imm)
+{
+    MovGprImm mov_imm;
+    mov_imm.dst.reg = dst;
+    mov_imm.imm = imm;
+
+    return Opcode(mov_imm);  
+}
+
 void mov_imm(Interloper& itl, Function& func, RegSlot dst, u64 imm)
 {
     const auto opcode = make_mov_imm(dst,imm);
