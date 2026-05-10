@@ -174,6 +174,12 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
             break;
         }
 
+        case op_group::unary_reg1:
+        {
+            lower_unary_reg1(opcode.unary_reg1,regs);
+            break;
+        }
+
         case op_group::unary_reg2:
         {
             lower_unary_reg2(opcode.unary_reg2,regs);
