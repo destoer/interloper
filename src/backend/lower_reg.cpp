@@ -47,8 +47,16 @@ OpcodeNode* lower_directive_pass1(LinearAlloc& alloc,Block& block, OpcodeNode* n
 
         case directive_type::live_var:
         {
-            assert(false);
-            break;
+            const auto slot = directive.operand[0].ir_reg;
+            auto& ir_reg = reg_from_slot(slot,alloc);
+
+            // issue a reload
+            if(is_reg_locally_allocated(ir_reg))
+            {
+                reload_reg(alloc,block,node,slot,ir_reg.local_reg,insertion_type::before);
+            }
+
+            return remove(block.list,node);
         }
 
         case directive_type::lock_reg:
@@ -276,6 +284,19 @@ void lower_reg1_src(RegOneSrc& reg1, const ConstLoweredRegSpan& regs)
     reg1.src.reg = regs.src[0];
 }
 
+void lower_reg2_src(RegTwoSrc& reg2, const ConstLoweredRegSpan& regs)
+{
+    reg2.v1.reg = regs.src[0];
+    reg2.v2.reg = regs.src[1];
+}
+
+template<typename op_type,op_group group>
+void lower_reg2_dst(RegTwoDst<op_type,group>& reg2, const ConstLoweredRegSpan& regs)
+{
+    reg2.dst.reg = regs.dst_src[0];
+    reg2.src.reg = regs.src[0];
+}
+
 template<typename op_type, op_group group>
 void lower_imm2_dst(ImmTwoDst<op_type,group>& imm2, const ConstLoweredRegSpan& regs)
 {
@@ -298,6 +319,12 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
             break;
         }
 
+        case op_group::arith_gpr2:
+        {
+            lower_reg2_dst(opcode.arith_gpr2,regs);
+            break;
+        }
+
         case op_group::mov_gpr_imm:
         {
             lower_mov_gpr_imm(opcode.mov_gpr_imm,regs);
@@ -307,6 +334,12 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
         case op_group::unary_reg2:
         {
             lower_unary_reg2(opcode.unary_reg2,regs);
+            break;
+        }
+
+        case op_group::reg2_src:
+        {
+            lower_reg2_src(opcode.reg2_src,regs);
             break;
         }
 
@@ -336,8 +369,21 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
             break;
         }
 
+        case op_group::load_struct:
+        {
+            lower_addr_struct(alloc,opcode.load_struct,regs);
+            break;            
+        }
+
+        case op_group::store_struct:
+        {
+            lower_addr_struct(alloc,opcode.store_struct,regs);
+            break;            
+        }
+
         case op_group::implicit: break;
         case op_group::branch_label: break;
+        case op_group::branch_cond_flag: break;
 
         default:
         {
