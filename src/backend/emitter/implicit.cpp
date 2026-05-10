@@ -16,8 +16,3 @@ void ret(Interloper& itl, Function& func)
     add_func_exit(func,cur_block(func));
     emit_implicit(itl,func,implicit_type::ret);
 }
-
-void spill_func_bounds(Interloper& itl, Function& func)
-{
-    emit_implicit(itl,func,implicit_type::spill_func_bounds);
-}

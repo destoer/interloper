@@ -793,7 +793,8 @@ enum class directive_type
     load_const_float,
     live_var,
     spill,
-    load
+    load,
+    spill_func_bounds
 };
 
 static const char* DIRECTIVE_NAMES[] = 
@@ -816,7 +817,8 @@ static const char* DIRECTIVE_NAMES[] =
     "load_const_float",
     "live_var",
     "spill",
-    "load"
+    "load",
+    "spill_func_bounds"
 };
 
 struct Directive
@@ -830,14 +832,12 @@ enum class implicit_type
 {
     syscall,
     ret,
-    spill_func_bounds
 };
 
 static const char* IMPLICIT_NAMES[] = 
 {
     "syscall",
     "ret",
-    "spill_func_bounds"
 };
 
 struct Implicit

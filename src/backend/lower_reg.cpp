@@ -1,5 +1,130 @@
+
+void handle_directive_operation_pass1(Directive& directive)
+{
+    switch(directive.type)
+    {
+        case directive_type::load_const_float: 
+        {
+            assert(false);
+            break;
+        }
+
+        case directive_type::live_var:
+        {
+            assert(false);
+            break;
+        }
+
+        case directive_type::lock_reg:
+        {
+            assert(false);
+            break;
+        }
+
+        case directive_type::mov_unlock:
+        {
+            assert(false);
+            break;
+        }
+
+        case directive_type::lock_reg_set:
+        {
+            assert(false);
+            break;
+        }
+
+        case directive_type::unlock_reg_set:
+        {
+            assert(false);
+            break;
+        }
+
+        case directive_type::load_func_addr:
+        {
+            assert(false);
+            break;
+        }
+        
+        case directive_type::reload_slot:
+        {
+            assert(false);
+            break;
+        }
+
+        case directive_type::spill_slot:
+        {
+            assert(false);
+            break;
+        }
+
+        case directive_type::push_arg:
+        {
+            assert(false);
+            break;
+        }
+
+        case directive_type::push_float_arg:
+        {
+            assert(false);
+            break;
+        }
+
+    
+        case directive_type::clean_args:
+        {
+            assert(false);
+            break;
+        }
+
+        case directive_type::alloc_stack:
+        {
+            assert(false);
+            break;
+        }
+
+        case directive_type::alloc_slot:
+        {
+            assert(false);
+            break;
+        }
+
+        case directive_type::alloc_local_array:
+        {
+            assert(false);
+            break;
+        }
+
+        case directive_type::alloc_global_array:
+        {
+            assert(false);
+            break;
+        }
+
+        case directive_type::spill_func_bounds:
+        {
+            assert(false);
+            break;
+        }
+
+        case directive_type::pool_addr:
+        {
+            assert(false);
+            break;
+        }
+
+        case directive_type::load:
+        case directive_type::spill:
+        {
+            break;
+        }
+    }
+}
+
+
 void lower_directive(Directive& directive, const ConstLoweredRegSpan& regs)
 {
+    handle_directive_operation_pass1(directive);
+
     u32 src = 0;
     u32 dst = 0;
     u32 dst_src = 0;

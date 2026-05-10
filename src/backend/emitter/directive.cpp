@@ -102,6 +102,14 @@ DirectiveOperand make_pool_operand(PoolSlot slot)
     return oper;
 }
 
+Opcode make_directive_zero(directive_type type)
+{
+    Directive directive;
+    directive.type = type;
+
+    return Opcode(directive);
+}
+
 
 Opcode make_directive_one(directive_type type,const DirectiveOperand& v1)
 {
@@ -310,4 +318,10 @@ Opcode make_load(lowered_reg_t reg, RegSlot slot, u64 stack_offset)
     const auto opcode = make_directive_three(directive_type::load,reg_oper,slot_oper,make_imm_operand(stack_offset));
 
     return opcode;
+}
+
+void spill_func_bounds(Interloper& itl, Function& func)
+{
+    const auto opcode = make_directive_zero(directive_type::spill_func_bounds);
+    emit_block_func(itl,func,opcode);
 }
