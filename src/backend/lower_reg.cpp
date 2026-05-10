@@ -170,8 +170,25 @@ OpcodeNode* lower_directive_pass1(LinearAlloc& alloc,Block& block, OpcodeNode* n
 
         case directive_type::alloc_stack:
         {
-            assert(false);
-            break;
+            const u32 size = directive.operand[0].imm;
+
+            // nothing to do
+            if(size == 0)
+            {
+                return remove(block.list,node);
+            }
+
+            node->value = Opcode(make_arith_imm2(make_spec_reg_slot(spec_reg::sp),size,arith_bin_op::sub_t));
+            allocate_and_rewrite_opcode(alloc,block,node);
+
+            alloc.stack_alloc.stack_offset += size;
+
+            if(alloc.stack_alloc.print)
+            {
+                printf("allocate stack %x\n",size);
+            }
+
+            return node->next;
         }
 
         case directive_type::alloc_slot:
@@ -288,6 +305,13 @@ void lower_unary_reg2(UnaryReg2<op_type,group>& unary, const ConstLoweredRegSpan
     unary.src.reg = regs.src[0];
 }
 
+template<typename op_type, op_group group>
+void lower_unary_reg1(UnaryReg1<op_type,group>& unary, const ConstLoweredRegSpan& regs)
+{
+    unary.dst.reg = regs.dst[0];
+}
+
+
 void lower_reg1_src(RegOneSrc& reg1, const ConstLoweredRegSpan& regs)
 {
     reg1.src.reg = regs.src[0];
@@ -312,6 +336,17 @@ void lower_imm2_dst(ImmTwoDst<op_type,group>& imm2, const ConstLoweredRegSpan& r
     imm2.dst.reg = regs.dst[0];
 }
 
+
+void lower_imm2_src(ImmTwoSrc& imm2, const ConstLoweredRegSpan& regs)
+{
+    imm2.src.reg = regs.src[0];
+}
+
+void lower_branch_reg(BranchReg& branch, const ConstLoweredRegSpan& regs)
+{
+    branch.src.reg = regs.src[0];
+}
+
 void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan& regs)
 {
     switch(opcode.group)
@@ -322,9 +357,28 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
             break;
         }
 
+
+        case op_group::branch_reg:
+        {
+            lower_branch_reg(opcode.branch_reg,regs);
+            break;
+        }
+
+        case op_group::shift_imm2:
+        {
+            lower_imm2_dst(opcode.shift_imm2,regs);
+            break;
+        }
+
         case op_group::arith_imm2:
         {
             lower_imm2_dst(opcode.arith_imm2,regs);
+            break;
+        }
+
+        case op_group::imm2_src:
+        {
+            lower_imm2_src(opcode.imm2_src,regs);
             break;
         }
 
@@ -378,6 +432,12 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
             break;
         }
 
+        case op_group::lea:
+        {
+            lower_addr_pointer(opcode.lea,regs);
+            break;
+        }
+
         case op_group::load_struct:
         {
             lower_addr_struct(alloc,opcode.load_struct,regs);
@@ -388,6 +448,24 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
         {
             lower_addr_struct(alloc,opcode.store_struct,regs);
             break;            
+        }
+
+        case op_group::load:
+        {
+            lower_addr_pointer(opcode.load,regs);
+            break;
+        }
+
+        case op_group::store:
+        {
+            lower_addr_pointer(opcode.store,regs);
+            break;
+        }
+
+        case op_group::set_from_flag_gpr:
+        {
+            lower_unary_reg1(opcode.set_from_flag_gpr,regs);
+            break;
         }
 
         case op_group::implicit: break;
