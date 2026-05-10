@@ -146,8 +146,18 @@ OpcodeNode* lower_directive_pass1(LinearAlloc& alloc,Block& block, OpcodeNode* n
     
         case directive_type::clean_args:
         {
-            assert(false);
-            break;
+            // clean up args
+            const auto stack_clean = GPR_SIZE * directive.operand[0].imm;
+
+            node->value = Opcode(make_arith_imm2(make_spec_reg_slot(spec_reg::sp),stack_clean,arith_bin_op::add_t));
+            alloc.stack_alloc.stack_offset -= stack_clean;
+
+            // adjust opcode for reg alloc
+            allocate_and_rewrite_opcode(alloc,block,node);
+
+            log(alloc.stack_alloc.print,"clean args: %x\n",stack_clean);
+
+            return node->next;
         }
 
         case directive_type::alloc_stack:
@@ -191,12 +201,6 @@ OpcodeNode* lower_directive_pass1(LinearAlloc& alloc,Block& block, OpcodeNode* n
             // clear our any caller saved regs
             save_caller_saved_regs(alloc,block,node);
             return remove(block.list,node);
-        }
-
-        case directive_type::pool_addr:
-        {
-            assert(false);
-            break;
         }
 
         default:
@@ -267,6 +271,11 @@ void lower_unary_reg2(UnaryReg2<op_type,group>& unary, const ConstLoweredRegSpan
     unary.src.reg = regs.src[0];
 }
 
+void lower_reg1_src(RegOneSrc& reg1, const ConstLoweredRegSpan& regs)
+{
+    reg1.src.reg = regs.src[0];
+}
+
 void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan& regs)
 {
     switch(opcode.group)
@@ -286,6 +295,12 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
         case op_group::unary_reg2:
         {
             lower_unary_reg2(opcode.unary_reg2,regs);
+            break;
+        }
+
+        case op_group::reg1_src:
+        {
+            lower_reg1_src(opcode.reg1_src,regs);
             break;
         }
 

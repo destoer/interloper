@@ -69,6 +69,11 @@ ImmTwoDst<op_type,group> make_imm2_dst(RegSlot dst, u64 imm,op_type type)
     return imm_two;
 }
 
+ArithImm2 make_arith_imm2(RegSlot dst, u64 imm,arith_bin_op type)
+{
+    return make_imm2_dst<op_group::arith_imm2>(dst,imm,type);
+}
+
 
 void emit_gpr_imm3(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm, arith_bin_op type)
 {
