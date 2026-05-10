@@ -94,14 +94,18 @@ OpcodeNode* lower_directive_pass1(LinearAlloc& alloc,Block& block, OpcodeNode* n
         
         case directive_type::reload_slot:
         {
-            assert(false);
-            break;
+            const auto slot = directive.operand[0].ir_reg;
+            reload_slot(alloc,block,node,slot);
+
+            return remove(block.list,node);
         }
 
         case directive_type::spill_slot:
         {
-            assert(false);
-            break;
+            const auto slot = directive.operand[0].ir_reg;
+            spill(alloc,block,node,slot,insertion_type::before);
+
+            return remove(block.list,node);
         }
 
         case directive_type::push_arg:
