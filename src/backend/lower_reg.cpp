@@ -336,6 +336,12 @@ void lower_imm2_dst(ImmTwoDst<op_type,group>& imm2, const ConstLoweredRegSpan& r
     imm2.dst.reg = regs.dst[0];
 }
 
+template<typename op_type, op_group group>
+void lower_imm3(ImmThree<op_type,group>& imm3, const ConstLoweredRegSpan& regs)
+{
+    imm3.dst.reg = regs.dst[0];
+    imm3.src.reg = regs.src[0];
+}
 
 void lower_imm2_src(ImmTwoSrc& imm2, const ConstLoweredRegSpan& regs)
 {
@@ -357,7 +363,6 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
             break;
         }
 
-
         case op_group::branch_reg:
         {
             lower_branch_reg(opcode.branch_reg,regs);
@@ -373,6 +378,12 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
         case op_group::arith_imm2:
         {
             lower_imm2_dst(opcode.arith_imm2,regs);
+            break;
+        }
+
+        case op_group::arith_imm3:
+        {
+            lower_imm3(opcode.arith_imm3,regs);
             break;
         }
 
