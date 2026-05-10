@@ -61,14 +61,29 @@ OpcodeNode* lower_directive_pass1(LinearAlloc& alloc,Block& block, OpcodeNode* n
 
         case directive_type::mov_unlock:
         {
-            assert(false);
-            break;
+            const auto reg = directive.operand[1].ir_reg;
+            const auto dst = directive.operand[0].ir_reg;
+            unlock_special_reg(alloc,reg.spec);
+
+            node->value = mov_reg_ir(dst,reg,reg_type::gpr);
+
+            allocate_and_rewrite_opcode(alloc,block,node);
+            return node->next;
         }
 
         case directive_type::lock_reg_set:
         {
-            assert(false);
-            break;
+            const auto set = directive.operand[0].reg_set;
+
+            for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+            {
+                if(is_set(set,r))
+                {
+                    lock_reg(alloc.gpr,r);
+                }
+            }
+
+            return remove(block.list,node);
         }
 
         case directive_type::unlock_reg_set:

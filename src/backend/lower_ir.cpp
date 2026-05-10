@@ -1,8 +1,6 @@
 OpcodeNode* insert_mov_reg2(Block& block, OpcodeNode* node, RegSlot dst, RegSlot src, reg_type type, insertion_type insert_type)
 {
-    const auto rtype = type == reg_type::gpr? unary_reg2_op::mov_gpr_reg : unary_reg2_op::mov_fpr_reg;
-    const auto opcode = Opcode(make_unary_reg2<unary_reg2_op,op_group::unary_reg2>(dst,src,rtype));
-
+    const auto opcode = mov_reg_ir(dst,src,type);
     return insert_node(block.list,node,opcode,insert_type);
 }
 

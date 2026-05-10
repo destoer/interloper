@@ -104,3 +104,9 @@ Opcode mov_gpr_lowered(lowered_reg_t dst, lowered_reg_t src)
 {
     return mov_reg_lowered(dst,src,reg_type::gpr);
 }
+
+Opcode mov_reg_ir(RegSlot dst, RegSlot src, reg_type rtype)
+{
+    const auto type = rtype == reg_type::gpr? unary_reg2_op::mov_gpr_reg : unary_reg2_op::mov_fpr_reg;
+    return Opcode(make_unary_reg2<unary_reg2_op,op_group::unary_reg2>(dst,src,type));
+}
