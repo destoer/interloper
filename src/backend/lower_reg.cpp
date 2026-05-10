@@ -71,8 +71,17 @@ OpcodeNode* lower_directive_pass1(LinearAlloc& alloc,Block& block, OpcodeNode* n
 
         case directive_type::unlock_reg_set:
         {
-            assert(false);
-            break;
+            const auto set = directive.operand[0].reg_set;
+
+            for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+            {
+                if(is_set(set,r))
+                {
+                    unlock_reg(alloc.gpr,r);
+                }
+            }
+
+            return remove(block.list,node);
         }
 
         case directive_type::load_func_addr:
