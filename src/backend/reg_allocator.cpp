@@ -25,7 +25,7 @@ OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, 
 
         case op_group::directive:
         {
-            node = lower_directive_pass1(alloc,block,node);
+            node = lower_directive_pass1(itl,alloc,block,node);
             break;   
         }
 

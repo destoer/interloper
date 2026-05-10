@@ -33,7 +33,7 @@ void lower_directive_regs(Directive& directive, const ConstLoweredRegSpan& regs)
     }
 }
 
-OpcodeNode* lower_directive_pass1(LinearAlloc& alloc,Block& block, OpcodeNode* node)
+OpcodeNode* lower_directive_pass1(Interloper& itl, LinearAlloc& alloc,Block& block, OpcodeNode* node)
 {
     auto& directive = node->value.directive;
 
@@ -41,8 +41,16 @@ OpcodeNode* lower_directive_pass1(LinearAlloc& alloc,Block& block, OpcodeNode* n
     {
         case directive_type::load_const_float: 
         {
-            assert(false);
-            break;
+            // grab the offset we want
+            const auto pool_slot = directive.operand[1].pool;
+            auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
+
+            const auto dst = directive.operand[0].ir_reg;
+            const auto addr = make_addr(make_spec_reg_slot(spec_reg::const_seg),section.offset);
+            node->value = Opcode(make_addr_op<Load>(dst,addr,load_type::lf));
+
+            allocate_and_rewrite_opcode(alloc,block,node);
+            return node->next;
         }
 
         case directive_type::live_var:
@@ -111,8 +119,9 @@ OpcodeNode* lower_directive_pass1(LinearAlloc& alloc,Block& block, OpcodeNode* n
 
         case directive_type::load_func_addr:
         {
-            assert(false);
-            break;
+            // Just rewrite the dst for now
+            allocate_and_rewrite_opcode(alloc,block,node);
+            return node->next;
         }
         
         case directive_type::reload_slot:
@@ -145,13 +154,6 @@ OpcodeNode* lower_directive_pass1(LinearAlloc& alloc,Block& block, OpcodeNode* n
             return node->next;
         }
 
-        case directive_type::push_float_arg:
-        {
-            assert(false);
-            break;
-        }
-
-    
         case directive_type::clean_args:
         {
             // clean up args
