@@ -194,8 +194,17 @@ OpcodeNode* lower_directive_pass1(LinearAlloc& alloc,Block& block, OpcodeNode* n
 
         case directive_type::alloc_local_array:
         {
-            assert(false);
-            break;
+            const u32 size = directive.operand[1].imm;
+            const u32 count = directive.operand[2].imm;
+            const auto reg = directive.operand[0].ir_reg;
+
+            const u32 offset = allocate_stack_array(alloc.stack_alloc,*alloc.table,reg.sym_slot,size,count);
+
+            const auto directive = make_directive_two(directive_type::alloc_local_array,make_reg_operand(reg,ir_reg_type::dst),make_imm_operand(offset));
+            node->value = Opcode(directive);
+            allocate_and_rewrite_opcode(alloc,block,node);
+
+            return node->next;
         }
 
         case directive_type::alloc_global_array:
