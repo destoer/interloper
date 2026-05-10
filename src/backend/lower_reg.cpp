@@ -125,8 +125,16 @@ OpcodeNode* lower_directive_pass1(LinearAlloc& alloc,Block& block, OpcodeNode* n
 
         case directive_type::push_arg:
         {
-            assert(false);
-            break;
+            node->value =  make_reg1_src(directive.operand[0].ir_reg,reg1_src_type::push);
+
+            // adjust opcode for reg alloc
+            allocate_and_rewrite_opcode(alloc,block,node);
+
+            // variables now have to be accessed at a different offset
+            // until this is corrected by clean call
+            alloc.stack_alloc.stack_offset += GPR_SIZE;
+
+            return node->next;
         }
 
         case directive_type::push_float_arg:

@@ -319,6 +319,11 @@ void disass_reg2_src(const Opcode& opcode, const Disass& disass,const RegTwoSrc&
     print_disass(opcode,disass,"%s %r, %r\n",REG_TWO_SRC_NAMES[u32(reg.type)],reg.v1,reg.v2);
 }
 
+void disass_reg1_src(const Opcode& opcode, const Disass& disass,const RegOneSrc& reg)
+{
+    print_disass(opcode,disass,"%s %r\n",REG_ONE_SRC_NAMES[u32(reg.type)],reg.src);
+}
+
 template<typename type,op_group group>
 void disass_imm3(const Opcode& opcode, const Disass& disass,const ImmThree<type,group>& imm, const char* names[])
 {
@@ -371,6 +376,7 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
         case op_group::shift_imm3: disass_imm3(opcode,disass,opcode.shift_imm3,SHIFT_OP_NAMES); break;
         case op_group::shift_imm2: disass_imm2_dst(opcode,disass,opcode.shift_imm2,SHIFT_OP_NAMES); break;
         case op_group::reg2_src: disass_reg2_src(opcode,disass,opcode.reg2_src); break;
+        case op_group::reg1_src: disass_reg1_src(opcode,disass,opcode.reg1_src); break;
         case op_group::imm2_src: disass_imm2_src(opcode,disass,opcode.imm2_src); break;
         case op_group::set_from_flag_gpr: disass_unary_reg1(opcode,disass,opcode.set_from_flag_gpr,SET_FROM_GPR_NAMES); break;
         case op_group::set_from_flag_fpr: disass_unary_reg1(opcode,disass,opcode.set_from_flag_fpr,SET_FROM_FPR_NAMES); break;

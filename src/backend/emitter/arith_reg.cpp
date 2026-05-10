@@ -33,6 +33,16 @@ RegTwoSrc make_reg2_src(RegSlot v1, RegSlot v2,reg_two_src type)
     return reg_two;
 }
 
+
+RegOneSrc make_reg1_src(RegSlot src, reg1_src_type type)
+{
+    RegOneSrc reg_one;
+    reg_one.type = type;
+    reg_one.src.ir = src;
+
+    return reg_one;
+}
+
 template<typename type,op_group group>
 ConstIrRegSpan reg2_dst_reg_span(const RegTwoDst<type,group>& reg, IrRegSpan& span)
 {
@@ -50,6 +60,14 @@ ConstIrRegSpan reg2_src_reg_span(const RegTwoSrc& reg, IrRegSpan& span)
     span.src[0] = reg.v1.ir;
     span.src[1] = reg.v2.ir;
     span.src.size = 2;
+
+    return span;
+}
+
+ConstIrRegSpan reg1_src_reg_span(const RegOneSrc& reg, IrRegSpan& span)
+{
+    span.src[0] = reg.src.ir;
+    span.src.size = 1;
 
     return span;
 }
