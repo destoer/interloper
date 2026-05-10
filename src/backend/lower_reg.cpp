@@ -53,8 +53,10 @@ OpcodeNode* lower_directive_pass1(LinearAlloc& alloc,Block& block, OpcodeNode* n
 
         case directive_type::lock_reg:
         {
-            assert(false);
-            break;
+            const auto reg = directive.operand[0].ir_reg;
+            lock_special_reg(alloc,block,node,reg.spec);
+
+            return remove(block.list,node);
         }
 
         case directive_type::mov_unlock:
