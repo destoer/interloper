@@ -11,9 +11,12 @@ void allocate_and_rewrite_opcode(LinearAlloc& alloc, Block& block, OpcodeNode* n
 
 OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Block& block, OpcodeNode* node)
 {
+    auto disass = Disass(itl.symbol_table,itl.arch); 
     UNUSED(itl); UNUSED(func); 
 
     const auto& opcode = node->value;
+
+    disass_opcode(node->value,disass);
 
     switch(opcode.group)
     {

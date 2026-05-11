@@ -946,9 +946,11 @@ void clean_dead_regs(LinearAlloc& alloc)
 
         clear_arr(ir_reg.local_uses);
 
-        if(is_reg_locally_allocated(ir_reg))
+        auto& reg_file = get_register_file(alloc,ir_reg);
+
+        if(is_reg_locally_allocated(ir_reg) && !is_locked(reg_file,ir_reg.local_reg))
         {
-            free_ir_reg(ir_reg,get_register_file(alloc,ir_reg));
+            free_ir_reg(ir_reg,reg_file);
         }
     }    
 }
@@ -1096,8 +1098,11 @@ ConstLoweredRegSpan linear_allocate_registers(LinearAlloc& alloc,Block& block,Op
     linear_allocate_reg_span(alloc,block,node,ir_reg.src,reg_arg_kind::src,lowered_reg.src);
     linear_allocate_reg_span(alloc,block,node,ir_reg.dst_src,reg_arg_kind::dst_src,lowered_reg.dst_src);
 
-    clean_dead_regs(alloc);
-    linear_allocate_reg_span(alloc,block,node,ir_reg.dst,reg_arg_kind::dst,lowered_reg.dst);
+    if(ir_reg.dst.size)
+    {
+        clean_dead_regs(alloc);
+        linear_allocate_reg_span(alloc,block,node,ir_reg.dst,reg_arg_kind::dst,lowered_reg.dst);
+    }
 
     return lowered_reg;
 }
