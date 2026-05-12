@@ -284,3 +284,94 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
 
     opcode.lowered = true;
 }
+
+
+// TODO: this assumes we have no access to the instruction
+OpcodeNode* emit_popm(Interloper& itl, Block& block, OpcodeNode* node, u32 bitset)
+{
+    UNUSED(itl);
+
+    for(s32 i = MACHINE_REG_SIZE - 1; i >= 0; i--)
+    {
+        if(is_set(bitset,i))
+        {
+            node = insert_at(block.list,node,make_reg1_dst_lowered_instr(i,reg1_dst_type::pop));
+            node = node->next;
+        }
+    }
+
+    return node;
+}
+
+OpcodeNode* emit_pushm(Interloper& itl, Block& block, OpcodeNode* node,u32 bitset)
+{
+    UNUSED(itl);
+
+    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    {
+        if(is_set(bitset,i))
+        {
+            node = insert_at(block.list,node,make_reg1_src_lowered_instr(i,reg1_src_type::push));
+            node = node->next;
+        }
+    }
+
+    return node;
+}
+
+OpcodeNode* emit_popm_float(Interloper& itl, Block& block, OpcodeNode* node, u32 bitset)
+{
+    if(!bitset)
+    {
+        return node;
+    }
+
+    const u32 size = popcount(bitset) * FLOAT_SIZE;
+
+    u32 offset = size - FLOAT_SIZE;
+
+    const u32 sp = arch_sp(itl.arch);
+
+    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    {
+        if(is_set(bitset,i))
+        {
+            node = insert_at(block.list,node,make_lowered_load_instr(i,sp,offset,load_type::lf));
+            node = node->next;
+            offset -= FLOAT_SIZE;
+        }
+    }
+
+    node = insert_at(block.list,node,make_lowered_arith_imm2_instr(sp,size,arith_bin_op::add_t));
+    node = node->next;
+
+    return node;
+}
+
+OpcodeNode* emit_pushm_float(Interloper& itl, Block& block, OpcodeNode* node,u32 bitset)
+{
+    if(!bitset)
+    {
+        return node;
+    }
+
+    const u32 size = popcount(bitset) * FLOAT_SIZE;
+    u32 offset = size - FLOAT_SIZE;
+
+    const u32 sp = arch_sp(itl.arch);
+
+    node = insert_at(block.list,node,make_lowered_arith_imm2_instr(sp,size,arith_bin_op::sub_t));
+    node = node->next;
+
+    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    {
+        if(is_set(bitset,i))
+        {
+            node = insert_at(block.list,node,make_lowered_store_instr(i,sp,offset,store_type::sf));
+            node = node->next;
+            offset -= FLOAT_SIZE;
+        }
+    }
+
+    return node;
+}

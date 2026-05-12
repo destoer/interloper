@@ -75,6 +75,16 @@ ArithImm2 make_arith_imm2(RegSlot dst, u64 imm,arith_bin_op type)
 }
 
 
+Opcode make_lowered_arith_imm2_instr(lowered_reg_t dst, u64 imm, arith_bin_op type)
+{;
+    ArithImm2 instr;
+    instr.dst.reg = dst;
+    instr.imm = imm;
+    instr.type = type;
+
+    return make_lowered_instr(instr);
+}
+
 void emit_gpr_imm3(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm, arith_bin_op type)
 {
     emit_imm3_opcode<op_group::arith_imm3>(itl,func,dst,src,imm,type);

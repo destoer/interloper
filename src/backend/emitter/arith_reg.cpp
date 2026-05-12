@@ -43,6 +43,24 @@ RegOneSrc make_reg1_src(RegSlot src, reg1_src_type type)
     return reg_one;
 }
 
+Opcode make_reg1_src_lowered_instr(lowered_reg_t src, reg1_src_type type)
+{
+    RegOneSrc reg_one;
+    reg_one.type = type;
+    reg_one.src.reg = src;
+
+    return make_lowered_instr(reg_one);
+}
+
+Opcode make_reg1_dst_lowered_instr(lowered_reg_t dst, reg1_dst_type type)
+{
+    RegOneDst reg_one;
+    reg_one.type = type;
+    reg_one.dst.reg = dst;
+
+    return make_lowered_instr(reg_one);
+}
+
 template<typename type,op_group group>
 ConstIrRegSpan reg2_dst_reg_span(const RegTwoDst<type,group>& reg, IrRegSpan& span)
 {
@@ -68,6 +86,14 @@ ConstIrRegSpan reg1_src_reg_span(const RegOneSrc& reg, IrRegSpan& span)
 {
     span.src[0] = reg.src.ir;
     span.src.size = 1;
+
+    return span;
+}
+
+ConstIrRegSpan reg1_dst_reg_span(const RegOneDst& reg, IrRegSpan& span)
+{
+    span.dst[0] = reg.dst.ir;
+    span.dst.size = 1;
 
     return span;
 }

@@ -31,6 +31,12 @@ void lower_directive_regs(Directive& directive, const ConstLoweredRegSpan& regs)
     }
 }
 
+OpcodeNode* lower_directive_pass2(Interloper& itl, LinearAlloc& alloc,Block& block, OpcodeNode* node)
+{
+    UNUSED(itl); UNUSED(alloc); UNUSED(block); UNUSED(node);
+    assert(false);
+}
+
 OpcodeNode* lower_directive_pass1(Interloper& itl, LinearAlloc& alloc,Block& block, OpcodeNode* node)
 {
     auto& directive = node->value.directive;

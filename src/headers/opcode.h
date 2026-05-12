@@ -708,6 +708,7 @@ enum class op_group
     cmp_fpr3,
     reg2_src,
     reg1_src,
+    reg1_dst,
     imm2_src,
     set_from_flag_gpr,
     set_from_flag_fpr,
@@ -1239,6 +1240,22 @@ struct RegOneSrc
     IrRegister src;
 };
 
+enum class reg1_dst_type
+{
+    pop
+};
+
+const char* REG_ONE_DST_NAMES[] =
+{
+    "pop"
+};
+
+struct RegOneDst
+{
+    reg1_dst_type type;
+    IrRegister dst;
+};
+
 
 using UnaryRegTwo = UnaryReg2<unary_reg2_op,op_group::unary_reg2>;
 using UnaryRegOne = UnaryReg1<unary_reg1_op,op_group::unary_reg1>;
@@ -1283,6 +1300,7 @@ struct Opcode
     Opcode(const CmpFpr3& value) : group(op_group::cmp_fpr3), cmp_fpr3(value) {}
     Opcode(const RegTwoSrc& value) : group(op_group::reg2_src), reg2_src(value) {}
     Opcode(const RegOneSrc& value) : group(op_group::reg1_src), reg1_src(value) {}
+    Opcode(const RegOneDst& value) : group(op_group::reg1_dst), reg1_dst(value) {}
     Opcode(const ImmTwoSrc& value) : group(op_group::imm2_src), imm2_src(value) {}
     Opcode(const SetFromFlagFpr& value) : group(op_group::set_from_flag_fpr), set_from_flag_fpr(value) {}
     Opcode(const SetFromFlagGpr& value) : group(op_group::set_from_flag_gpr), set_from_flag_gpr(value) {}
@@ -1324,6 +1342,7 @@ struct Opcode
         CmpFpr3 cmp_fpr3;
         RegTwoSrc reg2_src;
         RegOneSrc reg1_src;
+        RegOneDst reg1_dst;
         ImmTwoSrc imm2_src;
         SetFromFlagFpr set_from_flag_fpr;
         SetFromFlagGpr set_from_flag_gpr;
