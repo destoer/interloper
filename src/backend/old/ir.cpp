@@ -671,7 +671,7 @@ void allocate_registers(Interloper& itl,Function &func)
         {
             clean_dead_regs(alloc);
 
-            node = allocate_opcode(itl,func,alloc,block,node);
+            node = allocate_opcode_reg_pass(itl,func,alloc,block,node);
             alloc.pc++;
         }
 

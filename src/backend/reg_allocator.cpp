@@ -9,7 +9,7 @@ void allocate_and_rewrite_opcode(LinearAlloc& alloc, Block& block, OpcodeNode* n
     lower_opcode(alloc,opcode,lowered_reg_span);
 }
 
-OpcodeNode* allocate_opcode(Interloper& itl,Function &func, LinearAlloc& alloc, Block& block, OpcodeNode* node)
+OpcodeNode* allocate_opcode_reg_pass(Interloper& itl,Function &func, LinearAlloc& alloc, Block& block, OpcodeNode* node)
 {
     UNUSED(func); 
 
@@ -56,7 +56,7 @@ void allocation_reg_pass(Interloper& itl,Function &func, LinearAlloc& alloc)
         {
             clean_dead_regs(alloc);
 
-            node = allocate_opcode(itl,func,alloc,block,node);
+            node = allocate_opcode_reg_pass(itl,func,alloc,block,node);
             alloc.pc++;
         }
 
@@ -71,8 +71,6 @@ void allocation_addr_pass(Interloper& itl,Function &func, LinearAlloc& alloc)
     {
         log(alloc.print,"%s: Total misplaced %d\n",func.name.buf,alloc.total_misplaced);
     }
-
-    // perform 2nd pass!
 
     // Figure out how large a stack we need and put everything on it
     finish_stack_alloc(alloc);
