@@ -4,48 +4,48 @@ void allocate_and_rewrite_opcode(LinearAlloc& alloc, Block& block, OpcodeNode* n
 #include "lower_directive.cpp"
 
 
-template<typename op_type,const bool IS_LOAD, op_group group>
-void lower_addr_struct(LinearAlloc& alloc, AddrOpcode<op_type,IS_LOAD,true,group>& addr, const ConstLoweredRegSpan& regs)
+template<typename op_type,const bool IS_LOAD, const bool IS_STRUCT, op_group group>
+void lower_addr(LinearAlloc& alloc, AddrOpcode<op_type,IS_LOAD,IS_STRUCT,group>& addr, const ConstLoweredRegSpan& regs)
 {    
     const u32 scale = addr.addr_ir.scale;
     const u32 offset = addr.addr_ir.offset;
     const auto base = addr.addr_ir.base;
 
+    addr.addr = {};
+
+    addr.addr.scale = scale;
+    addr.addr.offset = offset;
+
+    u32 src = 0;
+
     if constexpr(IS_LOAD)
+    {
+        addr.v1.reg = regs.src[src++];
+    }
+
+    else
     {
         addr.v1.reg = regs.dst[0];
     }
 
-    addr.addr.index = regs.src[0];
-    addr.addr.scale = scale;
-    addr.addr.offset = offset;
-
-    addr.addr.base_ir = base;
-
-    auto& reg = reg_from_slot(addr.addr.base_ir,alloc);
-
-    // add the stack offset, so this correctly offset for when we fully rewrite this
-    if(is_local_reg(reg))
+    if constexpr(IS_STRUCT)
     {
-        addr.addr.offset += alloc.stack_alloc.stack_offset;
-    }
-}
+        addr.addr.base_ir = base;
+        auto& reg = reg_from_slot(base,alloc);
 
-template<typename op_type,const bool IS_LOAD, op_group group>
-void lower_addr_pointer(AddrOpcode<op_type,IS_LOAD,false,group>& addr, const ConstLoweredRegSpan& regs)
-{    
-    const u32 scale = addr.addr_ir.scale;
-    const u32 offset = addr.addr_ir.offset;
-
-    if constexpr(IS_LOAD)
-    {
-        addr.v1.reg = regs.dst[0];
+        // add the stack offset, so this correctly offset for when we fully rewrite this
+        if(is_local_reg(reg))
+        {
+            addr.addr.offset += alloc.stack_alloc.stack_offset;
+        }
     }
 
-    addr.addr.index = regs.src[0];
-    addr.addr.base = regs.src[1];
-    addr.addr.scale = scale;
-    addr.addr.offset = offset;
+    else
+    {
+        addr.addr.base = regs.src[src++];
+    }
+
+    addr.addr.index = regs.src[src++];
 }
 
 void lower_mov_gpr_imm(MovGprImm& mov, const ConstLoweredRegSpan& regs)
@@ -220,37 +220,37 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
                 stack_reserve_reg(alloc.stack_alloc,reg);
             }
 
-            lower_addr_struct(alloc,opcode.addrof,regs);
+            lower_addr(alloc,opcode.addrof,regs);
             break;
         }
 
         case op_group::lea:
         {
-            lower_addr_pointer(opcode.lea,regs);
+            lower_addr(alloc,opcode.lea,regs);
             break;
         }
 
         case op_group::load_struct:
         {
-            lower_addr_struct(alloc,opcode.load_struct,regs);
+            lower_addr(alloc,opcode.load_struct,regs);
             break;            
         }
 
         case op_group::store_struct:
         {
-            lower_addr_struct(alloc,opcode.store_struct,regs);
+            lower_addr(alloc,opcode.store_struct,regs);
             break;            
         }
 
         case op_group::load:
         {
-            lower_addr_pointer(opcode.load,regs);
+            lower_addr(alloc,opcode.load,regs);
             break;
         }
 
         case op_group::store:
         {
-            lower_addr_pointer(opcode.store,regs);
+            lower_addr(alloc,opcode.store,regs);
             break;
         }
 

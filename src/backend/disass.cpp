@@ -267,27 +267,52 @@ void disass_unary_reg1(const Opcode& opcode, const Disass& disass, const UnaryRe
 template<typename type, const bool IS_LOAD, const bool IS_STRUCT,op_group group>
 void disass_addr(const Opcode& opcode, const Disass& disass, const AddrOpcode<type,IS_LOAD,IS_STRUCT,group>& addr_op, const char* names[])
 {
-    assert(!opcode.lowered);
-    const auto& addr = addr_op.addr_ir;
+    IrRegister base;
+    IrRegister index;
+    u32 offset = 0;
+    u32 scale = 0;
 
-    print_disass(opcode,disass,"%s %r, [%r",names[u32(addr_op.type)],addr_op.v1,addr.base);
+    bool is_null = true;
 
-    if(!is_null_reg(addr.index))
+    if(opcode.lowered)
     {
-        if(addr.scale == 1)
+        const auto& addr = addr_op.addr;
+        base.reg = addr.base;
+        index.reg = addr.index;
+        scale = addr.scale;
+        offset = addr.offset;
+        is_null = spec_reg(index.reg) == spec_reg::null;
+    }
+
+    else
+    {
+        const auto& addr = addr_op.addr_ir;
+        base.ir = addr.base;
+        index.ir = addr.index;
+        scale = addr.scale;
+        offset = addr.offset;
+        is_null = is_null_reg(index.ir);
+    }
+
+
+    print_disass(opcode,disass,"%s %r, [%r",names[u32(addr_op.type)],addr_op.v1,base);
+
+    if(is_null)
+    {
+        if(scale == 1)
         {
-            print_disass(opcode,disass," + %r",addr.index);
+            print_disass(opcode,disass," + %r",index);
         }
 
         else
         {
-            print_disass(opcode,disass," + (%r * %x)",addr.index,addr.scale);
+            print_disass(opcode,disass," + (%r * %x)",index,scale);
         }
     }
 
-    if(addr.offset)
+    if(offset)
     {
-        printf(" + 0x%x",addr.offset);
+        printf(" + 0x%x",offset);
     }
 
     printf("]\n");

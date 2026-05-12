@@ -356,7 +356,7 @@ struct Addr
 
 struct LoweredAddr
 {
-    lowered_reg_t base = 0;
+    lowered_reg_t base = u32(spec_reg::null);
     lowered_reg_t index = u32(spec_reg::null);
     u32 scale = 1;
     u32 offset = 0;
