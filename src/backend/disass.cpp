@@ -62,7 +62,6 @@ void print_lowered_reg(const Disass& disass, lowered_reg_t reg)
         return;
     }
 
-
     switch(disass.arch)
     {
         case arch_target::x86_64_t:
@@ -76,8 +75,6 @@ void print_lowered_reg(const Disass& disass, lowered_reg_t reg)
 
 void vprint_disass(const Opcode& opcode, const Disass& disass, const String& fmt, va_list args)
 {
-    assert(!opcode.lowered);
-
     // %x  hex
     // %f  float
     // %r  register
@@ -104,7 +101,16 @@ void vprint_disass(const Opcode& opcode, const Disass& disass, const String& fmt
             case 'r':
             {
                 const IrRegister reg = va_arg(args,IrRegister);
-                print_ir_reg(disass.table,reg.ir);
+
+                if(opcode.lowered)
+                {
+                    print_lowered_reg(disass,reg.reg);
+                }
+
+                else
+                {
+                    print_ir_reg(disass.table,reg.ir);
+                }
                 break;
             }
 
@@ -173,8 +179,6 @@ void print_disass(const Opcode& opcode, const Disass& disass, const String& fmt,
 
 void disass_directive(const Opcode& opcode, const Disass& disass)
 {
-    assert(!opcode.lowered);
-
     const auto& directive = opcode.directive;
     printf("%s ",DIRECTIVE_NAMES[u32(directive.type)]);
 

@@ -937,22 +937,35 @@ bool marked_for_expiry(LinearAlloc& alloc, RegSlot slot)
 
 void clean_dead_regs(LinearAlloc& alloc)
 {
+    RegSlot locked_regs[3];
+    u32 locked_count = 0;
+
     while(alloc.dead_count)
     {
         const RegSlot slot = alloc.dead_slot[--alloc.dead_count];
         auto& ir_reg = reg_from_slot(slot,alloc);
 
+        auto& reg_file = get_register_file(alloc,ir_reg);
+
+        if(is_locked(reg_file,ir_reg.local_reg))
+        {
+            locked_regs[locked_count++] = slot;
+            continue;
+        }
+
         log_reg(alloc.print,*alloc.table,"Expiring %r from %s\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.local_reg));
 
         clear_arr(ir_reg.local_uses);
 
-        auto& reg_file = get_register_file(alloc,ir_reg);
 
-        if(is_reg_locally_allocated(ir_reg) && !is_locked(reg_file,ir_reg.local_reg))
+        if(is_reg_locally_allocated(ir_reg))
         {
             free_ir_reg(ir_reg,reg_file);
         }
-    }    
+    }
+    
+    memcpy(alloc.dead_slot,locked_regs,locked_count * sizeof(RegSlot));
+    alloc.dead_count = locked_count;
 }
 
 lowered_reg_t allocate_var(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, reg_arg_kind arg_kind)
@@ -1001,12 +1014,14 @@ lowered_reg_t allocate_var(LinearAlloc& alloc,Block& block,OpcodeNode* node, Reg
 
         else
         {
-            log_reg(alloc.print,*alloc.table,"Mark %r in %s for expiry\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.local_reg));
+            log_reg(alloc.print,*alloc.table,"Mark %r in %s for expiry %d\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.local_reg),alloc.dead_count);
             // Don't terminate the regs during it as we need them allocated
             alloc.dead_slot[alloc.dead_count++] = ir_reg.slot;
         }            
     }
 
+
+    const u32 reg = ir_reg.local_reg;
 
     if(is_dst)
     {
@@ -1020,7 +1035,7 @@ lowered_reg_t allocate_var(LinearAlloc& alloc,Block& block,OpcodeNode* node, Reg
         }
     }
 
-    return ir_reg.local_reg;
+    return reg;
 }
 
 lowered_reg_t allocate_special_reg(LinearAlloc& alloc, Block& block, OpcodeNode* node, spec_reg spec, reg_arg_kind arg_kind)
@@ -1098,11 +1113,8 @@ ConstLoweredRegSpan linear_allocate_registers(LinearAlloc& alloc,Block& block,Op
     linear_allocate_reg_span(alloc,block,node,ir_reg.src,reg_arg_kind::src,lowered_reg.src);
     linear_allocate_reg_span(alloc,block,node,ir_reg.dst_src,reg_arg_kind::dst_src,lowered_reg.dst_src);
 
-    if(ir_reg.dst.size)
-    {
-        clean_dead_regs(alloc);
-        linear_allocate_reg_span(alloc,block,node,ir_reg.dst,reg_arg_kind::dst,lowered_reg.dst);
-    }
+    clean_dead_regs(alloc);
+    linear_allocate_reg_span(alloc,block,node,ir_reg.dst,reg_arg_kind::dst,lowered_reg.dst);
 
     return lowered_reg;
 }
@@ -1303,6 +1315,14 @@ void lock_into_reg(LinearAlloc& alloc,Block& block, OpcodeNode* node,RegisterFil
 // If this is not allready in the correct register then we will get bugs
 void unlock_into_reg(LinearAlloc& alloc,RegisterFile& reg_file, RegSlot dst,u32 reg)
 {
+    if(marked_for_expiry(alloc,dst))
+    {
+        log_reg(alloc.print,*alloc.table,"Expiring unlocked reg %r(%s)\n",dst,reg_name(alloc.arch,reg));
+        release_register(reg_file,reg);
+
+        return;
+    }
+
     log_reg(alloc.print,*alloc.table,"Unlocking %r into %s\n",dst,reg_name(alloc.arch,reg));
 
     switch(dst.kind)

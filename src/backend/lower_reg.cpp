@@ -168,6 +168,12 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
             break;
         }
 
+        case op_group::arith_fpr2:
+        {
+            lower_reg2_dst(opcode.arith_fpr2,regs);
+            break;
+        }
+
         case op_group::mov_gpr_imm:
         {
             lower_mov_gpr_imm(opcode.mov_gpr_imm,regs);
@@ -251,6 +257,12 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
         case op_group::set_from_flag_gpr:
         {
             lower_unary_reg1(opcode.set_from_flag_gpr,regs);
+            break;
+        }
+
+        case op_group::set_from_flag_fpr:
+        {
+            lower_unary_reg1(opcode.set_from_flag_fpr,regs);
             break;
         }
 
