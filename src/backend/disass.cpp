@@ -297,7 +297,7 @@ void disass_addr(const Opcode& opcode, const Disass& disass, const AddrOpcode<ty
 
     print_disass(opcode,disass,"%s %r, [%r",names[u32(addr_op.type)],addr_op.v1,base);
 
-    if(is_null)
+    if(!is_null)
     {
         if(scale == 1)
         {

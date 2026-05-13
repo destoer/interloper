@@ -17,6 +17,7 @@ OpcodeNode* lower_struct_addr_pass2(Interloper& itl, LinearAlloc& alloc,OpcodeNo
 
     auto &reg = reg_from_slot(slot,alloc);
 
+    log_reg(true,*alloc.table,"lower: %r\n",slot);
     assert(is_stored_in_mem(reg));
 
     const auto [offset_reg,offset] = reg_offset(itl,reg,0);
@@ -27,32 +28,32 @@ OpcodeNode* lower_struct_addr_pass2(Interloper& itl, LinearAlloc& alloc,OpcodeNo
 }
 
 template<typename op_type,const bool IS_LOAD, const bool IS_STRUCT, op_group group>
-void lower_addr_reg_pass(LinearAlloc& alloc, AddrOpcode<op_type,IS_LOAD,IS_STRUCT,group>& addr, const ConstLoweredRegSpan& regs)
+void lower_addr_reg_pass(LinearAlloc& alloc, AddrOpcode<op_type,IS_LOAD,IS_STRUCT,group>& addr_op, const ConstLoweredRegSpan& regs)
 {    
-    const u32 scale = addr.addr_ir.scale;
-    const u32 offset = addr.addr_ir.offset;
-    const auto base = addr.addr_ir.base;
+    const u32 scale = addr_op.addr_ir.scale;
+    const u32 offset = addr_op.addr_ir.offset;
+    const auto base = addr_op.addr_ir.base;
 
-    addr.addr = {};
+    addr_op.addr = {};
 
-    addr.addr.scale = scale;
-    addr.addr.offset = offset;
+    addr_op.addr.scale = scale;
+    addr_op.addr.offset = offset;
 
     u32 src = 0;
 
     if constexpr(IS_LOAD)
     {
-        addr.v1.reg = regs.src[src++];
+        addr_op.v1.reg = regs.dst[0];
     }
 
     else
     {
-        addr.v1.reg = regs.dst[0];
+        addr_op.v1.reg = regs.src[src++];
     }
 
     if constexpr(IS_STRUCT)
     {
-        addr.addr.base_ir = base;
+        addr_op.addr.base_ir = base;
         auto& reg = reg_from_slot(base,alloc);
 
         if(is_reg_mem_unallocated(reg))
@@ -65,16 +66,16 @@ void lower_addr_reg_pass(LinearAlloc& alloc, AddrOpcode<op_type,IS_LOAD,IS_STRUC
         // add the stack offset, so this correctly offset for when we fully rewrite this
         if(is_local_reg(reg))
         {
-            addr.addr.offset += alloc.stack_alloc.stack_offset;
+            addr_op.addr.offset += alloc.stack_alloc.stack_offset;
         }
     }
 
     else
     {
-        addr.addr.base = regs.src[src++];
+        addr_op.addr.base = regs.src[src++];
     }
 
-    addr.addr.index = regs.src[src++];
+    addr_op.addr.index = regs.src[src++];
 }
 
 void lower_mov_gpr_imm(MovGprImm& mov, const ConstLoweredRegSpan& regs)
@@ -238,7 +239,7 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
             // -> <addrof> <alloced reg> <slot> <stack offset>
             // -> lea <alloced reg> <sp + whatever>
             const auto base = opcode.addrof.addr_ir.base;
-            const auto dst = regs.dst[0];
+            const auto dst = opcode.addrof.v1;
 
             log_reg(alloc.print,*alloc.table,"addrof %r <- %r\n",dst,base);
             lower_addr_reg_pass(alloc,opcode.addrof,regs);
