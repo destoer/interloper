@@ -348,7 +348,7 @@ struct ConstLoweredRegSpan
 
 struct Addr
 {
-    RegSlot base;
+    RegSlot base = make_spec_reg_slot(spec_reg::null);
     RegSlot index = make_spec_reg_slot(spec_reg::null);
     u32 scale = 1;
     u32 offset = 0;

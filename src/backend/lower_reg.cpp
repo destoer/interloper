@@ -4,8 +4,30 @@ void allocate_and_rewrite_opcode(LinearAlloc& alloc, Block& block, OpcodeNode* n
 #include "lower_directive.cpp"
 
 
+template<typename T>
+OpcodeNode* lower_struct_addr_pass2(Interloper& itl, LinearAlloc& alloc,OpcodeNode* node, const T& addr_op)
+{
+    const RegSlot slot = addr_op.addr.base_ir;
+    const lowered_reg_t v1 = addr_op.v1.reg;
+    const lowered_reg_t index = addr_op.addr.index;
+
+    const u32 scale = addr_op.addr.scale;
+    const u32 base_offset = addr_op.addr.offset;
+    const auto type = addr_op.type;
+
+    auto &reg = reg_from_slot(slot,alloc);
+
+    assert(is_stored_in_mem(reg));
+
+    const auto [offset_reg,offset] = reg_offset(itl,reg,0);
+
+    node->value = make_lowered_addr_instr<T>(v1,offset_reg,index,scale,base_offset + offset,type);
+    
+    return node->next;    
+}
+
 template<typename op_type,const bool IS_LOAD, const bool IS_STRUCT, op_group group>
-void lower_addr(LinearAlloc& alloc, AddrOpcode<op_type,IS_LOAD,IS_STRUCT,group>& addr, const ConstLoweredRegSpan& regs)
+void lower_addr_reg_pass(LinearAlloc& alloc, AddrOpcode<op_type,IS_LOAD,IS_STRUCT,group>& addr, const ConstLoweredRegSpan& regs)
 {    
     const u32 scale = addr.addr_ir.scale;
     const u32 offset = addr.addr_ir.offset;
@@ -32,6 +54,13 @@ void lower_addr(LinearAlloc& alloc, AddrOpcode<op_type,IS_LOAD,IS_STRUCT,group>&
     {
         addr.addr.base_ir = base;
         auto& reg = reg_from_slot(base,alloc);
+
+        if(is_reg_mem_unallocated(reg))
+        {
+            assert(stored_in_mem(reg));
+
+            stack_reserve_reg(alloc.stack_alloc,reg);
+        }
 
         // add the stack offset, so this correctly offset for when we fully rewrite this
         if(is_local_reg(reg))
@@ -210,47 +239,39 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
             // -> lea <alloced reg> <sp + whatever>
             const auto base = opcode.addrof.addr_ir.base;
             const auto dst = regs.dst[0];
-            auto& reg = reg_from_slot(base,alloc);
 
             log_reg(alloc.print,*alloc.table,"addrof %r <- %r\n",dst,base);
-
-            if(is_reg_mem_unallocated(reg))
-            {
-                assert(stored_in_mem(reg));
-                stack_reserve_reg(alloc.stack_alloc,reg);
-            }
-
-            lower_addr(alloc,opcode.addrof,regs);
+            lower_addr_reg_pass(alloc,opcode.addrof,regs);
             break;
         }
 
         case op_group::lea:
         {
-            lower_addr(alloc,opcode.lea,regs);
+            lower_addr_reg_pass(alloc,opcode.lea,regs);
             break;
         }
 
         case op_group::load_struct:
         {
-            lower_addr(alloc,opcode.load_struct,regs);
+            lower_addr_reg_pass(alloc,opcode.load_struct,regs);
             break;            
         }
 
         case op_group::store_struct:
         {
-            lower_addr(alloc,opcode.store_struct,regs);
+            lower_addr_reg_pass(alloc,opcode.store_struct,regs);
             break;            
         }
 
         case op_group::load:
         {
-            lower_addr(alloc,opcode.load,regs);
+            lower_addr_reg_pass(alloc,opcode.load,regs);
             break;
         }
 
         case op_group::store:
         {
-            lower_addr(alloc,opcode.store,regs);
+            lower_addr_reg_pass(alloc,opcode.store,regs);
             break;
         }
 
@@ -285,27 +306,6 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
     opcode.lowered = true;
 }
 
-template<typename T>
-OpcodeNode* lower_struct_addr_pass2(Interloper& itl, LinearAlloc& alloc,OpcodeNode* node, const T& addr_op)
-{
-    const RegSlot slot = addr_op.addr.base_ir;
-    const lowered_reg_t v1 = addr_op.v1.reg;
-    const lowered_reg_t index = addr_op.addr.index;
-
-    const u32 scale = addr_op.addr.scale;
-    const u32 base_offset = addr_op.addr.offset;
-    const auto type = addr_op.type;
-
-    auto &reg = reg_from_slot(slot,alloc);
-
-    assert(is_stored_in_mem(reg));
-
-    const auto [offset_reg,offset] = reg_offset(itl,reg,0);
-
-    node->value = make_lowered_addr_instr<T>(v1,offset_reg,index,scale,base_offset + offset,type);
-    
-    return node->next;    
-}
 
 // TODO: this assumes we have no access to the instruction
 OpcodeNode* emit_popm(Interloper& itl, Block& block, OpcodeNode* node, u32 bitset)
