@@ -89,7 +89,7 @@ void cvt_if(Interloper& itl, Function& func, RegSlot dst, RegSlot v1)
 }
 
 
-Opcode mov_reg_lowered(lowered_reg_t dst, lowered_reg_t src, reg_type type)
+Opcode make_mov_reg_lowered_instr(lowered_reg_t dst, lowered_reg_t src, reg_type type)
 {
     UnaryReg2<unary_reg2_op,op_group::unary_reg2> unary;
     unary.dst.reg = dst;
@@ -100,9 +100,9 @@ Opcode mov_reg_lowered(lowered_reg_t dst, lowered_reg_t src, reg_type type)
 }
 
 
-Opcode mov_gpr_lowered(lowered_reg_t dst, lowered_reg_t src)
+Opcode make_mov_gpr_lowered_instr(lowered_reg_t dst, lowered_reg_t src)
 {
-    return mov_reg_lowered(dst,src,reg_type::gpr);
+    return make_mov_reg_lowered_instr(dst,src,reg_type::gpr);
 }
 
 Opcode mov_reg_ir(RegSlot dst, RegSlot src, reg_type rtype)

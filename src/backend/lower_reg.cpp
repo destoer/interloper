@@ -295,7 +295,7 @@ OpcodeNode* emit_popm(Interloper& itl, Block& block, OpcodeNode* node, u32 bitse
     {
         if(is_set(bitset,i))
         {
-            node = insert_at(block.list,node,make_reg1_dst_lowered_instr(i,reg1_dst_type::pop));
+            node = insert_at(block.list,node,make_lowered_reg1_dst_instr(i,reg1_dst_type::pop));
             node = node->next;
         }
     }
@@ -311,7 +311,7 @@ OpcodeNode* emit_pushm(Interloper& itl, Block& block, OpcodeNode* node,u32 bitse
     {
         if(is_set(bitset,i))
         {
-            node = insert_at(block.list,node,make_reg1_src_lowered_instr(i,reg1_src_type::push));
+            node = insert_at(block.list,node,make_lowered_reg1_src_instr(i,reg1_src_type::push));
             node = node->next;
         }
     }

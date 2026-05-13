@@ -43,7 +43,7 @@ RegOneSrc make_reg1_src(RegSlot src, reg1_src_type type)
     return reg_one;
 }
 
-Opcode make_reg1_src_lowered_instr(lowered_reg_t src, reg1_src_type type)
+Opcode make_lowered_reg1_src_instr(lowered_reg_t src, reg1_src_type type)
 {
     RegOneSrc reg_one;
     reg_one.type = type;
@@ -52,7 +52,7 @@ Opcode make_reg1_src_lowered_instr(lowered_reg_t src, reg1_src_type type)
     return make_lowered_instr(reg_one);
 }
 
-Opcode make_reg1_dst_lowered_instr(lowered_reg_t dst, reg1_dst_type type)
+Opcode make_lowered_reg1_dst_instr(lowered_reg_t dst, reg1_dst_type type)
 {
     RegOneDst reg_one;
     reg_one.type = type;

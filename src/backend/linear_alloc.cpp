@@ -32,6 +32,9 @@ struct RegisterFile
     // Has this register been modified?
     u32 dirty = 0;
 
+    // What registers are saved by the current function?
+    u32 saved_set = 0;
+
     // What slot is being used by a register?
     RegSlot allocated[MACHINE_REG_SIZE];
 
@@ -1220,7 +1223,7 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
                     // Otherwise just move it
                     else
                     {
-                        const auto opcode = mov_reg_lowered(ir_reg.global_reg,ir_reg.local_reg,rtype_from_ir(ir_reg));
+                        const auto opcode = make_mov_reg_lowered_instr(ir_reg.global_reg,ir_reg.local_reg,rtype_from_ir(ir_reg));
                         insert_node(block.list,block.list.finish,opcode,insert_type);
 
                         log_reg(alloc.print,*alloc.table,"Copying %r from %s to %s\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,ir_reg.global_reg));
@@ -1280,7 +1283,7 @@ void force_into_reg(LinearAlloc& alloc,Block& block, OpcodeNode* node,RegisterFi
     // Copy the register and then free the other one
     else
     {
-        const auto copy = mov_reg_lowered(reg, ir_reg.local_reg,rtype_from_ir(ir_reg));
+        const auto copy = make_mov_reg_lowered_instr(reg, ir_reg.local_reg,rtype_from_ir(ir_reg));
         free_ir_reg(ir_reg,reg_file);
         take_local_reg(reg_file,ir_reg,reg);
         insert_at(block.list,node,copy);

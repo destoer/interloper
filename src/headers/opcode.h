@@ -835,6 +835,7 @@ enum class implicit_type
     syscall,
     ret,
     cqo,
+    leave
 };
 
 static const char* IMPLICIT_NAMES[] = 
@@ -842,6 +843,7 @@ static const char* IMPLICIT_NAMES[] =
     "syscall",
     "ret",
     "cqo",
+    "leave"
 };
 
 struct Implicit
