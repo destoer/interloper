@@ -180,7 +180,12 @@ void print_disass(const Opcode& opcode, const Disass& disass, const String& fmt,
 void disass_directive(const Opcode& opcode, const Disass& disass)
 {
     const auto& directive = opcode.directive;
-    printf("%s ",DIRECTIVE_NAMES[u32(directive.type)]);
+    printf("%s",DIRECTIVE_NAMES[u32(directive.type)]);
+
+    if(directive.size != 0)
+    {
+        putchar(' ');
+    }
 
     for(u32 i = 0; i < directive.size; i++)
     {
@@ -390,8 +395,8 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
         case op_group::unary_reg2: disass_unary_reg2(opcode,disass,opcode.unary_reg2,UNARY_REG_TWO_NAMES); break;
         case op_group::unary_reg1: disass_unary_reg1(opcode,disass,opcode.unary_reg1,UNARY_REG_ONE_NAMES); break;
         case op_group::sign_extend: disass_unary_reg2(opcode,disass,opcode.sign_extend,SIGN_EXTEND_NAMES); break;
-        case op_group::lea: disass_addr(opcode,disass,opcode.lea,TAKE_ADDR_NAMES); break;
-        case op_group::addrof: disass_addr(opcode,disass,opcode.addrof,TAKE_ADDR_NAMES); break;
+        case op_group::lea: disass_addr(opcode,disass,opcode.lea,LEA_NAME); break;
+        case op_group::addrof: disass_addr(opcode,disass,opcode.addrof,ADDROF_NAME); break;
         case op_group::load_struct: disass_addr(opcode,disass,opcode.load_struct,LOAD_STRUCT_NAMES); break;
         case op_group::store_struct: disass_addr(opcode,disass,opcode.store_struct,STORE_STRUCT_NAMES); break;
         case op_group::load: disass_addr(opcode,disass,opcode.load,LOAD_NAMES); break;

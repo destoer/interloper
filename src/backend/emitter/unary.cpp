@@ -96,7 +96,7 @@ Opcode make_mov_reg_lowered_instr(lowered_reg_t dst, lowered_reg_t src, reg_type
     unary.src.reg = src;
     unary.type = type == reg_type::gpr? unary_reg2_op::mov_gpr_reg : unary_reg2_op::mov_fpr_reg; 
 
-    return unary;
+    return make_lowered_instr(unary);
 }
 
 

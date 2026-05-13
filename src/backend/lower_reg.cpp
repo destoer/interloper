@@ -4,8 +4,8 @@ void allocate_and_rewrite_opcode(LinearAlloc& alloc, Block& block, OpcodeNode* n
 #include "lower_directive.cpp"
 
 
-template<typename T>
-OpcodeNode* lower_struct_addr_pass2(Interloper& itl, LinearAlloc& alloc,OpcodeNode* node, const T& addr_op)
+template<typename T,typename Y>
+OpcodeNode* lower_struct_addr_pass2(Interloper& itl, LinearAlloc& alloc,OpcodeNode* node, const Y& addr_op)
 {
     const RegSlot slot = addr_op.addr.base_ir;
     const lowered_reg_t v1 = addr_op.v1.reg;
@@ -17,8 +17,7 @@ OpcodeNode* lower_struct_addr_pass2(Interloper& itl, LinearAlloc& alloc,OpcodeNo
 
     auto &reg = reg_from_slot(slot,alloc);
 
-    log_reg(true,*alloc.table,"lower: %r\n",slot);
-    assert(is_stored_in_mem(reg));
+    assert(is_mem_allocated(reg));
 
     const auto [offset_reg,offset] = reg_offset(itl,reg,0);
 
@@ -64,7 +63,7 @@ void lower_addr_reg_pass(LinearAlloc& alloc, AddrOpcode<op_type,IS_LOAD,IS_STRUC
         }
 
         // add the stack offset, so this correctly offset for when we fully rewrite this
-        if(is_local_reg(reg))
+        if(is_local(reg))
         {
             addr_op.addr.offset += alloc.stack_alloc.stack_offset;
         }
@@ -358,7 +357,7 @@ OpcodeNode* emit_popm_float(Interloper& itl, Block& block, OpcodeNode* node, u32
     {
         if(is_set(bitset,i))
         {
-            node = insert_at(block.list,node,make_lowered_load_instr(i,sp,offset,u32(spec_reg::null),1,load_type::lf));
+            node = insert_at(block.list,node,make_lowered_load_instr(i,sp,offset,load_type::lf));
             node = node->next;
             offset -= FLOAT_SIZE;
         }
@@ -389,7 +388,7 @@ OpcodeNode* emit_pushm_float(Interloper& itl, Block& block, OpcodeNode* node,u32
     {
         if(is_set(bitset,i))
         {
-            node = insert_at(block.list,node,make_lowered_store_instr(i,sp,u32(spec_reg::null),1,offset,store_type::sf));
+            node = insert_at(block.list,node,make_lowered_store_instr(i,sp,offset,store_type::sf));
             node = node->next;
             offset -= FLOAT_SIZE;
         }

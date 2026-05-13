@@ -37,7 +37,7 @@ b32 pending_stack_allocation(Reg& reg)
 
 b32 is_stored_in_mem(Reg& reg)
 {
-    return reg.flags & STORED_IN_MEM;
+    return reg.flags & (STORED_IN_MEM | ALIASED);
 }
 
 // NOTE: this only works for structs, vars i.e power of two aligned sizes

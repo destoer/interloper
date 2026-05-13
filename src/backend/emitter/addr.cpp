@@ -51,17 +51,17 @@ Opcode make_lowered_addr_instr(lowered_reg_t v1, lowered_reg_t base,lowered_reg_
 
 Opcode make_lowered_lea_instr(lowered_reg_t v1, lowered_reg_t base,lowered_reg_t index, u32 scale, u32 offset)
 {
-    return make_lowered_addr_instr<Lea>(v1,base,index,scale,offset,take_addr::lea);
+    return make_lowered_addr_instr<Lea>(v1,base,index,scale,offset,take_addr_type::take_addr);
 }
 
-Opcode make_lowered_load_instr(lowered_reg_t v1, lowered_reg_t base,lowered_reg_t index, u32 scale, u32 offset, load_type type)
+Opcode make_lowered_load_instr(lowered_reg_t v1, lowered_reg_t base, u32 offset, load_type type)
 {
-    return make_lowered_addr_instr<Load>(v1,base,index,scale,offset,type);
+    return make_lowered_addr_instr<Load>(v1,base,u32(spec_reg::null),1,offset,type);
 }
 
-Opcode make_lowered_store_instr(lowered_reg_t v1, lowered_reg_t base,lowered_reg_t index, u32 scale, u32 offset, store_type type)
+Opcode make_lowered_store_instr(lowered_reg_t v1, lowered_reg_t base, u32 offset, store_type type)
 {
-    return make_lowered_addr_instr<Store>(v1,base,index,scale,offset,type);
+    return make_lowered_addr_instr<Store>(v1,base,u32(spec_reg::null),1,offset,type);
 }
 
 void addrof(Interloper& itl,Function& func, RegSlot dst, const StructAddr& struct_addr)
@@ -70,7 +70,7 @@ void addrof(Interloper& itl,Function& func, RegSlot dst, const StructAddr& struc
     auto& reg = reg_from_slot(itl,func,struct_addr.addr.base);
     reg.flags |= ALIASED;
 
-    const auto opcode = Opcode(make_addr_op<AddrOf>(dst,struct_addr.addr,take_addr::addrof));
+    const auto opcode = Opcode(make_addr_op<AddrOf>(dst,struct_addr.addr,take_addr_type::take_addr));
     emit_block_func(itl,func,opcode);
 }
 
@@ -88,7 +88,7 @@ void lea(Interloper& itl,Function& func, RegSlot dst, const PointerAddr& pointer
         return;
     }
 
-    const auto opcode = Opcode(make_addr_op<Lea>(dst,pointer.addr,take_addr::lea));
+    const auto opcode = Opcode(make_addr_op<Lea>(dst,pointer.addr,take_addr_type::take_addr));
     emit_block_func(itl,func,opcode);
 }
 

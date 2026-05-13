@@ -1022,18 +1022,23 @@ const char* STORE_STRUCT_NAMES[] =
     "store_struct_f64",    
 };
 
-enum class take_addr
+
+static const char* LEA_NAME[] =
 {
-    lea,
-    addrof,
+    "lea"
 };
 
-
-static const char* TAKE_ADDR_NAMES[] =
+static const char* ADDROF_NAME[] =
 {
-    "lea",
     "addrof"
 };
+
+// Dummy type for the template
+enum class take_addr_type
+{
+    take_addr,
+};
+
 
 using Load = AddrOpcode<load_type,true,false,op_group::load>;
 using LoadStruct = AddrOpcode<load_type,true,true,op_group::load_struct>;
@@ -1041,8 +1046,8 @@ using LoadStruct = AddrOpcode<load_type,true,true,op_group::load_struct>;
 using Store = AddrOpcode<store_type,false,false,op_group::store>;
 using StoreStruct = AddrOpcode<store_type,false,true,op_group::store_struct>;
 
-using Lea = AddrOpcode<take_addr,true,false,op_group::lea>;
-using AddrOf = AddrOpcode<take_addr,true,true,op_group::addrof>;
+using Lea = AddrOpcode<take_addr_type,true,false,op_group::lea>;
+using AddrOf = AddrOpcode<take_addr_type,true,true,op_group::addrof>;
 
 template<typename op_type, op_group group>
 struct ImmThree

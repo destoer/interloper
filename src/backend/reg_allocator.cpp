@@ -100,18 +100,18 @@ OpcodeNode* allocate_opcode_addr_pass(Interloper& itl,Function &func, LinearAllo
 
         case op_group::addrof:
         {
-            return lower_struct_addr_pass2(itl,alloc,node,opcode.addrof);
+            return lower_struct_addr_pass2<Lea>(itl,alloc,node,opcode.addrof);
         }
 
 
         case op_group::load_struct:
         {
-            return lower_struct_addr_pass2(itl,alloc,node,opcode.load_struct);
+            return lower_struct_addr_pass2<Load>(itl,alloc,node,opcode.load_struct);
         }
 
         case op_group::store_struct:
         {
-            return lower_struct_addr_pass2(itl,alloc,node,opcode.store_struct);
+            return lower_struct_addr_pass2<Store>(itl,alloc,node,opcode.store_struct);
         }
 
         case op_group::directive:
