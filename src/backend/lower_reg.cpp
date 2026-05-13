@@ -285,6 +285,27 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
     opcode.lowered = true;
 }
 
+template<typename T>
+OpcodeNode* lower_struct_addr_pass2(Interloper& itl, LinearAlloc& alloc,OpcodeNode* node, const T& addr_op)
+{
+    const RegSlot slot = addr_op.addr.base_ir;
+    const lowered_reg_t v1 = addr_op.v1.reg;
+    const lowered_reg_t index = addr_op.addr.index;
+
+    const u32 scale = addr_op.addr.scale;
+    const u32 base_offset = addr_op.addr.offset;
+    const auto type = addr_op.type;
+
+    auto &reg = reg_from_slot(slot,alloc);
+
+    assert(is_stored_in_mem(reg));
+
+    const auto [offset_reg,offset] = reg_offset(itl,reg,0);
+
+    node->value = make_lowered_addr_instr<T>(v1,offset_reg,index,scale,base_offset + offset,type);
+    
+    return node->next;    
+}
 
 // TODO: this assumes we have no access to the instruction
 OpcodeNode* emit_popm(Interloper& itl, Block& block, OpcodeNode* node, u32 bitset)
@@ -336,7 +357,7 @@ OpcodeNode* emit_popm_float(Interloper& itl, Block& block, OpcodeNode* node, u32
     {
         if(is_set(bitset,i))
         {
-            node = insert_at(block.list,node,make_lowered_load_instr(i,sp,offset,load_type::lf));
+            node = insert_at(block.list,node,make_lowered_load_instr(i,sp,offset,u32(spec_reg::null),1,load_type::lf));
             node = node->next;
             offset -= FLOAT_SIZE;
         }
@@ -367,7 +388,7 @@ OpcodeNode* emit_pushm_float(Interloper& itl, Block& block, OpcodeNode* node,u32
     {
         if(is_set(bitset,i))
         {
-            node = insert_at(block.list,node,make_lowered_store_instr(i,sp,offset,store_type::sf));
+            node = insert_at(block.list,node,make_lowered_store_instr(i,sp,u32(spec_reg::null),1,offset,store_type::sf));
             node = node->next;
             offset -= FLOAT_SIZE;
         }

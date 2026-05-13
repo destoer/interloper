@@ -35,31 +35,33 @@ T make_addr_op(RegSlot dst,const Addr& addr, op_type type)
 
 
 template<typename T, typename op_type>
-Opcode make_lowered_addr_instr(lowered_reg_t v1, lowered_reg_t base, u32 offset, op_type type)
+Opcode make_lowered_addr_instr(lowered_reg_t v1, lowered_reg_t base,lowered_reg_t index, u32 scale, u32 offset, op_type type)
 {
     T addr_op;
     addr_op.addr = {};
     addr_op.v1.reg = v1;
     addr_op.addr.base = base;
+    addr_op.addr.index = index;
     addr_op.addr.offset = offset;
+    addr_op.addr.scale = scale;
     addr_op.type = type;
 
     return make_lowered_instr(addr_op);
 }
 
-Opcode make_lowered_lea_instr(lowered_reg_t v1, lowered_reg_t base, u32 offset)
+Opcode make_lowered_lea_instr(lowered_reg_t v1, lowered_reg_t base,lowered_reg_t index, u32 scale, u32 offset)
 {
-    return make_lowered_addr_instr<Lea>(v1,base,offset,take_addr::lea);
+    return make_lowered_addr_instr<Lea>(v1,base,index,scale,offset,take_addr::lea);
 }
 
-Opcode make_lowered_load_instr(lowered_reg_t v1, lowered_reg_t base, u32 offset, load_type type)
+Opcode make_lowered_load_instr(lowered_reg_t v1, lowered_reg_t base,lowered_reg_t index, u32 scale, u32 offset, load_type type)
 {
-    return make_lowered_addr_instr<Load>(v1,base,offset,type);
+    return make_lowered_addr_instr<Load>(v1,base,index,scale,offset,type);
 }
 
-Opcode make_lowered_store_instr(lowered_reg_t v1, lowered_reg_t base, u32 offset, store_type type)
+Opcode make_lowered_store_instr(lowered_reg_t v1, lowered_reg_t base,lowered_reg_t index, u32 scale, u32 offset, store_type type)
 {
-    return make_lowered_addr_instr<Store>(v1,base,offset,type);
+    return make_lowered_addr_instr<Store>(v1,base,index,scale,offset,type);
 }
 
 void addrof(Interloper& itl,Function& func, RegSlot dst, const StructAddr& struct_addr)

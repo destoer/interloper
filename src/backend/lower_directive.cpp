@@ -62,7 +62,7 @@ OpcodeNode* lower_directive_addr_pass(Interloper& itl, LinearAlloc& alloc,Block&
             }
 
             // NOTE: this is allways on the stack, globals handle their own allocation...
-            node->value = make_lowered_lea_instr(dst,arch_sp(itl.arch),allocation.offset + allocation.stack_offset);
+            node->value = make_lowered_lea_instr(dst,arch_sp(itl.arch),u32(spec_reg::null),1,allocation.offset + allocation.stack_offset);
 
             return node->next;
         }
@@ -81,12 +81,12 @@ OpcodeNode* lower_directive_addr_pass(Interloper& itl, LinearAlloc& alloc,Block&
             if(!(reg.flags & REG_FLOAT))
             {
                 static const store_type instr[4] = {store_type::sb, store_type::sh, store_type::sw,store_type::sd};
-                node->value = make_lowered_store_instr(src,offset_reg,offset,instr[log2(reg.size)]);
+                node->value = make_lowered_store_instr(src,offset_reg,u32(spec_reg::null),1,offset,instr[log2(reg.size)]);
             }
 
             else
             {
-                node->value = make_lowered_store_instr(src,offset_reg,offset,store_type::sf);
+                node->value = make_lowered_store_instr(src,offset_reg,u32(spec_reg::null),1,offset,store_type::sf);
             }
 
             return node->next;
@@ -111,7 +111,7 @@ OpcodeNode* lower_directive_addr_pass(Interloper& itl, LinearAlloc& alloc,Block&
                     static const load_type instr[4] = {load_type::lsb, load_type::lsh, load_type::lsw,load_type::ld};
 
                     // this here does not otherwise need rewriting so we will emit SP directly
-                    node->value = make_lowered_load_instr(dst,offset_reg,offset,instr[log2(reg.size)]);
+                    node->value = make_lowered_load_instr(dst,offset_reg,u32(spec_reg::null),1,offset,instr[log2(reg.size)]);
                 }
 
                 // "plain data"
@@ -120,13 +120,13 @@ OpcodeNode* lower_directive_addr_pass(Interloper& itl, LinearAlloc& alloc,Block&
                 {
                     static const load_type instr[4] = {load_type::lb, load_type::lh, load_type::lw,load_type::ld};
 
-                    node->value = make_lowered_load_instr(dst,offset_reg,offset,instr[log2(reg.size)]);
+                    node->value = make_lowered_load_instr(dst,offset_reg,offset,u32(spec_reg::null),1,instr[log2(reg.size)]);
                 }
             }
 
             else
             {
-                node->value = make_lowered_load_instr(dst,offset_reg,offset,load_type::lf);
+                node->value = make_lowered_load_instr(dst,offset_reg,u32(spec_reg::null),1,offset,load_type::lf);
             }
 
             return node->next;

@@ -100,32 +100,18 @@ OpcodeNode* allocate_opcode_addr_pass(Interloper& itl,Function &func, LinearAllo
 
         case op_group::addrof:
         {
-            assert(false);
-            // const s32 base_offset = opcode.offset;
-            // const RegSlot slot = opcode.v[1].reg;
-
-            // auto &reg = reg_from_slot(slot,alloc);
-
-
-            // assert(is_mem_allocated(reg));
-
-            // auto [offset_reg,offset] = reg_offset(itl,reg,0);
-
-            // node->value = make_addr_op(op_type::lea,opcode.v[0],make_lowered_operand(offset_reg),opcode.v[2],opcode.scale,base_offset + offset);
-
-            // node = node->next;
-            break;
+            return lower_struct_addr_pass2(itl,alloc,node,opcode.addrof);
         }
 
 
         case op_group::load_struct:
         {
-            assert(false);
+            return lower_struct_addr_pass2(itl,alloc,node,opcode.load_struct);
         }
 
         case op_group::store_struct:
         {
-            assert(false);
+            return lower_struct_addr_pass2(itl,alloc,node,opcode.store_struct);
         }
 
         case op_group::directive:
