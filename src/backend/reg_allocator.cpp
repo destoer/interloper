@@ -98,48 +98,6 @@ OpcodeNode* allocate_opcode_addr_pass(Interloper& itl,Function &func, LinearAllo
             return node->next;
         }
 
-        // reload a reg
-        case op_group::load:
-        {
-            assert(false);
-            // RegSlot slot = opcode.v[1].reg;
-
-            // auto& reg = reg_from_slot(slot,alloc);
-
-            // const s32 stack_offset = opcode.v[2].imm;
-            // const auto [offset_reg,offset] = reg_offset(itl,reg,stack_offset);
-
-            // if(!(reg.flags & REG_FLOAT))
-            // {
-            //     // reload the spilled var
-            //     if(is_signed(reg))
-            //     {
-            //         // word is register size (we dont need to extend it)
-            //         static const op_type instr[4] = {op_type::lsb, op_type::lsh, op_type::lsw,op_type::ld};
-
-            //         // this here does not otherwise need rewriting so we will emit SP directly
-            //         node->value = make_lowered_base_addr_instr(instr[log2(reg.size)],opcode.v[0].lowered,offset_reg,offset);
-            //     }
-
-            //     // "plain data"
-            //     // just move by size
-            //     else
-            //     {
-            //         static const op_type instr[4] = {op_type::lb, op_type::lh, op_type::lw,op_type::ld};
-
-            //         node->value = make_lowered_base_addr_instr(instr[log2(reg.size)],opcode.v[0].lowered,offset_reg,offset);
-            //     }
-            // }
-
-            // else
-            // {
-            //     node->value = make_lowered_base_addr_instr(op_type::lf,opcode.v[0].lowered,offset_reg,offset);
-            // }
-
-            node = node->next;
-            break;
-        }
-
         case op_group::addrof:
         {
             assert(false);
