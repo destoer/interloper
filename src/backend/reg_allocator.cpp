@@ -25,7 +25,7 @@ OpcodeNode* allocate_opcode_reg_pass(Interloper& itl,Function &func, LinearAlloc
 
         case op_group::directive:
         {
-            node = lower_directive_pass1(itl,alloc,block,node);
+            node = lower_directive_reg_pass(itl,alloc,block,node);
             break;   
         }
 
@@ -172,57 +172,8 @@ OpcodeNode* allocate_opcode_addr_pass(Interloper& itl,Function &func, LinearAllo
 
         case op_group::directive:
         {
-            assert(false);
+            return lower_directive_addr_pass(itl,alloc,block,node);
         }
-
-
-        // case op_type::alloc_local_array:
-        // {
-        //     const u32 idx = node->value.v[1].imm;
-
-        //     ArrayAllocation &allocation = alloc.stack_alloc.array_allocation[idx];
-
-        //     allocation.offset = finalise_offset(alloc.stack_alloc,allocation.offset,allocation.size);
-
-        //     if(alloc.stack_alloc.print)
-        //     {
-        //         auto& sym = sym_from_slot(itl.symbol_table,allocation.slot);
-        //         printf("final array offset %s = [%x,%x] -> (%x)\n",sym.name.buf,allocation.size,allocation.count,allocation.offset);
-        //     }
-
-        //     // NOTE: this is allways on the stack, globals handle their own allocation...
-        //     node->value = make_lowered_base_addr_instr(op_type::lea,opcode.v[0].lowered,arch_sp(itl.arch),allocation.offset + allocation.stack_offset);
-
-        //     node = node->next;
-        //     break;
-        // }
-
-        // case op_type::spill:
-        // {
-        //     RegSlot slot = opcode.v[1].reg;
-        //     auto& reg = reg_from_slot(slot,alloc);
-
-        //     const s32 stack_offset = opcode.v[2].imm;
-
-        //     // write value back out into mem
-        //     const auto [offset_reg,offset] = reg_offset(itl,reg,stack_offset);
-
-        //     if(!(reg.flags & REG_FLOAT))
-        //     {
-        //         static const op_type instr[4] = {op_type::sb, op_type::sh, op_type::sw,op_type::sd};
-        //         node->value = make_lowered_base_addr_instr(instr[log2(reg.size)],opcode.v[0].lowered,offset_reg,offset);
-        //     }
-
-        //     else
-        //     {
-        //         node->value = make_lowered_base_addr_instr(op_type::sf,opcode.v[0].lowered,offset_reg,offset);
-        //     }
-
-        //     node = node->next;
-        //     break;
-        // }
-
-
 
         default:
         {

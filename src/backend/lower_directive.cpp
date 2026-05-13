@@ -37,7 +37,108 @@ OpcodeNode* lower_directive_pass2(Interloper& itl, LinearAlloc& alloc,Block& blo
     assert(false);
 }
 
-OpcodeNode* lower_directive_pass1(Interloper& itl, LinearAlloc& alloc,Block& block, OpcodeNode* node)
+
+OpcodeNode* lower_directive_addr_pass(Interloper& itl, LinearAlloc& alloc,Block& block, OpcodeNode* node)
+{
+    UNUSED(block);
+    auto& directive = node->value.directive;
+
+    switch(directive.type)
+    {
+
+        case directive_type::alloc_local_array:
+        {
+            const u32 idx = directive.operand[1].imm;
+            const lowered_reg_t dst = directive.operand[0].reg;
+
+            ArrayAllocation &allocation = alloc.stack_alloc.array_allocation[idx];
+
+            allocation.offset = finalise_offset(alloc.stack_alloc,allocation.offset,allocation.size);
+
+            if(alloc.stack_alloc.print)
+            {
+                auto& sym = sym_from_slot(itl.symbol_table,allocation.slot);
+                printf("final array offset %s = [%x,%x] -> (%x)\n",sym.name.buf,allocation.size,allocation.count,allocation.offset);
+            }
+
+            // NOTE: this is allways on the stack, globals handle their own allocation...
+            node->value = make_lowered_lea_instr(dst,arch_sp(itl.arch),allocation.offset + allocation.stack_offset);
+
+            return node->next;
+        }
+
+        case directive_type::spill:
+        {
+            RegSlot slot = directive.operand[1].ir_reg;
+            auto& reg = reg_from_slot(slot,alloc);
+
+            const s32 stack_offset = directive.operand[2].imm;
+            const lowered_reg_t src = directive.operand[0].reg;
+
+            // write value back out into mem
+            const auto [offset_reg,offset] = reg_offset(itl,reg,stack_offset);
+
+            if(!(reg.flags & REG_FLOAT))
+            {
+                static const store_type instr[4] = {store_type::sb, store_type::sh, store_type::sw,store_type::sd};
+                node->value = make_lowered_store_instr(src,offset_reg,offset,instr[log2(reg.size)]);
+            }
+
+            else
+            {
+                node->value = make_lowered_store_instr(src,offset_reg,offset,store_type::sf);
+            }
+
+            return node->next;
+        }
+
+        case directive_type::load:
+        {
+            const lowered_reg_t dst = directive.operand[0].reg;
+
+            RegSlot slot = directive.operand[1].ir_reg;
+            auto& reg = reg_from_slot(slot,alloc);
+
+            const s32 stack_offset = directive.operand[2].imm;
+            const auto [offset_reg,offset] = reg_offset(itl,reg,stack_offset);
+
+            if(!(reg.flags & REG_FLOAT))
+            {
+                // reload the spilled var
+                if(is_signed(reg))
+                {
+                    // word is register size (we dont need to extend it)
+                    static const load_type instr[4] = {load_type::lsb, load_type::lsh, load_type::lsw,load_type::ld};
+
+                    // this here does not otherwise need rewriting so we will emit SP directly
+                    node->value = make_lowered_load_instr(dst,offset_reg,offset,instr[log2(reg.size)]);
+                }
+
+                // "plain data"
+                // just move by size
+                else
+                {
+                    static const load_type instr[4] = {load_type::lb, load_type::lh, load_type::lw,load_type::ld};
+
+                    node->value = make_lowered_load_instr(dst,offset_reg,offset,instr[log2(reg.size)]);
+                }
+            }
+
+            else
+            {
+                node->value = make_lowered_load_instr(dst,offset_reg,offset,load_type::lf);
+            }
+
+            return node->next;
+        }
+        
+        default: break;
+    }
+
+    return node->next;
+}
+
+OpcodeNode* lower_directive_reg_pass(Interloper& itl, LinearAlloc& alloc,Block& block, OpcodeNode* node)
 {
     auto& directive = node->value.directive;
 
