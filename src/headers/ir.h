@@ -126,6 +126,7 @@ static constexpr u32 HAS_FUNC_EXIT = 1 << 0;
 static constexpr u32 REACH_FUNC_EXIT = 1 << 1;
 static constexpr u32 IN_LOOP = 1 << 2;
 static constexpr u32 EXIT_BLOCK_EMIT = 1 << 3;
+static constexpr u32 BRANCH_EXIT = 1 << 4;
 
 using OpcodeNode = ListNode<Opcode>;
 using OpcodeList = List<Opcode>;

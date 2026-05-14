@@ -148,8 +148,15 @@ b32 in_loop(Block& block)
     return block.flags & IN_LOOP;
 }
 
+void add_branch_exit(Function& func, BlockSlot slot)
+{
+    auto& block = block_from_slot(func,slot);
+    block.flags |= BRANCH_EXIT;
+}
+
 void add_cond_exit(Function& func,BlockSlot slot, BlockSlot target, BlockSlot fall)
 {
+    add_branch_exit(func,slot);
     add_block_exit(func,slot,target);
     add_block_exit(func,slot,fall);
 }
@@ -207,6 +214,7 @@ void emit_branch(Interloper& itl, Function& func, BlockSlot block,BlockSlot targ
     const Opcode opcode = make_branch_label(branch_type::branch,target_block.label_slot);
     emit_block_internal(itl,func,block,opcode);
     add_block_exit(func,block,target);
+    add_branch_exit(func,block);
 
     check_block_branch(itl,func,block);
 }

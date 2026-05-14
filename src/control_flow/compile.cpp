@@ -415,7 +415,7 @@ void compile_switch_jump_table(Interloper& itl, Function& func, SwitchNode* swit
 
     // emit the switch table dispatch
     const BlockSlot dispatch_block = new_basic_block(itl,func);
-
+    add_branch_exit(func,dispatch_block);
 
     // reserve space for the table inside the constant pool
     const PoolSlot pool_slot = reserve_const_pool_section(itl.const_pool,pool_type::jump_table,GPR_SIZE * range);

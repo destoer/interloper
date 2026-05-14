@@ -1180,8 +1180,7 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
 
     alloc.total_misplaced += count(misplaced);
 
-    const auto end_opcode = block.list.finish->value;
-    const insertion_type insert_type = is_group_branch(end_opcode.group)? insertion_type::before : insertion_type::after;
+    const insertion_type insert_type = (block.flags & BRANCH_EXIT)? insertion_type::before : insertion_type::after;
 
     // Keep running passes until we are done
     while(count(misplaced))

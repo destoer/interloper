@@ -715,12 +715,6 @@ enum class op_group
     x86_fixed,
 };
 
-// TODO: May want to filter out calls.
-inline bool is_group_branch(op_group group) 
-{
-    return group >= op_group::branch_label && group <= op_group::branch_cond_flag;
-}
-
 enum class ir_reg_type
 {
     src,
