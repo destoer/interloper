@@ -218,7 +218,7 @@ void allocation_addr_pass(Interloper& itl,Function &func, LinearAlloc& alloc)
     }
 
 
-    const u32 save_count = popcount(alloc.gpr.saved_set) + popcount(alloc.gpr.saved_set);
+    const u32 save_count = popcount(alloc.gpr.saved_set) + popcount(alloc.fpr.saved_set);
 
     log(alloc.print,"saved registers: %d (0x%x) (0x%x)\n",save_count,alloc.gpr.saved_set,alloc.fpr.saved_set);
 

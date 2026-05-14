@@ -1017,7 +1017,7 @@ lowered_reg_t allocate_var(LinearAlloc& alloc,Block& block,OpcodeNode* node, Reg
 
         else
         {
-            log_reg(alloc.print,*alloc.table,"Mark %r in %s for expiry %d\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.local_reg),alloc.dead_count);
+            log_reg(alloc.print,*alloc.table,"Mark %r in %s for expiry\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.local_reg));
             // Don't terminate the regs during it as we need them allocated
             alloc.dead_slot[alloc.dead_count++] = ir_reg.slot;
         }            
