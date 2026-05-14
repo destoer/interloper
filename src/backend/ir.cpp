@@ -747,7 +747,7 @@ void allocate_registers(Interloper& itl,Function &func)
 
     const u32 save_count = popcount(saved_gpr) + popcount(saved_fpr);
 
-    log(alloc.print,"saved registers: %d (0x%x)\n",save_count,saved_gpr);
+    log(alloc.print,"saved registers: %d (0x%x) (0x%x)\n",save_count,saved_gpr,saved_fpr);
 
 
     alloc_args(func,alloc.stack_alloc,itl.symbol_table,GPR_SIZE * save_count);
