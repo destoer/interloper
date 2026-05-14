@@ -125,7 +125,7 @@ void lower_reg3(RegThree<op_type,group>& reg3, const ConstLoweredRegSpan& regs)
 template<typename op_type, op_group group>
 void lower_imm2_dst(ImmTwoDst<op_type,group>& imm2, const ConstLoweredRegSpan& regs)
 {
-    imm2.dst.reg = regs.dst[0];
+    imm2.dst.reg = regs.dst_src[0];
 }
 
 template<typename op_type, op_group group>
