@@ -17,7 +17,7 @@ void unlock_fixed_arith(LinearAlloc& alloc, RegSlot dst, x86_reg x86_dst, x86_re
 
 OpcodeNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, OpcodeNode* node)
 {
-    const auto& fixed = node->value.x86_fixed;
+    auto& fixed = node->value.x86_fixed;
     const auto type = fixed.type;
 
     // save where our dst is being forced into
@@ -35,6 +35,9 @@ OpcodeNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, OpcodeNode*
     {
         lock_out_fixed_arith(alloc,block,node,dst);
     }
+
+    // Rewrite flexible operand
+    fixed.src.reg = linear_allocate_reg(alloc,block,node,fixed.src.ir,reg_arg_kind::src); 
 
     // NOTE: these are both fully rewritten so we can just dump them in into the instruction stream
     static const Opcode UNSIGNED_SETUP = mov_imm_lowered(x86_reg::rdx,0);
@@ -64,8 +67,8 @@ OpcodeNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, OpcodeNode*
         unlock_fixed_arith(alloc,dst,out_reg,src_reg);
     }
 
-    // rewrite dst fixed and src flexible.
-    allocate_and_rewrite_opcode(alloc,block,node);
+    fixed.dst.reg = linear_allocate_reg(alloc,block,node,fixed.dst.ir,reg_arg_kind::dst); 
+    node->value.state = opcode_state::lowered;
 
     return node->next;
 }   
