@@ -4,14 +4,6 @@ void reload_slot(Interloper& itl, Function& func, const Reg& dst);
 void spill_slot(Interloper& itl, Function& func, const Reg& src);
 ConstIrRegSpan opcode_ir_reg_span(const Opcode& opcode, IrRegSpan& reg);
 
-template<typename T>
-Opcode make_lowered_instr(const T& value)
-{
-    auto opcode = Opcode(value);
-    opcode.lowered = true;
-
-    return opcode;
-}
 
 void handle_src_storage(Interloper& itl, Function& func, RegSlot src)
 {
@@ -124,7 +116,7 @@ ConstIrRegSpan opcode_ir_reg_span(const Opcode& opcode, IrRegSpan& reg)
     blank_ir_reg_span(reg);
 
     // If we have lowered this opcode then there are no IR registers.
-    if(opcode.lowered)
+    if(opcode.state == opcode_state::lowered)
     {
         return reg;
     }

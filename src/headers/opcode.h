@@ -1271,47 +1271,53 @@ using SetFromFlagGpr = UnaryReg1<cmp_sign_op,op_group::set_from_flag_gpr>;
 using SetFromFlagFpr = UnaryReg1<comparison_op,op_group::set_from_flag_fpr>;
 
 
+enum class opcode_state
+{
+    ir,
+    lowered
+};
+
 struct Opcode
 {
     op_group group = op_group::directive;
 
-    Opcode(const Directive& value) : group(op_group::directive), directive(value) {}
-    Opcode(const BranchLabel& value) : group(op_group::branch_label), branch_label(value) {}
-    Opcode(const BranchCond& value) : group(op_group::branch_cond), branch_cond(value) {}
-    Opcode(const BranchCondFlag& value) : group(op_group::branch_cond_flag), branch_cond_flag(value) {}
-    Opcode(const Implicit& value) : group(op_group::implicit), implicit(value) {}
-    Opcode(const MovGprImm& value) : group(op_group::mov_gpr_imm), mov_gpr_imm(value) {} 
-    Opcode(const MovFprImm& value) : group(op_group::mov_fpr_imm), mov_fpr_imm(value) {} 
-    Opcode(const ArithImm3& value) : group(op_group::arith_imm3), arith_imm3(value) {}
-    Opcode(const ArithImm2& value) : group(op_group::arith_imm2), arith_imm2(value) {}
-    Opcode(const ArithGpr3& value) : group(op_group::arith_gpr3), arith_gpr3(value) {}
-    Opcode(const ArithGpr2& value) : group(op_group::arith_gpr2), arith_gpr2(value) {}
-    Opcode(const ArithFpr3& value) : group(op_group::arith_fpr3), arith_fpr3(value) {}
-    Opcode(const ArithFpr2& value) : group(op_group::arith_fpr2), arith_fpr2(value) {}
-    Opcode(const Lea& value) : group(op_group::lea), lea(value) {}
-    Opcode(const AddrOf& value) : group(op_group::addrof), addrof(value) {}
-    Opcode(const Load& value) : group(op_group::load), load(value) {}
-    Opcode(const LoadStruct& value) : group(op_group::load_struct), load_struct(value) {}
-    Opcode(const Store& value) : group(op_group::store), store(value) {}
-    Opcode(const StoreStruct& value) : group(op_group::store_struct), store_struct(value) {}
-    Opcode(const BranchReg& value) : group(op_group::branch_reg), branch_reg(value) {}
-    Opcode(const ShiftImm3& value) : group(op_group::shift_imm3), shift_imm3(value) {}
-    Opcode(const ShiftImm2& value) : group(op_group::shift_imm2), shift_imm2(value) {}
-    Opcode(const ShiftReg3& value) : group(op_group::shift_reg3), shift_reg3(value) {}
-    Opcode(const ShiftReg2& value) : group(op_group::shift_reg2), shift_reg2(value) {}
-    Opcode(const UnaryRegTwo& value) : group(op_group::unary_reg2), unary_reg2(value) {}
-    Opcode(const UnaryRegOne& value) : group(op_group::unary_reg1), unary_reg1(value) {}
-    Opcode(const SignExtend& value) : group(op_group::sign_extend), sign_extend(value) {}
-    Opcode(const CmpImm3& value) : group(op_group::cmp_imm3), cmp_imm3(value) {}
-    Opcode(const CmpGpr3& value) : group(op_group::cmp_gpr3), cmp_gpr3(value) {}
-    Opcode(const CmpFpr3& value) : group(op_group::cmp_fpr3), cmp_fpr3(value) {}
-    Opcode(const RegTwoSrc& value) : group(op_group::reg2_src), reg2_src(value) {}
-    Opcode(const RegOneSrc& value) : group(op_group::reg1_src), reg1_src(value) {}
-    Opcode(const RegOneDst& value) : group(op_group::reg1_dst), reg1_dst(value) {}
-    Opcode(const ImmTwoSrc& value) : group(op_group::imm2_src), imm2_src(value) {}
-    Opcode(const SetFromFlagFpr& value) : group(op_group::set_from_flag_fpr), set_from_flag_fpr(value) {}
-    Opcode(const SetFromFlagGpr& value) : group(op_group::set_from_flag_gpr), set_from_flag_gpr(value) {}
-    Opcode(const X86Fixed& value) : group(op_group::x86_fixed), x86_fixed(value) {}
+    Opcode(const Directive& value,opcode_state state) : group(op_group::directive), directive(value), state(state) {}
+    Opcode(const BranchLabel& value,opcode_state state) : group(op_group::branch_label), branch_label(value), state(state) {}
+    Opcode(const BranchCond& value,opcode_state state) : group(op_group::branch_cond), branch_cond(value), state(state) {}
+    Opcode(const BranchCondFlag& value,opcode_state state) : group(op_group::branch_cond_flag), branch_cond_flag(value), state(state) {}
+    Opcode(const Implicit& value,opcode_state state) : group(op_group::implicit), implicit(value), state(state) {}
+    Opcode(const MovGprImm& value,opcode_state state) : group(op_group::mov_gpr_imm), mov_gpr_imm(value), state(state) {} 
+    Opcode(const MovFprImm& value,opcode_state state) : group(op_group::mov_fpr_imm), mov_fpr_imm(value), state(state) {} 
+    Opcode(const ArithImm3& value,opcode_state state) : group(op_group::arith_imm3), arith_imm3(value), state(state) {}
+    Opcode(const ArithImm2& value,opcode_state state) : group(op_group::arith_imm2), arith_imm2(value), state(state) {}
+    Opcode(const ArithGpr3& value,opcode_state state) : group(op_group::arith_gpr3), arith_gpr3(value), state(state) {}
+    Opcode(const ArithGpr2& value,opcode_state state) : group(op_group::arith_gpr2), arith_gpr2(value), state(state) {}
+    Opcode(const ArithFpr3& value,opcode_state state) : group(op_group::arith_fpr3), arith_fpr3(value), state(state) {}
+    Opcode(const ArithFpr2& value,opcode_state state) : group(op_group::arith_fpr2), arith_fpr2(value), state(state) {}
+    Opcode(const Lea& value,opcode_state state) : group(op_group::lea), lea(value), state(state) {}
+    Opcode(const AddrOf& value,opcode_state state) : group(op_group::addrof), addrof(value), state(state) {}
+    Opcode(const Load& value,opcode_state state) : group(op_group::load), load(value), state(state) {}
+    Opcode(const LoadStruct& value,opcode_state state) : group(op_group::load_struct), load_struct(value), state(state) {}
+    Opcode(const Store& value,opcode_state state) : group(op_group::store), store(value), state(state) {}
+    Opcode(const StoreStruct& value,opcode_state state) : group(op_group::store_struct), store_struct(value), state(state) {}
+    Opcode(const BranchReg& value,opcode_state state) : group(op_group::branch_reg), branch_reg(value), state(state) {}
+    Opcode(const ShiftImm3& value,opcode_state state) : group(op_group::shift_imm3), shift_imm3(value), state(state) {}
+    Opcode(const ShiftImm2& value,opcode_state state) : group(op_group::shift_imm2), shift_imm2(value), state(state) {}
+    Opcode(const ShiftReg3& value,opcode_state state) : group(op_group::shift_reg3), shift_reg3(value), state(state) {}
+    Opcode(const ShiftReg2& value,opcode_state state) : group(op_group::shift_reg2), shift_reg2(value), state(state) {}
+    Opcode(const UnaryRegTwo& value,opcode_state state) : group(op_group::unary_reg2), unary_reg2(value), state(state) {}
+    Opcode(const UnaryRegOne& value,opcode_state state) : group(op_group::unary_reg1), unary_reg1(value), state(state) {}
+    Opcode(const SignExtend& value,opcode_state state) : group(op_group::sign_extend), sign_extend(value), state(state) {}
+    Opcode(const CmpImm3& value,opcode_state state) : group(op_group::cmp_imm3), cmp_imm3(value), state(state) {}
+    Opcode(const CmpGpr3& value,opcode_state state) : group(op_group::cmp_gpr3), cmp_gpr3(value), state(state) {}
+    Opcode(const CmpFpr3& value,opcode_state state) : group(op_group::cmp_fpr3), cmp_fpr3(value), state(state) {}
+    Opcode(const RegTwoSrc& value,opcode_state state) : group(op_group::reg2_src), reg2_src(value), state(state) {}
+    Opcode(const RegOneSrc& value,opcode_state state) : group(op_group::reg1_src), reg1_src(value), state(state) {}
+    Opcode(const RegOneDst& value,opcode_state state) : group(op_group::reg1_dst), reg1_dst(value), state(state) {}
+    Opcode(const ImmTwoSrc& value,opcode_state state) : group(op_group::imm2_src), imm2_src(value), state(state) {}
+    Opcode(const SetFromFlagFpr& value,opcode_state state) : group(op_group::set_from_flag_fpr), set_from_flag_fpr(value), state(state) {}
+    Opcode(const SetFromFlagGpr& value,opcode_state state) : group(op_group::set_from_flag_gpr), set_from_flag_gpr(value), state(state) {}
+    Opcode(const X86Fixed& value,opcode_state state) : group(op_group::x86_fixed), x86_fixed(value), state(state) {}
 
     Opcode() {}
 
@@ -1356,5 +1362,5 @@ struct Opcode
         X86Fixed x86_fixed;
     };
 
-    bool lowered = false;
+    opcode_state state = opcode_state::ir;
 };

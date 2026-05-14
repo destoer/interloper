@@ -1,13 +1,13 @@
 
 void emit_implicit(Interloper& itl, Function& func, implicit_type type)
 {
-    const auto opcode = Opcode(Implicit {type});
+    const auto opcode = Opcode(Implicit {type},opcode_state::ir);
     emit_block_func(itl,func,opcode);
 }
 
 Opcode make_lowered_implicit_instr(implicit_type type)
 {
-    return make_lowered_instr(Implicit {type} );
+    return Opcode(Implicit {type},opcode_state::lowered);
 }
 
 void syscall(Interloper& itl, Function& func)

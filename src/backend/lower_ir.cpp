@@ -29,7 +29,7 @@ OpcodeNode* lower_reg3_ir(Function& func, Block& block, OpcodeNode* node, const 
     // -> add dst, v2
     if(dst == v1)
     {
-        node->value = Opcode(make_reg2_dst<group2>(dst,v2,type));
+        node->value = Opcode(make_reg2_dst<group2>(dst,v2,type),opcode_state::ir);
     }
 
 
@@ -39,7 +39,7 @@ OpcodeNode* lower_reg3_ir(Function& func, Block& block, OpcodeNode* node, const 
         // -> add dst, v1
         if(is_set(commutative_set,u32(reg3.type)))
         {
-            node->value = Opcode(make_reg2_dst<group2>(dst,v1,type));
+            node->value = Opcode(make_reg2_dst<group2>(dst,v1,type),opcode_state::ir);
         }
 
         // sub dst, v1, dst
@@ -51,7 +51,7 @@ OpcodeNode* lower_reg3_ir(Function& func, Block& block, OpcodeNode* node, const 
             const auto tmp = new_max_tmp(func,rtype);
             insert_mov_reg2_at(block,node,tmp,v1,rtype);
 
-            node->value = Opcode(make_reg2_dst<group2>(tmp,dst,type));
+            node->value = Opcode(make_reg2_dst<group2>(tmp,dst,type),opcode_state::ir);
             node = insert_mov_reg2_after(block,node,dst,tmp,rtype);
         }
     }
@@ -63,7 +63,7 @@ OpcodeNode* lower_reg3_ir(Function& func, Block& block, OpcodeNode* node, const 
     {
         insert_mov_reg2_at(block,node,dst,v1,rtype);
 
-        node->value = Opcode(make_reg2_dst<group2>(dst,v2,type));
+        node->value = Opcode(make_reg2_dst<group2>(dst,v2,type),opcode_state::ir);
     }
 
     return node->next;
@@ -94,7 +94,7 @@ OpcodeNode* lower_imm3_ir(Function& func, Block& block, OpcodeNode* node, const 
     {
         const auto tmp = new_tmp(func,GPR_SIZE);
         insert_at(block.list,node,make_mov_imm(tmp,imm));
-        node->value = Opcode(make_reg3<group_reg3>(dst,src,tmp,type));
+        node->value = Opcode(make_reg3<group_reg3>(dst,src,tmp,type),opcode_state::ir);
 
         // Need another rewrite pass on the reg3 we have just written
         return node;
@@ -108,7 +108,7 @@ OpcodeNode* lower_imm3_ir(Function& func, Block& block, OpcodeNode* node, const 
         insert_mov_reg2_at(block,node,dst,src,reg_type::gpr);
     }
 
-    node->value = Opcode(make_imm2_dst<group_imm2>(dst,imm,type));
+    node->value = Opcode(make_imm2_dst<group_imm2>(dst,imm,type),opcode_state::ir);
 
     return node->next;
 }
@@ -145,7 +145,7 @@ OpcodeNode* lower_reg3_cmp_flag_ir(Block& block, OpcodeNode* node, const RegThre
     insert_at(block.list,node,cmp_flags);
 
 
-    node->value = Opcode(make_unary_reg1<group1>(dst,type));
+    node->value = Opcode(make_unary_reg1<group1>(dst,type),opcode_state::ir);
 
     return node->next;
 }
@@ -164,9 +164,9 @@ OpcodeNode* lower_imm3_cmp_flag_ir(Block& block, OpcodeNode* node)
     // cmpsgt dst, src, imm
     // -> cmp_flags_imm src, imm
     // -> setsgt dst
-    opcode = Opcode(make_imm2_src(src,imm,imm_two_src::cmp_flags_imm));
+    opcode = Opcode(make_imm2_src(src,imm,imm_two_src::cmp_flags_imm),opcode_state::ir);
 
-    const auto set = Opcode(make_unary_reg1<op_group::set_from_flag_gpr>(dst,type));
+    const auto set = Opcode(make_unary_reg1<op_group::set_from_flag_gpr>(dst,type),opcode_state::ir);
     node = insert_after(block.list,node,set);
 
     return node->next;
@@ -191,7 +191,7 @@ OpcodeNode* lower_no_imm_ir(Function& func, Block& block,OpcodeNode* node)
     const auto reg3 = make_reg3<op_group::arith_gpr3>(dst,src,tmp_slot,type);
 
     // NOTE: another writing pass has to happen on this opcode
-    return insert_after(block.list,node,Opcode(reg3));
+    return insert_after(block.list,node,Opcode(reg3,opcode_state::ir));
 }
 
 OpcodeNode* lower_unary_reg2_ir(Block& block, OpcodeNode* node,unary_reg1_op type)
@@ -205,7 +205,7 @@ OpcodeNode* lower_unary_reg2_ir(Block& block, OpcodeNode* node,unary_reg1_op typ
         insert_mov_reg2_at(block,node,dst,src,reg_type::gpr);
     }
 
-    node->value = Opcode(make_unary_reg1<op_group::unary_reg1>(dst,type));
+    node->value = Opcode(make_unary_reg1<op_group::unary_reg1>(dst,type),opcode_state::ir);
 
     return node->next;
 }
@@ -223,9 +223,10 @@ OpcodeNode* lower_fpr_const_ir(Interloper& itl, Block& block, OpcodeNode* node)
 
     auto& opcode = node->value;
 
-    opcode = make_directive_three(directive_type::load_const_float,
-        make_reg_operand(dst,ir_reg_type::dst), make_pool_operand(pool_slot),make_decimal_operand(decimal)
-    );
+    const auto directive = make_directive_three(directive_type::load_const_float,
+        make_reg_operand(dst,ir_reg_type::dst), make_pool_operand(pool_slot),make_decimal_operand(decimal));
+
+    opcode = directive;
 
     return node->next;
 }

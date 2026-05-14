@@ -43,7 +43,7 @@ ImmThree<op_type,group> make_imm3(RegSlot dst, RegSlot src, u64 imm, op_type typ
 template<op_group group,typename op_type>
 void emit_imm3_opcode(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm, op_type type)
 {
-    const auto opcode = Opcode(make_imm3<op_type,group>(dst,src,imm,type));
+    const auto opcode = Opcode(make_imm3<op_type,group>(dst,src,imm,type),opcode_state::ir);
     emit_block_func(itl,func,opcode);
 }
 
@@ -82,7 +82,7 @@ Opcode make_lowered_arith_imm2_instr(lowered_reg_t dst, u64 imm, arith_bin_op ty
     instr.imm = imm;
     instr.type = type;
 
-    return make_lowered_instr(instr);
+    return Opcode(instr,opcode_state::lowered);
 }
 
 void emit_gpr_imm3(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm, arith_bin_op type)

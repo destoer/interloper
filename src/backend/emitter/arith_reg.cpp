@@ -49,7 +49,7 @@ Opcode make_lowered_reg1_src_instr(lowered_reg_t src, reg1_src_type type)
     reg_one.type = type;
     reg_one.src.reg = src;
 
-    return make_lowered_instr(reg_one);
+    return Opcode(reg_one,opcode_state::lowered);
 }
 
 Opcode make_lowered_reg1_dst_instr(lowered_reg_t dst, reg1_dst_type type)
@@ -58,7 +58,7 @@ Opcode make_lowered_reg1_dst_instr(lowered_reg_t dst, reg1_dst_type type)
     reg_one.type = type;
     reg_one.dst.reg = dst;
 
-    return make_lowered_instr(reg_one);
+    return Opcode(reg_one,opcode_state::lowered);
 }
 
 template<typename type,op_group group>
@@ -115,7 +115,7 @@ template<op_group group,typename op_type>
 void emit_reg3_opcode(Interloper& itl, Function& func, RegSlot dst, RegSlot v1, RegSlot v2, op_type type)
 {
     const auto reg3 = make_reg3<group>(dst,v1,v2,type);
-    emit_block_func(itl,func,reg3);
+    emit_block_func(itl,func,Opcode(reg3,opcode_state::ir));
 }
 
 

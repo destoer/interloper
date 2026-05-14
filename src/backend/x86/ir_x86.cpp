@@ -5,9 +5,9 @@ OpcodeNode* lower_x86_cond_branch_ir(Block& block, OpcodeNode* node)
     const auto cond = branch.type;
     const auto label = branch.label;
 
-    node->value = Opcode(BranchCondFlag { cond,label });
+    node->value = Opcode(BranchCondFlag { cond,label }, opcode_state::ir);
 
-    const auto test = Opcode(make_reg2_src(slot,slot,reg_two_src::test));
+    const auto test = Opcode(make_reg2_src(slot,slot,reg_two_src::test),opcode_state::ir);
     node = insert_at(block.list,node,test);
             
     return node->next;
@@ -23,7 +23,7 @@ OpcodeNode* lower_x86_fixed_ir(Block& block, OpcodeNode* node, const RegThree<op
 
     insert_mov_reg2_at(block,node,dst,v1,reg_type::gpr);
 
-    node->value = Opcode(make_reg2_dst<op_group::x86_fixed>(dst,v2,fixed));
+    node->value = Opcode(make_reg2_dst<op_group::x86_fixed>(dst,v2,fixed),opcode_state::ir);
 
     return node->next;
 }

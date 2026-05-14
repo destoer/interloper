@@ -147,6 +147,11 @@ void lower_branch_reg(BranchReg& branch, const ConstLoweredRegSpan& regs)
 
 void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan& regs)
 {
+    if(opcode.state == opcode_state::lowered)
+    {
+        return;
+    }
+
     switch(opcode.group)
     {
         case op_group::directive:
@@ -303,7 +308,7 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
         }
     }
 
-    opcode.lowered = true;
+    opcode.state = opcode_state::lowered;
 }
 
 

@@ -102,7 +102,7 @@ void vprint_disass(const Opcode& opcode, const Disass& disass, const String& fmt
             {
                 const IrRegister reg = va_arg(args,IrRegister);
 
-                if(opcode.lowered)
+                if(opcode.state == opcode_state::lowered)
                 {
                     print_lowered_reg(disass,reg.reg);
                 }
@@ -279,7 +279,7 @@ void disass_addr(const Opcode& opcode, const Disass& disass, const AddrOpcode<ty
 
     bool is_null = true;
 
-    if(opcode.lowered)
+    if(opcode.state == opcode_state::lowered)
     {
         const auto& addr = addr_op.addr;
         base.reg = addr.base;

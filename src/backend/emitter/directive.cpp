@@ -107,7 +107,7 @@ Opcode make_directive_zero(directive_type type)
     Directive directive;
     directive.type = type;
 
-    return Opcode(directive);
+    return Opcode(directive,opcode_state::ir);
 }
 
 
@@ -117,7 +117,7 @@ Opcode make_directive_one(directive_type type,const DirectiveOperand& v1)
     directive.type = type;
     directive.operand[directive.size++] = v1;
 
-    return Opcode(directive);
+    return Opcode(directive,opcode_state::ir);
 }
 
 Opcode make_directive_two(directive_type type,const DirectiveOperand& v1,const DirectiveOperand& v2)
@@ -127,7 +127,7 @@ Opcode make_directive_two(directive_type type,const DirectiveOperand& v1,const D
     directive.operand[directive.size++] = v1;
     directive.operand[directive.size++] = v2;
 
-    return Opcode(directive);
+    return Opcode(directive,opcode_state::ir);
 }
 
 Opcode make_directive_three(directive_type type,const DirectiveOperand& v1,const DirectiveOperand& v2, const DirectiveOperand& v3)
@@ -138,7 +138,7 @@ Opcode make_directive_three(directive_type type,const DirectiveOperand& v1,const
     directive.operand[directive.size++] = v2;
     directive.operand[directive.size++] = v3;
 
-    return Opcode(directive);
+    return Opcode(directive,opcode_state::ir);
 }
 
 void emit_directive_reg1(Interloper& itl, Function& func, directive_type type, const DirectiveReg& reg)

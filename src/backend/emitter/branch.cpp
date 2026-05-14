@@ -21,12 +21,12 @@ Opcode make_branch_cond(RegSlot src, LabelSlot label, branch_cond_type type)
     cond.label = label;
 
 
-    return Opcode(cond);
+    return Opcode(cond,opcode_state::ir);
 }
 
 Opcode make_branch_label(branch_type type, LabelSlot label)
 {   
-    return Opcode(BranchLabel {type,label});
+    return Opcode(BranchLabel {type,label},opcode_state::ir);
 }
 
 void emit_branch_reg(Interloper& itl, Function& func, branch_type type, RegSlot src)
@@ -35,7 +35,7 @@ void emit_branch_reg(Interloper& itl, Function& func, branch_type type, RegSlot 
     branch_reg.type = type;
     branch_reg.src.ir = src;
     
-    const auto opcode = Opcode(branch_reg);
+    const auto opcode = Opcode(branch_reg,opcode_state::ir);
     emit_block_func(itl,func,opcode);
 }
 

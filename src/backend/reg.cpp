@@ -578,7 +578,7 @@ spec_reg return_reg_from_type(const Type* type)
     }
 }
 
-std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offset)
+std::pair<u32,lowered_reg_t> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offset)
 {
     switch(ir_reg.segment)
     {
