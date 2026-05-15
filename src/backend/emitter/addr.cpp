@@ -77,7 +77,7 @@ void addrof(Interloper& itl,Function& func, RegSlot dst, const StructAddr& struc
 
 RegSlot addrof_res(Interloper& itl,Function& func, const StructAddr& struct_addr)
 {
-    return opcode_res1(itl,func,struct_addr,addrof);  
+    return opcode_res1_gpr(itl,func,struct_addr,addrof);  
 }
 
 void lea(Interloper& itl,Function& func, RegSlot dst, const PointerAddr& pointer)
@@ -95,7 +95,7 @@ void lea(Interloper& itl,Function& func, RegSlot dst, const PointerAddr& pointer
 
 RegSlot lea_res(Interloper& itl,Function& func, const PointerAddr& addr)
 {
-    return opcode_res1(itl,func,addr,lea); 
+    return opcode_res1_gpr(itl,func,addr,lea); 
 }
 
 void emit_load(Interloper& itl, Function& func, RegSlot dst, const PointerAddr& pointer, load_type type)

@@ -82,7 +82,16 @@ OpcodeNode* emit_block_func(Interloper& itl, Function& func,const Opcode& opcode
 }
 
 template<typename T, typename OPCODE_FUNC>
-RegSlot opcode_res1(Interloper& itl,Function& func, const T& arg, const OPCODE_FUNC& opcode_func)
+RegSlot opcode_res1_fpr(Interloper& itl,Function& func, const T& arg, const OPCODE_FUNC& opcode_func)
+{
+    const auto tmp = new_float(func);
+    opcode_func(itl,func,tmp,arg);
+
+    return tmp;
+}
+
+template<typename T, typename OPCODE_FUNC>
+RegSlot opcode_res1_gpr(Interloper& itl,Function& func, const T& arg, const OPCODE_FUNC& opcode_func)
 {
     const auto tmp = new_tmp(func,GPR_SIZE);
     opcode_func(itl,func,tmp,arg);
@@ -92,7 +101,7 @@ RegSlot opcode_res1(Interloper& itl,Function& func, const T& arg, const OPCODE_F
 
 
 template<typename T, typename Y, typename OPCODE_FUNC>
-RegSlot opcode_res2(Interloper& itl,Function& func, const T& v1, const Y& v2, const OPCODE_FUNC& opcode_func)
+RegSlot opcode_res2_gpr(Interloper& itl,Function& func, const T& v1, const Y& v2, const OPCODE_FUNC& opcode_func)
 {
     const auto tmp = new_tmp(func,GPR_SIZE);
     opcode_func(itl,func,tmp,v1,v2);

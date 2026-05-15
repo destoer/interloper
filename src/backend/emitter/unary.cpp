@@ -70,7 +70,7 @@ void mov_reg(Interloper& itl, Function& func, RegSlot dst, RegSlot src)
 
 RegSlot copy_reg(Interloper& itl, Function& func, RegSlot src)
 {
-    return opcode_res1(itl,func,src,mov_reg);
+    return opcode_res1_gpr(itl,func,src,mov_reg);
 }
 
 void mov_float(Interloper& itl, Function& func, RegSlot dst, RegSlot src)

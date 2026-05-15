@@ -143,7 +143,7 @@ void sub(Interloper& itl,Function& func, RegSlot dst, RegSlot v1, RegSlot v2)
 
 RegSlot sub_res(Interloper& itl,Function& func, RegSlot v1, RegSlot v2)
 {
-    return opcode_res2(itl,func,v1,v2,sub);
+    return opcode_res2_gpr(itl,func,v1,v2,sub);
 }
 
 

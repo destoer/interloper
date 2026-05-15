@@ -53,12 +53,12 @@ void movf_imm(Interloper& itl, Function& func, RegSlot dst, f64 imm)
 
 RegSlot movf_imm_res(Interloper& itl, Function& func, u64 imm)
 {
-    return opcode_res1(itl,func,imm,movf_imm);
+    return opcode_res1_fpr(itl,func,imm,movf_imm);
 }
 
 RegSlot mov_imm_res(Interloper& itl, Function& func, u64 imm)
 {
-    return opcode_res1(itl,func,imm,mov_imm);
+    return opcode_res1_gpr(itl,func,imm,mov_imm);
 }
 
 RegSlot imm_zero(Interloper& itl, Function& func)

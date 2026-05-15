@@ -197,23 +197,23 @@ void mul_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
 
 RegSlot mul_imm_res(Interloper& itl, Function& func, RegSlot src,u64 imm)
 {
-    return opcode_res2(itl,func,src,imm,mul_imm);
+    return opcode_res2_gpr(itl,func,src,imm,mul_imm);
 }
 
 RegSlot udiv_imm_res(Interloper& itl, Function& func, RegSlot src,u64 imm)
 {
-    return opcode_res2(itl,func,src,imm,udiv_imm);
+    return opcode_res2_gpr(itl,func,src,imm,udiv_imm);
 }
 
 
 RegSlot add_imm_res(Interloper& itl, Function& func, RegSlot src, u64 imm)
 {
-    return opcode_res2(itl,func,src,imm,add_imm);
+    return opcode_res2_gpr(itl,func,src,imm,add_imm);
 }
 
 RegSlot sub_imm_res(Interloper& itl, Function& func, RegSlot src, u64 imm)
 {
-    return opcode_res2(itl,func,src,imm,sub_imm);
+    return opcode_res2_gpr(itl,func,src,imm,sub_imm);
 }
 
 void xor_imm(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
