@@ -1043,12 +1043,14 @@ lowered_reg_t allocate_var(LinearAlloc& alloc,Block& block,OpcodeNode* node, Reg
 
 lowered_reg_t allocate_special_reg(LinearAlloc& alloc, Block& block, OpcodeNode* node, spec_reg spec, reg_arg_kind arg_kind)
 {
-    if(spec == spec_reg::null)
+    const lowered_reg_t location = special_reg_to_reg(alloc.arch,spec);
+
+    // This is not a real hardware register don't attempt an allocation
+    if(location >= SPECIAL_REG_START)
     {
-        return lowered_reg_t(spec);
+        return location;
     }
 
-    const lowered_reg_t location = special_reg_to_reg(alloc.arch,spec);
     auto& reg_file = get_register_file(alloc,spec_rtype(spec));
 
     const b32 is_dst = is_arg_dst(arg_kind);
