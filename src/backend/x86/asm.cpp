@@ -1433,6 +1433,35 @@ void emit_arith_imm2(AsmEmitter& emitter, const ArithImm2& arith)
     }
 }
 
+void emit_reg1_dst(AsmEmitter& emitter, const RegOneDst& reg)
+{
+    const auto dst = x86_reg(reg.dst.reg);
+
+    switch(reg.type)
+    {
+        case reg1_dst_type::pop: pop(emitter,dst); break;
+    }
+}
+
+void emit_directive(AsmEmitter& emitter, const Opcode& opcode, const Directive& directive)
+{
+    UNUSED(emitter); UNUSED(opcode);
+
+    switch(directive.type)
+    {
+        case directive_type::pool_addr:
+        {
+            const auto dst = x86_reg(directive.operand[0].reg);
+
+            lea(emitter,dst,x86_reg::rip,option::none,1,0);
+            add_rip_rel_link(emitter,opcode);
+            break;
+        }
+
+        default: panic_lowered(DIRECTIVE_NAMES[u32(directive.type)]);
+    }
+}
+
 void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {  
     switch(opcode.group)
@@ -1440,6 +1469,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_group::arith_imm2:
         {
             emit_arith_imm2(emitter,opcode.arith_imm2);
+            break;
+        }
+
+        case op_group::reg1_dst:
+        {
+            emit_reg1_dst(emitter,opcode.reg1_dst);
             break;
         }
 
@@ -1488,6 +1523,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_group::branch_label:
         {
             emit_branch_label(emitter,opcode);
+            break;
+        }
+
+        case op_group::directive:
+        {
+            emit_directive(emitter,opcode,opcode.directive);
             break;
         }
 
