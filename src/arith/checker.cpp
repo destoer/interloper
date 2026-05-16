@@ -288,22 +288,22 @@ TypeResult compute_known_integer_arith(Interloper& itl, ArithBinNode* bin)
 
     switch(bin->oper)
     {
-        case arith_bin_op::add_t:
+        case arith_bin_type::add_t:
         {
             return calc_known_value(itl,&bin->node,left.v + right.v,final_sign);
         }
 
-        case arith_bin_op::sub_t:
+        case arith_bin_type::sub_t:
         {
             return calc_known_value(itl,&bin->node,left.v - right.v,final_sign);
         }
 
-        case arith_bin_op::mul_t:
+        case arith_bin_type::mul_t:
         {
             return calc_known_value(itl,&bin->node,left.v * right.v,final_sign);
         }
 
-        case arith_bin_op::mod_t:
+        case arith_bin_type::mod_t:
         {
             if(right.v == 0)
             {
@@ -318,7 +318,7 @@ TypeResult compute_known_integer_arith(Interloper& itl, ArithBinNode* bin)
             return calc_known_value(itl,&bin->node,left.v % right.v,final_sign);
         }
 
-        case arith_bin_op::div_t:
+        case arith_bin_type::div_t:
         {
             if(right.v == 0)
             {
@@ -333,12 +333,12 @@ TypeResult compute_known_integer_arith(Interloper& itl, ArithBinNode* bin)
             return calc_known_value(itl,&bin->node,left.v / right.v,final_sign);
         }
 
-        case arith_bin_op::xor_t:
+        case arith_bin_type::xor_t:
         {
             return calc_known_value(itl,&bin->node,left.v ^ right.v,final_sign);
         }
 
-        case arith_bin_op::and_t:
+        case arith_bin_type::and_t:
         {
             const auto ans = make_value(left.v & right.v,final_sign);
             bin->node.known_value = ans.v;
@@ -351,7 +351,7 @@ TypeResult compute_known_integer_arith(Interloper& itl, ArithBinNode* bin)
             return make_value_type(itl,ans);
         }
 
-        case arith_bin_op::or_t:
+        case arith_bin_type::or_t:
         {
             const auto ans = make_value(left.v | right.v,final_sign);
             bin->node.known_value = ans.v;
@@ -373,7 +373,7 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
     ArithBinNode* arith = (ArithBinNode*)expr;
     const auto type = arith->oper;
 
-    const ArithmeticInfo& arith_info = ARITH_INFO[u32(type)];
+    const ArithBinInfo& arith_info = ARITH_BIN_INFO[u32(type)];
 
     auto bin_res = type_check_expr_bin(itl,arith);
     if(!bin_res)
@@ -388,7 +388,7 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
     // pointer arith adds the size of the underlying type
     if(is_pointer(bin.ltype) && is_integer(bin.rtype))
     {
-        if(type != arith_bin_op::add_t && type != arith_bin_op::sub_t)
+        if(type != arith_bin_type::add_t && type != arith_bin_type::sub_t)
         {
             return compile_error(itl,itl_error::invalid_expr,"operation is not defined for pointers");
 
@@ -400,7 +400,7 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
     // allow pointer subtraction
     else if(is_pointer(bin.ltype) && is_pointer(bin.rtype))
     {
-        if(type != arith_bin_op::sub_t)
+        if(type != arith_bin_type::sub_t)
         {
             return compile_error(itl,itl_error::invalid_expr,"operation is not defined for pointers");
         }
@@ -411,34 +411,29 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
     // floating point arith
     else if(is_float(bin.ltype) && is_float(bin.rtype))
     {
-        if (arith_info.float_form == op_type::none)
+        if(arith_info.flags & ARITH_BIN_FLAG_FLOAT_ENABLED)
         {
-            return compile_error(itl,itl_error::invalid_expr,"operation is not defined for floats");
+            return make_builtin(itl,builtin_type::f64_t);
         }
 
-        return make_builtin(itl,builtin_type::f64_t);
+        return compile_error(itl,itl_error::invalid_expr,"operation is not defined for floats");
     }
 
     else if(is_bool(bin.ltype) && is_bool(bin.rtype))
     {
-        switch(type)
+        if(arith_info.flags & ARITH_BIN_FLAG_BOOL_ENABLED)
         {
-            // Treat these like integer operations
-            case arith_bin_op::or_t:
-            case arith_bin_op::and_t:
+            if(known_expr)
             {
-                if(known_expr)
-                {
-                    return compute_known_integer_arith(itl,arith);
-                }
-
-                return make_builtin(itl,builtin_type::bool_t);
+                return compute_known_integer_arith(itl,arith);
             }
 
-            default:
-            {
-                return compile_error(itl,itl_error::invalid_expr,"operation is not defined for bool");
-            }
+            return make_builtin(itl,builtin_type::bool_t);
+        }
+
+        else
+        {
+            return compile_error(itl,itl_error::invalid_expr,"operation is not defined for bool");
         }
     }
 

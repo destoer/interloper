@@ -1,31 +1,36 @@
-void format_regm(StringBuffer& buffer, u64 slot)
+struct Disass
 {
-    char name[128];
+    Disass(SymbolTable& src_table, arch_target src_arch) : table(src_table), arch(src_arch) {}
 
-    push_var(buffer,'{');
+    SymbolTable& table;
+    arch_target arch;
+};
+
+void print_regm(u64 set)
+{
+    printf("{");
 
     u32 count = 0;
 
     for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
     {
-        if(is_set(slot,r))
+        if(is_set(set,r))
         {
-            const u32 len = sprintf(name,"%s%s",count != 0? "," : "",X86_NAMES[r]);
-            push_mem(buffer,name,len);
+            printf("%s%s",count != 0? "," : "",X86_NAMES[r]);
             count++;
         }
     }
 
-    push_var(buffer,'}');
+    printf("}");
 }
 
-void fmt_sym_register(StringBuffer& buffer, const SymbolTable& table, RegSlot reg)
+void print_ir_reg(const SymbolTable& table, RegSlot reg)
 {
     switch(reg.kind)
     {
         case reg_kind::spec:
         {
-            push_string(buffer,spec_reg_name(reg.spec));
+            printf("%s",spec_reg_name(reg.spec));
             break;
         }
 
@@ -35,325 +40,406 @@ void fmt_sym_register(StringBuffer& buffer, const SymbolTable& table, RegSlot re
             const auto& sym = sym_from_slot(table,reg.sym_slot);
             const String& name = sym.name;
 
-            push_string(buffer,name);
+            printf("%s",name.buf);
             break;
         }
 
         case reg_kind::tmp:
         {
-            char name[40] = {0};
-            const u32 len = sprintf(name,"t%d",reg.tmp_slot.handle);
-
-            push_mem(buffer,name,len);
+            printf("t%d",reg.tmp_slot.handle);
             break;
         }
     }
 }
 
-void fmt_sym_specifier(StringBuffer &buffer, const SymbolTable& table, char specifier, Operand operand)
+
+void print_lowered_reg(const Disass& disass, lowered_reg_t reg)
 {
-    switch(specifier)
+    if(is_raw_special_reg(reg))
     {
-        case 'r':
-        {
-            const auto reg = operand.reg;
-            fmt_sym_register(buffer,table,reg);
-            break;
-        }
-
-
-        // hex constant
-        case 'x':
-        {
-            char name[40] = {0};
-            const u32 len = sprintf(name,"0x%lx",operand.imm);
-
-            push_mem(buffer,name,len);
-            break;
-        }
-
-        case 'f':
-        {
-            char name[40] = {0};
-            const u32 len = sprintf(name,"%lf",operand.decimal);
-
-            push_mem(buffer,name,len);
-            break;
-        }
-
-        case 'm':
-        {
-            format_regm(buffer,operand.imm);
-            break;
-        }
-
-        // address
-        case 'a':
-        {
-            const String& name = table.label_lookup[operand.label.handle].name;
-            push_string(buffer,name);
-            break;
-        }
-
-        // ignore printing the fmt
-        default:
-        {
-            break;
-        }
-    }    
-}
-
-void fmt_raw_register(StringBuffer& buffer, u64 slot, arch_target arch)
-{
-    if(is_raw_special_reg(slot))
-    {
-        const u32 idx = slot - SPECIAL_REG_START;
-        push_mem(buffer,SPECIAL_REG_NAMES[idx]);
+        const u32 idx = reg - SPECIAL_REG_START;
+        printf("%s",SPECIAL_REG_NAMES[idx].buf);
+        return;
     }
 
-    else 
+    switch(disass.arch)
     {
-        switch(arch)
+        case arch_target::x86_64_t:
         {
-            case arch_target::x86_64_t:
+            printf("%s",X86_NAMES[reg]);
+            break;
+        }
+    }
+    
+}
+
+void vprint_disass(const Opcode& opcode, const Disass& disass, const String& fmt, va_list args)
+{
+    // %x  hex
+    // %f  float
+    // %r  register
+    // %p  pool
+    // %a  address
+    // %m  register set
+    // %s  string
+
+    for(size_t i = 0; i < fmt.size; i++)
+    {
+        const char token = fmt[i];
+
+        if(token != '%')
+        {
+            putchar(token);
+            continue;
+        }
+
+        assert(i != fmt.size);
+
+        const char specifier = fmt[++i];
+        switch(specifier)
+        {
+            case 'r':
             {
-                push_mem(buffer,X86_NAMES[slot],strlen(X86_NAMES[slot]));
+                const IrRegister reg = va_arg(args,IrRegister);
+
+                if(opcode.state == opcode_state::lowered)
+                {
+                    print_lowered_reg(disass,reg.reg);
+                }
+
+                else
+                {
+                    print_ir_reg(disass.table,reg.ir);
+                }
+                break;
+            }
+
+
+            // hex constant
+            case 'x':
+            {
+                const u64 imm = va_arg(args,u64);
+                printf("0x%lx",imm);
+                break;
+            }
+
+            case 'f':
+            {
+                const f64 decimal = va_arg(args,f64);
+                printf("%lf",decimal);
+                break;
+            }
+
+            case 'm':
+            {
+                const u64 imm = va_arg(args,u64);
+                print_regm(imm);
+                break;
+            }
+
+            // pool
+            case 'p':
+            {
+                const PoolSlot pool = va_arg(args,PoolSlot);
+                printf("%d",pool.handle);
+                break;
+            }
+
+            // address
+            case 'a':
+            {
+                const LabelSlot label = va_arg(args,LabelSlot);
+                const String& name = disass.table.label_lookup[label.handle].name;
+                printf("%s",name.buf);
+                break;
+            }
+
+            case 's':
+            {
+                const char* str = va_arg(args,const char*);
+                printf("%s",str);
+                break;
+            }
+
+            default: assert(false);
+        }
+    }
+}
+
+void print_disass(const Opcode& opcode, const Disass& disass, const String& fmt, ...)
+{
+    va_list args;
+    va_start(args,fmt);
+
+    vprint_disass(opcode,disass,fmt,args);
+
+    va_end(args);
+}
+
+
+void disass_directive(const Opcode& opcode, const Disass& disass)
+{
+    const auto& directive = opcode.directive;
+    printf("%s",DIRECTIVE_NAMES[u32(directive.type)]);
+
+    if(directive.size != 0)
+    {
+        putchar(' ');
+    }
+
+    for(u32 i = 0; i < directive.size; i++)
+    {
+        auto& operand = directive.operand[i];
+
+
+        switch(operand.type)
+        {
+            case directive_operand_type::src:
+            case directive_operand_type::dst:
+            case directive_operand_type::dst_src:
+            case directive_operand_type::directive_reg:
+            {
+                print_ir_reg(disass.table,operand.ir_reg);
+                break;
+            }
+
+            case directive_operand_type::lowered_reg:
+            {
+                print_lowered_reg(disass,operand.reg);
+                break;
+            }
+
+            case directive_operand_type::decimal: printf("%f",operand.decimal); break;
+            case directive_operand_type::imm: printf("0x%lx",operand.imm); break;
+            case directive_operand_type::reg_set: print_regm(operand.reg_set); break;
+            case directive_operand_type::pool: printf("0x%x",operand.pool.handle); break;
+            case directive_operand_type::label: 
+            {
+                const String& name = disass.table.label_lookup[operand.label.handle].name;
+                printf("%s",name.buf); 
                 break;
             }
         }
+
+
+        if(i != directive.size - 1)
+        {
+            printf(", ");
+        }
     }
+
+    printf("\n");
 }
 
-void fmt_raw_specifier(StringBuffer &buffer,const SymbolTable* table, char specifier, u64 slot, arch_target arch)
+void disass_mov_gpr_imm(const Opcode& opcode, const Disass& disass)
 {
-    switch(specifier)
-    {
-        // raw register
-        case 'r':
-        {
-            fmt_raw_register(buffer,slot,arch);
-            break;
-        }
-
-        // labeles act as address here
-        case 'a':
-        {
-            if(table)
-            {
-                const auto sym_table = *table;
-
-                const auto label_slot = label_from_idx(slot);
-                const auto& label = label_from_slot(sym_table.label_lookup,label_slot);
-
-                push_mem(buffer,label.name);
-            }
-
-            else
-            {
-                char name[40];
-                const u32 len = sprintf(name,"0x%lx",slot);
-
-                push_mem(buffer,name,len);
-            }
-            break;
-        }
-
-        case 'x':
-        {
-            char name[40];
-            const u32 len = sprintf(name,"0x%lx",slot);
-
-            push_mem(buffer,name,len);
-            break;
-        }
-
-        // regm
-        case 'm':
-        {
-            format_regm(buffer,slot);
-            break;
-        }
-
-        // ignore printing the fmt
-        default:
-        {
-            break;
-        }
-    }    
+    auto& mov = opcode.mov_gpr_imm;
+    print_disass(opcode,disass,"mov %r, %x\n",mov.dst,mov.imm);
 }
 
-void format_address(StringBuffer& buffer, const Opcode& opcode, const SymbolTable* table,b32 format_reg,arch_target arch)
+void disass_mov_fpr_imm(const Opcode& opcode, const Disass& disass)
 {
-    if(format_reg)
+    auto& mov = opcode.mov_fpr_imm;
+    print_disass(opcode,disass,"movf %r, %f\n",mov.dst,mov.imm);
+}
+
+
+void disass_branch_label(const Opcode& opcode, const Disass& disass)
+{
+    auto& branch = opcode.branch_label;
+    print_disass(opcode,disass,"%s %a\n",BRANCH_NAMES[u32(branch.type)],branch.label);
+}
+
+void disass_branch_reg(const Opcode& opcode, const Disass& disass)
+{
+    auto& branch = opcode.branch_reg;
+    print_disass(opcode,disass,"%s %r\n",BRANCH_NAMES[u32(branch.type)],branch.src);
+}
+
+
+template<typename type,op_group group>
+void disass_unary_reg2(const Opcode& opcode, const Disass& disass, const UnaryReg2<type,group>& unary, const char* names[])
+{
+    print_disass(opcode,disass,"%s %r, %r\n",names[u32(unary.type)],unary.dst,unary.src);
+}
+
+template<typename type,op_group group>
+void disass_unary_reg1(const Opcode& opcode, const Disass& disass, const UnaryReg1<type,group>& unary, const char* names[])
+{
+    print_disass(opcode,disass,"%s %r\n",names[u32(unary.type)],unary.dst);
+}
+
+template<typename type, const bool IS_LOAD, const bool IS_STRUCT,op_group group>
+void disass_addr(const Opcode& opcode, const Disass& disass, const AddrOpcode<type,IS_LOAD,IS_STRUCT,group>& addr_op, const char* names[])
+{
+    IrRegister base;
+    IrRegister index;
+    u32 offset = 0;
+    u32 scale = 0;
+
+    bool is_null = true;
+
+    if(opcode.state == opcode_state::lowered)
     {
-        // Format base
-        fmt_raw_register(buffer,opcode.v[1].lowered,arch);
-
-
-        if(u32(opcode.v[2].lowered) != u32(spec_reg::null))
-        {
-            push_string(buffer,opcode.scale == 1? " + " : " + (");
-            fmt_raw_register(buffer,opcode.v[2].lowered,arch);
-
-            char scale[40];
-            const u32 scale_len = sprintf(scale,opcode.scale == 1? "" : " * 0x%x)",opcode.scale);
-            push_mem(buffer,scale,scale_len); 
-        }
+        const auto& addr = addr_op.addr;
+        base.reg = addr.base;
+        index.reg = addr.index;
+        scale = addr.scale;
+        offset = addr.offset;
+        is_null = spec_reg(index.reg) == spec_reg::null;
     }
 
     else
     {
-        // Format base
-        fmt_sym_register(buffer,*table,opcode.v[1].reg);
-
-        // Format index
-        if(!is_null_reg(opcode.v[2].reg))
-        {
-            push_string(buffer,opcode.scale == 1? " + " : " + (");
-            fmt_sym_register(buffer,*table,opcode.v[2].reg);
-
-            char scale[40];
-            const u32 scale_len = sprintf(scale,opcode.scale == 1? "" : " * 0x%x)",opcode.scale);
-            push_mem(buffer,scale,scale_len);
-        }
+        const auto& addr = addr_op.addr_ir;
+        base.ir = addr.base;
+        index.ir = addr.index;
+        scale = addr.scale;
+        offset = addr.offset;
+        is_null = is_null_reg(index.ir);
     }
 
-    // Format offset
-    if(opcode.offset)
+
+    print_disass(opcode,disass,"%s %r, [%r",names[u32(addr_op.type)],addr_op.v1,base);
+
+    if(!is_null)
     {
-        char offset[40];
-        const u32 imm_len = sprintf(offset," + 0x%x",opcode.offset);
-
-        push_mem(buffer,offset,imm_len);
-    }
-}
-
-void disass_opcode_internal(const Opcode& opcode, const SymbolTable* table,b32 format_reg,arch_target arch)
-{
-    const auto& info = info_from_op(opcode);
-    const auto& fmt_string = info.fmt_string;
-
-    Array<char> buffer;
-
-    u32 args = 0;
-
-    for(u32 i = 0; i < fmt_string.size; )
-    {
-        if(fmt_string[i] == '%')
+        if(scale == 1)
         {
-            if(args == 3)
-            {
-                crash_and_burn("exceed opcode arg printing");
-            }
-
-            const char specifier = fmt_string[i + 1];
-
-            if(specifier == 'i')
-            {
-                args += 2;
-                if(args > 3)
-                {
-                    crash_and_burn("exceed opcode arg printing");
-                }
-
-                format_address(buffer,opcode,table,format_reg,arch);
-            }
-
-            if(format_reg)
-            {
-                fmt_raw_specifier(buffer,table,specifier,opcode.v[args++].lowered,arch);
-            }
-
-            else
-            {
-                fmt_sym_specifier(buffer,*table,specifier,opcode.v[args++]);
-            }
-
-            i += 2;
+            print_disass(opcode,disass," + %r",index);
         }
 
         else
         {
-            push_var(buffer,fmt_string[i++]);
+            print_disass(opcode,disass," + (%r * %x)",index,scale);
         }
     }
 
-    // null term the buffer
-    push_var(buffer,'\0');
+    if(offset)
+    {
+        printf(" + 0x%x",offset);
+    }
 
-    puts(buffer.data);
-
-
-    destroy_arr(buffer);
+    printf("]\n");
 }
 
-// TODO: use table of fmt strings to print this
-// just figure out symbol printing first and then generalise it
-void disass_opcode_sym(const Opcode &opcode, const SymbolTable& table,arch_target arch)
+void disass_branch_cond(const Opcode& opcode, const Disass& disass)
 {
-    disass_opcode_internal(opcode,&table,false,arch);
+    auto& branch = opcode.branch_cond;
+    print_disass(opcode,disass,"%s %a, %r\n",BRANCH_COND_NAMES[u32(branch.type)],branch.label,branch.src);
 }
 
-void disass_opcode_raw(const Opcode &opcode, arch_target arch)
+
+void disass_branch_cond_flag(const Opcode& opcode, const Disass& disass)
 {
-    disass_opcode_internal(opcode,nullptr,true,arch);
+    auto& branch = opcode.branch_cond_flag;
+    print_disass(opcode,disass,"%s %a\n",BRANCH_COND_NAMES[u32(branch.type)],branch.label);
 }
 
-
-void disass_opcode_reg(const Opcode &opcode, const SymbolTable& table, arch_target arch)
+template<typename type,op_group group>
+void disass_reg3(const Opcode& opcode, const Disass& disass,const RegThree<type,group>& reg, const char* names[])
 {
-    disass_opcode_internal(opcode,&table,true,arch);
+    print_disass(opcode,disass,"%s %r, %r, %r\n",names[u32(reg.type)],reg.dst,reg.v1,reg.v2);
 }
 
+template<typename type,op_group group>
+void disass_reg2_dst(const Opcode& opcode, const Disass& disass,const RegTwoDst<type,group>& reg, const char* names[])
+{
+    print_disass(opcode,disass,"%s %r, %r\n",names[u32(reg.type)],reg.dst,reg.src);
+}
 
-void dump_ir_sym(Interloper& itl,Function &func,SymbolTable& table)
+void disass_reg2_src(const Opcode& opcode, const Disass& disass,const RegTwoSrc& reg)
+{
+    print_disass(opcode,disass,"%s %r, %r\n",REG_TWO_SRC_NAMES[u32(reg.type)],reg.v1,reg.v2);
+}
+
+void disass_reg1_src(const Opcode& opcode, const Disass& disass,const RegOneSrc& reg)
+{
+    print_disass(opcode,disass,"%s %r\n",REG_ONE_SRC_NAMES[u32(reg.type)],reg.src);
+}
+
+void disass_reg1_dst(const Opcode& opcode, const Disass& disass,const RegOneDst& reg)
+{
+    print_disass(opcode,disass,"%s %r\n",REG_ONE_DST_NAMES[u32(reg.type)],reg.dst);
+}
+
+template<typename type,op_group group>
+void disass_imm3(const Opcode& opcode, const Disass& disass,const ImmThree<type,group>& imm, const char* names[])
+{
+    print_disass(opcode,disass,"%s %r, %r, %x\n",names[u32(imm.type)],imm.dst,imm.src,imm.imm);
+}
+
+template<typename type,op_group group>
+void disass_imm2_dst(const Opcode& opcode, const Disass& disass,const ImmTwoDst<type,group>& imm, const char* names[])
+{
+    print_disass(opcode,disass,"%s %r, %x\n",names[u32(imm.type)],imm.dst,imm.imm);
+}
+
+void disass_imm2_src(const Opcode& opcode, const Disass& disass,const ImmTwoSrc& imm)
+{
+    print_disass(opcode,disass,"%s %r, %x\n",IMM_TWO_SRC_NAMES[u32(imm.type)],imm.src,imm.imm);
+}
+
+void disass_opcode(const Opcode& opcode, const Disass& disass)
+{
+    switch(opcode.group)
+    {
+        case op_group::implicit: printf("%s\n",IMPLICIT_NAMES[u32(opcode.implicit.type)]); break;
+        case op_group::branch_cond: disass_branch_cond(opcode,disass); break;
+        case op_group::branch_cond_flag: disass_branch_cond_flag(opcode,disass); break;
+        case op_group::directive: disass_directive(opcode,disass); break;
+        case op_group::mov_gpr_imm: disass_mov_gpr_imm(opcode,disass); break;
+        case op_group::mov_fpr_imm: disass_mov_fpr_imm(opcode,disass); break;
+        case op_group::branch_label: disass_branch_label(opcode,disass); break;
+        case op_group::branch_reg: disass_branch_reg(opcode,disass); break;
+        case op_group::unary_reg2: disass_unary_reg2(opcode,disass,opcode.unary_reg2,UNARY_REG_TWO_NAMES); break;
+        case op_group::unary_reg1: disass_unary_reg1(opcode,disass,opcode.unary_reg1,UNARY_REG_ONE_NAMES); break;
+        case op_group::sign_extend: disass_unary_reg2(opcode,disass,opcode.sign_extend,SIGN_EXTEND_NAMES); break;
+        case op_group::lea: disass_addr(opcode,disass,opcode.lea,LEA_NAME); break;
+        case op_group::addrof: disass_addr(opcode,disass,opcode.addrof,ADDROF_NAME); break;
+        case op_group::load_struct: disass_addr(opcode,disass,opcode.load_struct,LOAD_STRUCT_NAMES); break;
+        case op_group::store_struct: disass_addr(opcode,disass,opcode.store_struct,STORE_STRUCT_NAMES); break;
+        case op_group::load: disass_addr(opcode,disass,opcode.load,LOAD_NAMES); break;
+        case op_group::store: disass_addr(opcode,disass,opcode.store,STORE_NAMES); break;
+        case op_group::arith_gpr3: disass_reg3(opcode,disass,opcode.arith_gpr3,ARITH_NAMES); break;
+        case op_group::arith_gpr2: disass_reg2_dst(opcode,disass,opcode.arith_gpr2,ARITH_NAMES); break;
+        case op_group::arith_fpr3: disass_reg3(opcode,disass,opcode.arith_fpr3,FPR_ARITH_NAMES); break;
+        case op_group::arith_fpr2: disass_reg2_dst(opcode,disass,opcode.arith_fpr2,FPR_ARITH_NAMES); break;
+        case op_group::shift_reg3: disass_reg3(opcode,disass,opcode.shift_reg3,SHIFT_OP_NAMES); break;
+        case op_group::shift_reg2: disass_reg2_dst(opcode,disass,opcode.shift_reg2,SHIFT_OP_NAMES); break;
+        case op_group::cmp_gpr3: disass_reg3(opcode,disass,opcode.cmp_gpr3,CMP_SIGN_NAMES); break;
+        case op_group::cmp_imm3: disass_imm3(opcode,disass,opcode.cmp_imm3,CMP_SIGN_NAMES); break;
+        case op_group::cmp_fpr3: disass_reg3(opcode,disass,opcode.cmp_fpr3,CMP_FPR_NAMES); break;
+        case op_group::arith_imm3: disass_imm3(opcode,disass,opcode.arith_imm3,ARITH_NAMES); break;
+        case op_group::arith_imm2: disass_imm2_dst(opcode,disass,opcode.arith_imm2,ARITH_NAMES); break;
+        case op_group::shift_imm3: disass_imm3(opcode,disass,opcode.shift_imm3,SHIFT_OP_NAMES); break;
+        case op_group::shift_imm2: disass_imm2_dst(opcode,disass,opcode.shift_imm2,SHIFT_OP_NAMES); break;
+        case op_group::reg2_src: disass_reg2_src(opcode,disass,opcode.reg2_src); break;
+        case op_group::reg1_src: disass_reg1_src(opcode,disass,opcode.reg1_src); break;
+        case op_group::reg1_dst: disass_reg1_dst(opcode,disass,opcode.reg1_dst); break;
+        case op_group::imm2_src: disass_imm2_src(opcode,disass,opcode.imm2_src); break;
+        case op_group::set_from_flag_gpr: disass_unary_reg1(opcode,disass,opcode.set_from_flag_gpr,SET_FROM_GPR_NAMES); break;
+        case op_group::set_from_flag_fpr: disass_unary_reg1(opcode,disass,opcode.set_from_flag_fpr,SET_FROM_FPR_NAMES); break;
+        case op_group::x86_fixed: disass_reg2_dst(opcode,disass,opcode.x86_fixed,X86_FIXED_NAMES); break;
+    }
+}
+
+void dump_ir(Interloper& itl,Function &func,SymbolTable& table)
 {
     printf("%s:\n",func.name.buf);
+    Disass disass =  Disass(table,itl.arch);
 
-    u32 l = 0;
     for(auto& block : func.emitter.program)
-    {   
-        //printf("block type: %s\n",block_names[static_cast<int>(block.type)]);
-    
+    {       
         const auto label = label_from_slot(table.label_lookup,block.label_slot);
         printf("%s:\n",label.name.buf);
         
-
         for(const OpcodeNode& node : block.list)
         {
             printf("\t");
-            disass_opcode_sym(node.value,table,itl.arch);
+            disass_opcode(node.value,disass);
         }
-
-        l++;
     }
 
-    printf("\n");       
-}
-
-
-void dump_ir_reg(Interloper& itl,Function &func,SymbolTable& table)
-{
-    printf("%s:\n",func.name.buf);
-
-    u32 l = 0;
-    for(u32 b = 0; b < count(func.emitter.program); b++)
-    {   
-        const auto &block = func.emitter.program[b];
-        //printf("block type: %s\n",block_names[static_cast<int>(block.type)]);
-    
-        const auto label = label_from_slot(table.label_lookup,block.label_slot);
-        printf("%s:\n",label.name.buf);
-        
-
-        for(const OpcodeNode& node : block.list)
-        {
-            printf("\t");
-            disass_opcode_reg(node.value,table,itl.arch);
-        }
-
-        l++;
-    }
-
-    printf("\n");       
+    printf("\n");  
 }

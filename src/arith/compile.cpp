@@ -1,12 +1,12 @@
 #include "ir.h"
-bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_op arith,RegSlot dst_slot, const TypedReg& left, Type* rtype, u64 value)
+bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_type arith,RegSlot dst_slot, const TypedReg& left, Type* rtype, u64 value)
 {
-    const ArithmeticInfo& arith_info = ARITH_INFO[u32(arith)];
     const auto sign = is_signed(left.type) || is_signed(rtype);
+    const ArithBinInfo& arith_info = ARITH_BIN_INFO[u32(arith)];
 
     switch(arith)
     {
-        case arith_bin_op::div_t:
+        case arith_bin_type::div_t:
         {
             if(sign)
             {
@@ -17,7 +17,7 @@ bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_op arith,RegSl
             return true;
         }
 
-        case arith_bin_op::mod_t:
+        case arith_bin_type::mod_t:
         {
             if(sign)
             {
@@ -28,7 +28,7 @@ bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_op arith,RegSl
             return true;      
         }
 
-        case arith_bin_op::mul_t:
+        case arith_bin_type::mul_t:
         {
             mul_imm(itl,func,dst_slot,left.slot,value);
             return true;
@@ -36,13 +36,13 @@ bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_op arith,RegSl
 
         default:
         {
-            const op_type type = arith_info.imm_form;
-            if(type == op_type::none)
+            if(!(arith_info.flags & ARITH_BIN_IMM_SUPPORT))
             {
                 return false;
             }
-
-            emit_imm3_unchecked(itl,func,type,dst_slot,left.slot,value);
+            
+            const auto arith_op = arith_type_to_op(arith,sign);
+            emit_gpr_imm3(itl,func,dst_slot,left.slot,value,arith_op);
             return true; 
         }
     }
@@ -51,19 +51,16 @@ bool emit_known_rvalue(Interloper& itl, Function& func, arith_bin_op arith,RegSl
 }
 
 
-void emit_integer_ir(Interloper& itl, Function& func, arith_bin_op arith, RegSlot dst_slot, TypedReg left, TypedReg right)
+void emit_integer_ir(Interloper& itl, Function& func, arith_bin_type arith, RegSlot dst_slot, TypedReg left, TypedReg right)
 {
-    const ArithmeticInfo& arith_info = ARITH_INFO[u32(arith)];
+    const auto type = arith_type_to_op(arith,is_signed(left.type));
 
-    const bool sign = is_signed(left.type);
-
-    const op_type type = sign? arith_info.reg_signed_form : arith_info.reg_unsigned_form;
-    emit_reg3_unchecked(itl,func,type,dst_slot,left.slot,right.slot);
+    emit_gpr_reg3(itl,func,dst_slot,left.slot,right.slot,type);
 }
 
 void emit_integer_arith(Interloper& itl, Function& func,ArithBinNode* node, RegSlot dst_slot)
 {
-    const ArithmeticInfo& arith_info = ARITH_INFO[u32(node->oper)];
+    const ArithBinInfo& arith_info = ARITH_BIN_INFO[u32(node->oper)];
 
     if(known_gpr_node(node->right))
     {
@@ -80,7 +77,7 @@ void emit_integer_arith(Interloper& itl, Function& func,ArithBinNode* node, RegS
     }
 
     // If this is commutative we can just switch the operands
-    else if(known_gpr_node(node->left) && arith_info.commutative)
+    else if(known_gpr_node(node->left) && arith_info.flags & ARITH_BIN_COMMUTATIVE)
     {
         const auto value = node->left->known_value.gpr;
         const auto right = compile_oper(itl,func,node->right);
@@ -104,21 +101,17 @@ void emit_integer_arith(Interloper& itl, Function& func,ArithBinNode* node, RegS
 }
 
 void emit_float_arith(Interloper& itl, Function& func, ArithBinNode* node, RegSlot dst_slot)
-{
-    const ArithmeticInfo& arith_info = ARITH_INFO[u32(node->oper)];
-
+{   
     const auto left = compile_oper(itl,func,node->left);
     const auto right = compile_oper(itl,func,node->right);
 
-    const op_type type = arith_info.float_form;
-    emit_reg3_unchecked(itl,func,type,dst_slot,left.slot,right.slot);
+    const auto type = arith_bin_to_fpr(node->oper);
+    emit_fpr_reg3(itl,func,dst_slot,left.slot,right.slot,type);
 }
 
 
 void emit_pointer_arith(Interloper& itl, Function& func, ArithBinNode* node, RegSlot dst_slot)
 {
-    const ArithmeticInfo& arith_info = ARITH_INFO[u32(node->oper)];
-
     // get size of pointed to type
     Type *contained_type = deref_pointer(node->left->expr_type);
     const u32 size = type_size(itl,contained_type);
@@ -127,18 +120,20 @@ void emit_pointer_arith(Interloper& itl, Function& func, ArithBinNode* node, Reg
 
     if(known_gpr_node(node->right))
     {
+        const auto type = arith_type_to_op(node->oper,is_signed(node->right->expr_type));
+
         const auto value = node->right->known_value.gpr * size;
-        emit_imm3_unchecked(itl,func,arith_info.imm_form,dst_slot,left.slot,value);
+        emit_gpr_imm3(itl,func,dst_slot,left.slot,value,type);
     }
 
     else
     {
         const auto right = compile_oper(itl,func,node->right);
 
-        if(node->oper == arith_bin_op::sub_t)
+        if(node->oper == arith_bin_type::sub_t)
         {
             const RegSlot offset_slot = mul_imm_res(itl,func,right.slot,size);
-            emit_reg3<op_type::sub_reg>(itl,func,dst_slot,left.slot,offset_slot);
+            sub(itl,func,dst_slot,left.slot,offset_slot);
         }
 
         else
@@ -188,30 +183,9 @@ void compile_shift(Interloper& itl,Function& func, AstNode* expr, RegSlot dst_sl
     const auto left = compile_oper(itl,func,shift->left);
     const auto right = compile_oper(itl,func,shift->right);
 
-    switch(shift->oper)
-    {
-        case shift_op::right:
-        {
-            // if signed do a arithmetic shift 
-            if(is_signed(shift->node.expr_type))
-            {
-                asr(itl,func,dst_slot,left.slot,right.slot);
-            }
 
-            else
-            {
-                lsr(itl,func,dst_slot,left.slot,right.slot);
-            }
-
-            break;
-        }
-
-        case shift_op::left:
-        {
-            lsl(itl,func,dst_slot,left.slot,right.slot);
-            break;
-        }
-    }
+    const auto type = shift_type_to_op(shift->oper,is_signed(shift->node.expr_type));
+    emit_shift_reg3(itl,func,dst_slot,left.slot,right.slot,type);
 }
 
 void compile_arith_unary(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_slot)
@@ -285,18 +259,18 @@ void compile_arith_unary(Interloper& itl, Function& func, AstNode* expr, RegSlot
 void emit_integer_compare(Interloper& itl, Function& func, comparison_op type, bool sign, RegSlot dst, RegSlot left, RegSlot right)
 {
     // 0 is unsigned, 1 is signed
-    static constexpr op_type COMPARISON_OPCODE[2][COMPARISON_OP_SIZE] = 
+    static constexpr cmp_sign_op COMPARISON_OPCODE[2][CMP_SIGN_OP_SIZE] = 
     {
-        {op_type::cmpult_reg,op_type::cmpule_reg,op_type::cmpugt_reg,op_type::cmpuge_reg,
-        op_type::cmpeq_reg,op_type::cmpne_reg},
+        {cmp_sign_op::ult,cmp_sign_op::ule,cmp_sign_op::ugt,cmp_sign_op::uge,
+        cmp_sign_op::eq,cmp_sign_op::ne},
 
-        {op_type::cmpslt_reg,op_type::cmpsle_reg,op_type::cmpsgt_reg,
-        op_type::cmpsge_reg,op_type::cmpeq_reg,op_type::cmpne_reg},
+        {cmp_sign_op::slt,cmp_sign_op::sle,cmp_sign_op::sgt,cmp_sign_op::sge,
+        cmp_sign_op::eq,cmp_sign_op::ne},
     };
 
 
-    const op_type opcode_type = COMPARISON_OPCODE[u32(sign)][u32(type)];
-    emit_reg3_unchecked(itl,func,opcode_type,dst,left,right);
+    const auto opcode_type = COMPARISON_OPCODE[u32(sign)][u32(type)];
+    emit_cmp_gpr3(itl,func,dst,left,right,opcode_type);
 }
 
 // handles <, <=, >, >=, ==, !=
@@ -312,14 +286,7 @@ void compile_comparison(Interloper& itl,Function &func,AstNode *expr, RegSlot ds
     // float 
     if(is_float(left.type))
     {
-        static constexpr op_type COMPARISON_OPCODE[COMPARISON_OP_SIZE] = 
-        {
-            op_type::cmpflt_reg,op_type::cmpfle_reg,op_type::cmpfgt_reg,op_type::cmpfge_reg,
-            op_type::cmpfeq_reg,op_type::cmpfne_reg,        
-        };
-
-        const op_type opcode_type = COMPARISON_OPCODE[u32(type)];
-        emit_reg3_unchecked(itl,func,opcode_type,dst_slot,left.slot,right.slot);
+        emit_cmp_fpr3(itl,func,dst_slot,left.slot,right.slot,type);
     }
 
     else if(is_struct(left.type))
@@ -349,6 +316,12 @@ void compile_comparison(Interloper& itl,Function &func,AstNode *expr, RegSlot ds
     }
 }
 
+void mark_block_exit(Function& func, BlockSlot slot)
+{
+    auto& block = block_from_slot(func,slot);
+    block.flags |= EXIT_BLOCK_EMIT;
+}
+
 void emit_short_circuit_branches(Interloper& itl, Function& func, BlockSlot start_block, BlockSlot exit_block, RegSlot dst_slot, enum boolean_logic_op type)
 {
     auto &blocks = func.emitter.program;
@@ -358,13 +331,11 @@ void emit_short_circuit_branches(Interloper& itl, Function& func, BlockSlot star
         auto &block = func.emitter.program[b];
         const BlockSlot next = block_from_idx(b + 1);
 
-        if(block.list.finish)
+        if(block.flags & EXIT_BLOCK_EMIT)
         {
-            if(block.list.finish->value.op == op_type::exit_block)
-            {
-                remove(block.list,block.list.finish);
-                emit_cond_branch(itl,func,block_from_idx(b),exit_block,next,dst_slot,type == boolean_logic_op::and_t? false : true);
-            }
+            const auto branch_type = type == boolean_logic_op::and_t? branch_cond_type::eqz : branch_cond_type::nez;
+            emit_cond_branch(itl,func,block_from_idx(b),exit_block,next,dst_slot,branch_type);
+            block.flags &= ~EXIT_BLOCK_EMIT;
         }
     }
 }
@@ -399,8 +370,7 @@ void compile_boolean_logic_op(Interloper& itl,Function &func,BooleanLogicNode* l
     // First block needs to jump to exit
     if(depth == 0)
     {
-        const Opcode exit_block = make_implicit_instr(op_type::exit_block);
-        emit_block_internal(func,left_block,exit_block);
+        mark_block_exit(func,left_block);
     }
 
     // Give this a new block we can jump over
@@ -417,8 +387,7 @@ void compile_boolean_logic_op(Interloper& itl,Function &func,BooleanLogicNode* l
     // Any further blocks need an exit jump after compilation
     else
     {
-        const Opcode exit_block = make_implicit_instr(op_type::exit_block);
-        emit_block_internal(func,right_block,exit_block);
+        mark_block_exit(func,right_block);
     }
 }
 

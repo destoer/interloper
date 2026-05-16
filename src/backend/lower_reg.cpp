@@ -1,0 +1,409 @@
+void allocate_and_rewrite_opcode(LinearAlloc& alloc, Block& block, OpcodeNode* node);
+
+#include "x86/lower_reg_x86.cpp"
+#include "lower_directive.cpp"
+
+
+template<typename T,typename Y>
+OpcodeNode* lower_struct_addr_pass2(Interloper& itl, LinearAlloc& alloc,OpcodeNode* node, const Y& addr_op)
+{
+    const RegSlot slot = addr_op.addr.base_ir;
+    const lowered_reg_t v1 = addr_op.v1.reg;
+    const lowered_reg_t index = addr_op.addr.index;
+
+    const u32 scale = addr_op.addr.scale;
+    const u32 base_offset = addr_op.addr.offset;
+    const auto type = addr_op.type;
+
+    auto &reg = reg_from_slot(slot,alloc);
+
+    assert(is_mem_allocated(reg));
+
+    const auto [offset_reg,offset] = reg_offset(itl,reg,0);
+
+    node->value = make_lowered_addr_instr<T>(v1,offset_reg,index,scale,base_offset + offset,type);
+    
+    return node->next;    
+}
+
+template<typename op_type,const bool IS_LOAD, const bool IS_STRUCT, op_group group>
+void lower_addr_reg_pass(LinearAlloc& alloc, AddrOpcode<op_type,IS_LOAD,IS_STRUCT,group>& addr_op, const ConstLoweredRegSpan& regs)
+{    
+    const u32 scale = addr_op.addr_ir.scale;
+    const u32 offset = addr_op.addr_ir.offset;
+    const auto base = addr_op.addr_ir.base;
+
+    addr_op.addr = {};
+
+    addr_op.addr.scale = scale;
+    addr_op.addr.offset = offset;
+
+    u32 src = 0;
+
+    if constexpr(IS_LOAD)
+    {
+        addr_op.v1.reg = regs.dst[0];
+    }
+
+    else
+    {
+        addr_op.v1.reg = regs.src[src++];
+    }
+
+    if constexpr(IS_STRUCT)
+    {
+        addr_op.addr.base_ir = base;
+        auto& reg = reg_from_slot(base,alloc);
+
+        if(is_reg_mem_unallocated(reg))
+        {
+            assert(stored_in_mem(reg));
+
+            stack_reserve_reg(alloc.stack_alloc,reg);
+        }
+
+        // add the stack offset, so this correctly offset for when we fully rewrite this
+        if(is_local(reg))
+        {
+            addr_op.addr.offset += alloc.stack_alloc.stack_offset;
+        }
+    }
+
+    else
+    {
+        addr_op.addr.base = regs.src[src++];
+    }
+
+    addr_op.addr.index = regs.src[src++];
+}
+
+void lower_mov_gpr_imm(MovGprImm& mov, const ConstLoweredRegSpan& regs)
+{
+    mov.dst.reg = regs.dst[0];
+}
+
+template<typename op_type, op_group group>
+void lower_unary_reg2(UnaryReg2<op_type,group>& unary, const ConstLoweredRegSpan& regs)
+{
+    unary.dst.reg = regs.dst[0];
+    unary.src.reg = regs.src[0];
+}
+
+template<typename op_type, op_group group>
+void lower_unary_reg1(UnaryReg1<op_type,group>& unary, const ConstLoweredRegSpan& regs)
+{
+    unary.dst.reg = regs.dst[0];
+}
+
+
+void lower_reg1_src(RegOneSrc& reg1, const ConstLoweredRegSpan& regs)
+{
+    reg1.src.reg = regs.src[0];
+}
+
+void lower_reg2_src(RegTwoSrc& reg2, const ConstLoweredRegSpan& regs)
+{
+    reg2.v1.reg = regs.src[0];
+    reg2.v2.reg = regs.src[1];
+}
+
+template<typename op_type,op_group group>
+void lower_reg2_dst(RegTwoDst<op_type,group>& reg2, const ConstLoweredRegSpan& regs)
+{
+    reg2.dst.reg = regs.dst_src[0];
+    reg2.src.reg = regs.src[0];
+}
+
+template<typename op_type,op_group group>
+void lower_reg3(RegThree<op_type,group>& reg3, const ConstLoweredRegSpan& regs)
+{
+    reg3.dst.reg = regs.dst[0];
+    reg3.v1.reg = regs.src[0];
+    reg3.v2.reg = regs.src[1];
+}
+
+template<typename op_type, op_group group>
+void lower_imm2_dst(ImmTwoDst<op_type,group>& imm2, const ConstLoweredRegSpan& regs)
+{
+    imm2.dst.reg = regs.dst_src[0];
+}
+
+template<typename op_type, op_group group>
+void lower_imm3(ImmThree<op_type,group>& imm3, const ConstLoweredRegSpan& regs)
+{
+    imm3.dst.reg = regs.dst[0];
+    imm3.src.reg = regs.src[0];
+}
+
+void lower_imm2_src(ImmTwoSrc& imm2, const ConstLoweredRegSpan& regs)
+{
+    imm2.src.reg = regs.src[0];
+}
+
+void lower_branch_reg(BranchReg& branch, const ConstLoweredRegSpan& regs)
+{
+    branch.src.reg = regs.src[0];
+}
+
+void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan& regs)
+{
+    if(opcode.state == opcode_state::lowered)
+    {
+        return;
+    }
+
+    switch(opcode.group)
+    {
+        case op_group::directive:
+        {
+            lower_directive_regs(opcode.directive,regs);
+            break;
+        }
+
+        case op_group::branch_reg:
+        {
+            lower_branch_reg(opcode.branch_reg,regs);
+            break;
+        }
+
+        case op_group::shift_imm2:
+        {
+            lower_imm2_dst(opcode.shift_imm2,regs);
+            break;
+        }
+
+        case op_group::arith_imm2:
+        {
+            lower_imm2_dst(opcode.arith_imm2,regs);
+            break;
+        }
+
+        case op_group::arith_imm3:
+        {
+            lower_imm3(opcode.arith_imm3,regs);
+            break;
+        }
+
+        case op_group::imm2_src:
+        {
+            lower_imm2_src(opcode.imm2_src,regs);
+            break;
+        }
+
+        case op_group::arith_gpr3:
+        {
+            lower_reg3(opcode.arith_gpr3,regs);
+            break;
+        }
+
+        case op_group::arith_gpr2:
+        {
+            lower_reg2_dst(opcode.arith_gpr2,regs);
+            break;
+        }
+
+        case op_group::arith_fpr2:
+        {
+            lower_reg2_dst(opcode.arith_fpr2,regs);
+            break;
+        }
+
+        case op_group::mov_gpr_imm:
+        {
+            lower_mov_gpr_imm(opcode.mov_gpr_imm,regs);
+            break;
+        }
+
+        case op_group::unary_reg1:
+        {
+            lower_unary_reg1(opcode.unary_reg1,regs);
+            break;
+        }
+
+        case op_group::unary_reg2:
+        {
+            lower_unary_reg2(opcode.unary_reg2,regs);
+            break;
+        }
+
+        case op_group::sign_extend:
+        {
+            lower_unary_reg2(opcode.sign_extend,regs);
+            break;       
+        }
+
+        case op_group::reg2_src:
+        {
+            lower_reg2_src(opcode.reg2_src,regs);
+            break;
+        }
+
+        case op_group::reg1_src:
+        {
+            lower_reg1_src(opcode.reg1_src,regs);
+            break;
+        }
+
+        case op_group::addrof:
+        {
+            // -> <addrof> <alloced reg> <slot> <stack offset>
+            // -> lea <alloced reg> <sp + whatever>
+            const auto base = opcode.addrof.addr_ir.base;
+            const auto dst = opcode.addrof.v1;
+
+            log_reg(alloc.print,*alloc.table,"addrof %r <- %r\n",dst,base);
+            lower_addr_reg_pass(alloc,opcode.addrof,regs);
+            break;
+        }
+
+        case op_group::lea:
+        {
+            lower_addr_reg_pass(alloc,opcode.lea,regs);
+            break;
+        }
+
+        case op_group::load_struct:
+        {
+            lower_addr_reg_pass(alloc,opcode.load_struct,regs);
+            break;            
+        }
+
+        case op_group::store_struct:
+        {
+            lower_addr_reg_pass(alloc,opcode.store_struct,regs);
+            break;            
+        }
+
+        case op_group::load:
+        {
+            lower_addr_reg_pass(alloc,opcode.load,regs);
+            break;
+        }
+
+        case op_group::store:
+        {
+            lower_addr_reg_pass(alloc,opcode.store,regs);
+            break;
+        }
+
+        case op_group::set_from_flag_gpr:
+        {
+            lower_unary_reg1(opcode.set_from_flag_gpr,regs);
+            break;
+        }
+
+        case op_group::set_from_flag_fpr:
+        {
+            lower_unary_reg1(opcode.set_from_flag_fpr,regs);
+            break;
+        }
+
+        case op_group::x86_fixed:
+        {
+            lower_reg2_dst(opcode.x86_fixed,regs);
+            break;
+        }
+
+        case op_group::implicit: break;
+        case op_group::branch_label: break;
+        case op_group::branch_cond_flag: break;
+
+        default:
+        {
+            unimplemented("Lower registers for %s",OP_GROUP_NAMES[u32(opcode.group)]);
+        }
+    }
+
+    opcode.state = opcode_state::lowered;
+}
+
+
+// TODO: this assumes we have no access to the instruction
+OpcodeNode* emit_popm(Interloper& itl, Block& block, OpcodeNode* node, u32 bitset)
+{
+    UNUSED(itl);
+
+    for(s32 i = MACHINE_REG_SIZE - 1; i >= 0; i--)
+    {
+        if(is_set(bitset,i))
+        {
+            node = insert_at(block.list,node,make_lowered_reg1_dst_instr(i,reg1_dst_type::pop));
+            node = node->next;
+        }
+    }
+
+    return node;
+}
+
+OpcodeNode* emit_pushm(Interloper& itl, Block& block, OpcodeNode* node,u32 bitset)
+{
+    UNUSED(itl);
+
+    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    {
+        if(is_set(bitset,i))
+        {
+            node = insert_at(block.list,node,make_lowered_reg1_src_instr(i,reg1_src_type::push));
+            node = node->next;
+        }
+    }
+
+    return node;
+}
+
+OpcodeNode* emit_popm_float(Interloper& itl, Block& block, OpcodeNode* node, u32 bitset)
+{
+    if(!bitset)
+    {
+        return node;
+    }
+
+    const u32 size = popcount(bitset) * FLOAT_SIZE;
+
+    u32 offset = size - FLOAT_SIZE;
+
+    const u32 sp = arch_sp(itl.arch);
+
+    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    {
+        if(is_set(bitset,i))
+        {
+            node = insert_at(block.list,node,make_lowered_load_instr(i,sp,offset,load_type::lf));
+            node = node->next;
+            offset -= FLOAT_SIZE;
+        }
+    }
+
+    node = insert_at(block.list,node,make_lowered_arith_imm2_instr(sp,size,arith_bin_op::add_t));
+    node = node->next;
+
+    return node;
+}
+
+OpcodeNode* emit_pushm_float(Interloper& itl, Block& block, OpcodeNode* node,u32 bitset)
+{
+    if(!bitset)
+    {
+        return node;
+    }
+
+    const u32 size = popcount(bitset) * FLOAT_SIZE;
+    u32 offset = size - FLOAT_SIZE;
+
+    const u32 sp = arch_sp(itl.arch);
+
+    node = insert_at(block.list,node,make_lowered_arith_imm2_instr(sp,size,arith_bin_op::sub_t));
+    node = node->next;
+
+    for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
+    {
+        if(is_set(bitset,i))
+        {
+            node = insert_at(block.list,node,make_lowered_store_instr(i,sp,offset,store_type::sf));
+            node = node->next;
+            offset -= FLOAT_SIZE;
+        }
+    }
+
+    return node;
+}

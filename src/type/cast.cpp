@@ -308,27 +308,10 @@ void compile_cast(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot
         {
             BuiltinType* builtin_type = (BuiltinType*)reg.type;
 
-            switch(builtin_type->builtin)
+            if(in_range(builtin_type->builtin,builtin_type::s8_t,builtin_type::s32_t))
             {
-                case builtin_type::s8_t: 
-                {
-                    sign_extend_byte(itl,func,dst_slot,reg.slot);
-                    break;
-                }
-
-                case builtin_type::s16_t:
-                {
-                    sign_extend_half(itl,func,dst_slot,reg.slot);
-                    break;
-                }
-
-                case builtin_type::s32_t:
-                {
-                    sign_extend_word(itl,func,dst_slot,reg.slot);
-                    break;                        
-                }
-
-                default: break;
+                const auto extend = sign_extend_op(u32(builtin_type->builtin) - u32(builtin_type::s8_t));
+                emit_sign_extend(itl,func,dst_slot,reg.slot,extend);
             }
 
             break;
@@ -345,13 +328,13 @@ void compile_cast(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slot
         {
             if(is_signed(reg.type))
             {
-                cmp_signed_gt_imm(itl,func,dst_slot,reg.slot,0);
+                cmp_sgt_imm(itl,func,dst_slot,reg.slot,0);
             }
 
             // unsigned
             else
             {
-                cmp_unsigned_gt_imm(itl,func,dst_slot,reg.slot,0);
+                cmp_ugt_imm(itl,func,dst_slot,reg.slot,0);
             }
             
             break;

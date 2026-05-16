@@ -56,7 +56,7 @@ builtin_type value_type(const Value& value)
 }
 
 
-TypeResult effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, arith_bin_op arith)
+TypeResult effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, arith_bin_type arith)
 {
     // builtin type
     if(is_builtin(rtype) && is_builtin(ltype))
@@ -92,7 +92,7 @@ TypeResult effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, arith_
     // pointer arithmetic is fine
     else if(is_pointer(ltype) && is_integer(rtype))
     {
-        if(arith != arith_bin_op::sub_t && arith != arith_bin_op::add_t)
+        if(arith != arith_bin_type::sub_t && arith != arith_bin_type::add_t)
         {
             return compile_error(itl,itl_error::undefined_type_oper,"Pointer arithmetic is only defined for addition and subtraction");     
         }
@@ -100,7 +100,7 @@ TypeResult effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, arith_
         return ltype;
     }
 
-    else if(is_pointer(ltype) && is_pointer(rtype) && arith == arith_bin_op::sub_t)
+    else if(is_pointer(ltype) && is_pointer(rtype) && arith == arith_bin_type::sub_t)
     {
         return make_builtin(itl,GPR_SIZE_TYPE);
     }
@@ -117,8 +117,8 @@ TypeResult check_comparison_operation(Interloper& itl,const Type *ltype, const T
     // both are builtin
     if(is_builtin(rtype) && is_builtin(ltype))
     {
-        const auto builtin_r = cast_builtin(rtype);
-        const auto builtin_l = cast_builtin(ltype);
+        const bool both_float = is_float(rtype) && is_float(ltype);
+        const bool both_bool = is_bool(ltype) && is_bool(rtype);
 
         // both integers 
         if(is_integer(rtype) && is_integer(ltype))
@@ -129,20 +129,7 @@ TypeResult check_comparison_operation(Interloper& itl,const Type *ltype, const T
             }
         }
 
-        // both float
-        else if(is_float(rtype) && is_float(ltype))
-        {
-
-        }
-
-        // both bool
-        else if(builtin_r == builtin_type::bool_t && builtin_l == builtin_type::bool_t)
-        {
-            
-        }
-
-        // something else
-        else
+        else if(!(both_float || both_bool))
         {
             return compile_error(itl,itl_error::undefined_type_oper,"logical operation undefined for %t and %t",ltype,rtype);
         }

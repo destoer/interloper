@@ -40,18 +40,35 @@ func mul_mat4(m1: const Mat4D@,m2: const Mat4D@) Mat4D
 {   
     ans: Mat4D = {?};
 
-    constant MAT_4D_SIZE: u32 = 4;
-
-    for r in 0 < MAT_4D_SIZE 
+    for [row, r] in m1.mat
     {
-        for c in 0 < MAT_4D_SIZE
+        for [@cell, c] in ans.mat[r]
         {
-            for i in 0 < MAT_4D_SIZE
-            {
-                ans.mat[r][c] += m1.mat[r][i] * m2.mat[i][c];
-            }
+            v := row[0] * m2.mat[0][c];
+            v += row[1] * m2.mat[1][c];
+            v += row[2] * m2.mat[2][c];
+            v += row[3] * m2.mat[3][c];
+
+            @cell = v;
         }
     }     
 
     return ans;
+}
+
+func test_mat4d(v1: Mat4D, ans: Mat4D, name: const string)
+{
+    constant MAT_4D_SIZE: u32 = 4;
+
+    for r in 0 <  MAT_4D_SIZE
+    {
+        for c in 0 < MAT_4D_SIZE 
+        {
+            if v1.mat[r][c] != ans.mat[r][c] 
+            {
+                println("Test {} failed[{},{}] {} != {}",name,r,c,v1.mat[r][c],ans.mat[r][c]);
+                exit(1);
+            }
+        }
+    }    
 }

@@ -5,43 +5,6 @@ void destroy_reg(Reg& ir_reg)
     destroy_arr(ir_reg.local_uses);
 }
 
-b32 is_arg_reg(arg_type type)
-{
-    return type <= arg_type::dst_src_reg;
-}
-
-b32 is_arg_src(arg_type type)
-{
-    return type == arg_type::dst_src_reg || type == arg_type::dst_src_float || type == arg_type::src_reg || type == arg_type::src_float;
-}
-
-constexpr b32 is_arg_src_const(arg_type type)
-{
-    return type == arg_type::dst_src_reg || type == arg_type::dst_src_float || type == arg_type::src_reg || type == arg_type::src_float;
-}
-
-b32 is_arg_dst(arg_type type)
-{
-    return type >= arg_type::dst_reg && type <= arg_type::dst_src_reg;
-}
-
-constexpr b32 is_arg_dst_const(arg_type type)
-{
-    return type >= arg_type::dst_reg && type <= arg_type::dst_src_reg;
-}
-
-
-b32 is_arg_float(arg_type type)
-{
-    return type == arg_type::dst_src_float || type == arg_type::src_float || type ==  arg_type::dst_float;
-}
-
-constexpr b32 is_arg_float_const(arg_type type)
-{
-    return type == arg_type::dst_src_float || type == arg_type::src_float || type ==  arg_type::dst_float;
-}
-
-
 u32 gpr_count(u32 size)
 {
     return size / GPR_SIZE;
@@ -74,7 +37,7 @@ b32 pending_stack_allocation(Reg& reg)
 
 b32 is_stored_in_mem(Reg& reg)
 {
-    return reg.flags & STORED_IN_MEM;
+    return reg.flags & (STORED_IN_MEM | ALIASED);
 }
 
 // NOTE: this only works for structs, vars i.e power of two aligned sizes
@@ -138,20 +101,15 @@ b32 is_stack_arg(const Reg& reg)
     return reg.flags & STACK_ARG;
 }
 
-enum class reg_file_kind 
-{
-    gpr,
-    fpr,
-};
 
-reg_file_kind find_reg_set(spec_reg reg)
+reg_type spec_rtype(spec_reg reg)
 {
-    return reg == spec_reg::rv_fpr? reg_file_kind::fpr : reg_file_kind::gpr;
+    return reg == spec_reg::rv_fpr? reg_type::fpr : reg_type::gpr;
 }
 
-reg_file_kind find_reg_set(const Reg& ir_reg)
+reg_type ir_rtype(const Reg& ir_reg)
 {
-    return (ir_reg.flags & REG_FLOAT)? reg_file_kind::fpr : reg_file_kind::gpr;
+    return (ir_reg.flags & REG_FLOAT)? reg_type::fpr : reg_type::gpr;
 }
 
 b32 is_special_reg(RegSlot slot)
@@ -332,6 +290,11 @@ RegSlot new_float(Function& func)
     return reg_slot;  
 }
 
+RegSlot new_max_tmp(Function& func,reg_type rtype)
+{
+    return rtype == reg_type::fpr? new_float(func) : new_tmp(func,GPR_SIZE);
+}
+
 RegSlot new_tmp_ptr(Function &func)
 {
     return new_tmp(func,GPR_SIZE);
@@ -341,12 +304,6 @@ bool is_local_reg(const Reg &reg)
 {
     return !is_aliased(reg) && is_local(reg) && !stored_in_mem(reg);
 }
-
-const OpInfo& info_from_op(const Opcode& opcode)
-{
-    return OPCODE_TABLE[u32(opcode.op)];
-}
-
 
 b32 is_callee_saved(arch_target arch,u32 reg_idx)
 {
@@ -460,13 +417,13 @@ void log_reg(b32 print,SymbolTable& table, const String& fmt_string, ...)
 
 struct AbiInfo
 {
-    u32 gpr_rv;
-    u32 fpr_rv;
-    u32 sp;
-    u32 fp;
+    lowered_reg_t gpr_rv;
+    lowered_reg_t fpr_rv;
+    lowered_reg_t sp;
+    lowered_reg_t fp;
 
-    u32 gpr_args[MACHINE_REG_SIZE];
-    u32 gpr_arg_count;
+    lowered_reg_t gpr_args[MACHINE_REG_SIZE];
+    lowered_reg_t gpr_arg_count;
 };
 
 static constexpr AbiInfo ABI_INFO[] = 
@@ -489,28 +446,28 @@ const AbiInfo& get_abi_info(arch_target arch)
 }
 
 
-u32 arch_sp(arch_target arch)
+lowered_reg_t arch_sp(arch_target arch)
 {
     const auto info = get_abi_info(arch);
 
     return info.sp;
 }
 
-u32 arch_fp(arch_target arch)
+lowered_reg_t arch_fp(arch_target arch)
 {
     const auto& info = get_abi_info(arch);
 
     return info.fp;
 }
 
-u32 arch_rv(arch_target arch)
+lowered_reg_t arch_rv(arch_target arch)
 {
     const auto info = get_abi_info(arch);
 
     return info.gpr_rv;
 }
 
-u32 arch_frv(arch_target arch)
+lowered_reg_t arch_frv(arch_target arch)
 {
     const auto info = get_abi_info(arch);
 
@@ -518,7 +475,7 @@ u32 arch_frv(arch_target arch)
 }
 
 
-u32 special_reg_to_reg(arch_target arch,spec_reg spec)
+lowered_reg_t special_reg_to_reg(arch_target arch,spec_reg spec)
 {
     switch(spec)
     {
@@ -569,6 +526,10 @@ u32 special_reg_to_reg(arch_target arch,spec_reg spec)
         case spec_reg::r9: return u32(x86_reg::r9);
         case spec_reg::r10: return u32(x86_reg::r10);
 
+        case spec_reg::const_seg: return u32(spec_reg::const_seg);
+        case spec_reg::null: return u32(spec_reg::null);
+
+
         case spec_reg::a1:
         {
             switch(arch)
@@ -618,7 +579,7 @@ spec_reg return_reg_from_type(const Type* type)
     }
 }
 
-std::pair<u32,u32> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offset)
+std::pair<u32,lowered_reg_t> reg_offset(Interloper& itl,const Reg& ir_reg, u32 stack_offset)
 {
     switch(ir_reg.segment)
     {

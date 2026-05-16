@@ -109,6 +109,12 @@ void destroy_itl(Interloper &itl)
     destroy_const_pool(itl.const_pool);
     destroy_sym_table(itl.symbol_table);
     destroy_namespace_tree(itl);
+
+    for(auto& decl : itl.type_decl)
+    {
+        destroy_attribute(decl->type_def.attr);
+    }
+
     destroy_arr(itl.type_decl);
     destroy_arr(itl.constant_decl);
     destroy_arr(itl.global_decl);

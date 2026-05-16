@@ -1,16 +1,179 @@
-#include "reg.cpp"
+#include "opcode.h"
 
-void reload_slot(Interloper& itl, Function& func, const Reg& reg);
+void reload_slot(Interloper& itl, Function& func, const Reg& dst);
+void spill_slot(Interloper& itl, Function& func, const Reg& src);
+ConstIrRegSpan opcode_ir_reg_span(const Opcode& opcode, IrRegSpan& reg);
 
-OpcodeList& get_cur_list(IrEmitter& emitter)
+
+void handle_src_storage(Interloper& itl, Function& func, RegSlot src)
 {
-    return emitter.program[count(emitter.program)-1].list; 
+    if(is_special_reg(src))
+    {
+        return;
+    }
+
+    auto& reg = reg_from_slot(itl.symbol_table,func,src);
+
+    if(is_aliased(reg))
+    {
+        reload_slot(itl,func,reg);
+    }
 }
 
-OpcodeNode* get_cur_end(IrEmitter& emitter)
+void handle_dst_storage(Interloper& itl, Function& func, RegSlot dst_slot)
 {
-    return get_cur_list(emitter).finish;    
+    if(is_special_reg(dst_slot))
+    {
+        return;
+    }
+
+    auto& reg = reg_from_slot(itl.symbol_table,func,dst_slot);
+
+    if(is_aliased(reg))
+    {
+        spill_slot(itl,func,reg);
+    }
 }
+
+const ConstIrRegSpan blank_ir_reg_span(IrRegSpan& reg)
+{
+    reg.dst.size = 0;
+    reg.src.size = 0;
+    reg.dst_src.size = 0;
+
+    return reg;
+}
+
+const ConstLoweredRegSpan blank_lowered_reg_span(LoweredRegSpan& reg)
+{
+    reg.dst.size = 0;
+    reg.src.size = 0;
+    reg.dst_src.size = 0;
+
+    return reg;
+}
+
+// NOTE: these are the bottom level emitter only use directly if you need to gen code yourself
+OpcodeNode* emit_block_internal(Interloper& itl, Function& func,BlockSlot block_slot, const Opcode& opcode)
+{
+    const auto reg = opcode_ir_reg_span(opcode,itl.reg_span);
+
+    for(const auto& src: reg.src)
+    {
+        handle_src_storage(itl,func,src);
+    }
+
+    auto& block = block_from_slot(func,block_slot);
+
+    auto &list = block.list;
+    append(list,opcode);
+    
+    for(const auto& dst: reg.dst)
+    {
+        handle_dst_storage(itl,func,dst);
+    }
+
+    return list.finish;    
+}
+
+OpcodeNode* emit_block_func(Interloper& itl, Function& func,const Opcode& opcode)
+{
+    return emit_block_internal(itl,func,cur_block(func),opcode);
+}
+
+template<typename T, typename OPCODE_FUNC>
+RegSlot opcode_res1_fpr(Interloper& itl,Function& func, const T& arg, const OPCODE_FUNC& opcode_func)
+{
+    const auto tmp = new_float(func);
+    opcode_func(itl,func,tmp,arg);
+
+    return tmp;
+}
+
+template<typename T, typename OPCODE_FUNC>
+RegSlot opcode_res1_gpr(Interloper& itl,Function& func, const T& arg, const OPCODE_FUNC& opcode_func)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+    opcode_func(itl,func,tmp,arg);
+
+    return tmp;
+}
+
+
+template<typename T, typename Y, typename OPCODE_FUNC>
+RegSlot opcode_res2_gpr(Interloper& itl,Function& func, const T& v1, const Y& v2, const OPCODE_FUNC& opcode_func)
+{
+    const auto tmp = new_tmp(func,GPR_SIZE);
+    opcode_func(itl,func,tmp,v1,v2);
+
+    return tmp;
+}
+
+
+#include "emitter/directive.cpp"
+#include "emitter/mov_imm.cpp"
+#include "emitter/arith_reg.cpp"
+#include "emitter/arith_imm.cpp"
+#include "emitter/branch.cpp"
+#include "emitter/implicit.cpp"
+#include "emitter/addr.cpp"
+#include "emitter/unary.cpp"
+#include "emitter/cmp.cpp"
+
+ConstIrRegSpan opcode_ir_reg_span(const Opcode& opcode, IrRegSpan& reg)
+{
+    blank_ir_reg_span(reg);
+
+    // If we have lowered this opcode then there are no IR registers.
+    if(opcode.state == opcode_state::lowered)
+    {
+        return reg;
+    }
+
+    switch(opcode.group)
+    {
+        case op_group::implicit: return reg; 
+        case op_group::branch_label: return reg; 
+        case op_group::branch_reg: return branch_reg_span(opcode.branch_reg,reg);
+        case op_group::branch_cond: return branch_cond_reg_span(opcode.branch_cond,reg);
+        case op_group::branch_cond_flag: return reg; 
+        case op_group::directive: return directive_reg_span(opcode.directive,reg); 
+        case op_group::mov_gpr_imm: return mov_gpr_imm_reg_span(opcode.mov_gpr_imm,reg); 
+        case op_group::mov_fpr_imm: return mov_fpr_imm_reg_span(opcode.mov_fpr_imm,reg); 
+        case op_group::arith_imm3: return imm3_reg_span(opcode.arith_imm3,reg);
+        case op_group::arith_imm2: return imm2_dst_reg_span(opcode.arith_imm2,reg);
+        case op_group::arith_gpr3: return reg3_reg_span(opcode.arith_gpr3,reg);
+        case op_group::arith_gpr2: return reg2_dst_reg_span(opcode.arith_gpr2,reg);
+        case op_group::arith_fpr3: return reg3_reg_span(opcode.arith_fpr3,reg);
+        case op_group::arith_fpr2: return reg2_dst_reg_span(opcode.arith_fpr2,reg);
+        case op_group::shift_imm3: return imm3_reg_span(opcode.shift_imm3,reg);
+        case op_group::shift_imm2: return imm2_dst_reg_span(opcode.shift_imm2,reg);
+        case op_group::shift_reg3: return reg3_reg_span(opcode.shift_reg3,reg);
+        case op_group::shift_reg2: return reg2_dst_reg_span(opcode.shift_reg2,reg);
+        case op_group::imm2_src: return imm2_src_reg_span(opcode.imm2_src,reg);
+        case op_group::load: return addr_opcode_ir_reg_span(opcode.load,reg);
+        case op_group::load_struct: return addr_opcode_ir_reg_span(opcode.load_struct,reg);
+        case op_group::store: return addr_opcode_ir_reg_span(opcode.store,reg);
+        case op_group::store_struct: return addr_opcode_ir_reg_span(opcode.store_struct,reg);   
+        case op_group::lea: return addr_opcode_ir_reg_span(opcode.lea,reg);
+        case op_group::addrof: return addr_opcode_ir_reg_span(opcode.addrof,reg);  
+        case op_group::unary_reg2: return unary_reg2_reg_span(opcode.unary_reg2,reg);
+        case op_group::unary_reg1: return unary_reg1_reg_span(opcode.unary_reg1,reg);
+        case op_group::sign_extend: return unary_reg2_reg_span(opcode.sign_extend,reg);
+        case op_group::cmp_imm3: return imm3_reg_span(opcode.cmp_imm3,reg);
+        case op_group::cmp_gpr3: return reg3_reg_span(opcode.cmp_gpr3,reg);
+        case op_group::cmp_fpr3: return reg3_reg_span(opcode.cmp_fpr3,reg);
+        case op_group::reg2_src: return reg2_src_reg_span(opcode.reg2_src,reg);
+        case op_group::reg1_src: return reg1_src_reg_span(opcode.reg1_src,reg);
+        case op_group::reg1_dst: return reg1_dst_reg_span(opcode.reg1_dst,reg);
+        case op_group::set_from_flag_fpr: return unary_reg1_reg_span(opcode.set_from_flag_fpr,reg);
+        case op_group::set_from_flag_gpr: return unary_reg1_reg_span(opcode.set_from_flag_gpr,reg);
+        case op_group::x86_fixed: return reg2_dst_reg_span(opcode.x86_fixed,reg);
+    }
+
+    return reg;
+}
+
 
 void destroy_block(Block& block)
 {
@@ -34,337 +197,3 @@ void destroy_emitter(IrEmitter& emitter)
 
     destroy_arr(emitter.program);
 }
-
-constexpr OpInfo opcode_three_info(op_type type)
-{
-    const u32 IDX = u32(type);
-
-    const auto OP_INFO = OPCODE_TABLE[IDX];
-
-    return OP_INFO;    
-}
-
-// NOTE: we could have handled this with higher level checks at the point we request the symbol
-// from the table and strongly type src and dst slots, but it seems too error prone,
-// even though the current solution is a bit heavyweight
-
-void handle_src_storage(Interloper& itl, Function& func, RegSlot src_slot, b32 is_float)
-{
-    if(is_special_reg(src_slot))
-    {
-        return;
-    }
-
-    auto& reg = reg_from_slot(itl.symbol_table,func,src_slot);
-
-    if(is_aliased(reg))
-    {
-        reload_slot(itl,func,reg);
-    }
-
-    UNUSED(is_float);
-
-#ifdef VERIFY_FLOAT
-    if(!is_float)
-    {
-        assert(!(reg.flags & REG_FLOAT));
-    }
-
-    else
-    {
-        assert(reg.flags & REG_FLOAT);
-    }
-#endif
-}
-
-void handle_dst_storage(Interloper& itl, Function& func, RegSlot dst_slot, b32 is_float)
-{
-    if(is_special_reg(dst_slot))
-    {
-        return;
-    }
-
-    auto& reg = reg_from_slot(itl.symbol_table,func,dst_slot);
-
-    if(is_aliased(reg))
-    {
-        spill_slot(itl,func,reg);
-    }
-
-    UNUSED(is_float);
-
-#ifdef VERIFY_FLOAT
-    if(!is_float)
-    {
-        assert(!(reg.flags & REG_FLOAT));
-    }
-
-    else
-    {
-        reg.flags |= REG_FLOAT;
-    } 
-#endif
-}
-
-
-
-// NOTE: these are the bottom level emitter only use directly if you need to gen code yourself
-OpcodeNode* emit_block_internal(Function& func,BlockSlot block_slot, const Opcode& opcode)
-{
-    auto& block = block_from_slot(func,block_slot);
-
-    auto &list = block.list;
-    append(list,opcode);
-    
-    return list.finish;    
-}
-
-OpcodeNode* emit_block_func(Function& func,const Opcode& opcode)
-{
-    return emit_block_internal(func,cur_block(func),opcode);
-}
-
-template<const op_type type>
-void emit_branch_reg(Interloper& itl, Function& func, RegSlot v1)
-{
-    UNUSED(itl);
-
-    // sanity checking fmt
-    constexpr auto OP_INFO = opcode_three_info(type);
-
-    static_assert(OP_INFO.group == op_group::branch_reg_t);
-
-    static_assert(OP_INFO.type[0] == arg_type::src_reg);
-    static_assert(OP_INFO.args == 1);
-
-    const Opcode opcode = make_reg1_instr(type,v1);
-    emit_block_func(func,opcode);    
-}
-
-template<const op_type type>
-void emit_implicit(Interloper& itl,Function& func)
-{
-    UNUSED(itl);
-
-    // sanity checking fmt
-    constexpr auto OP_INFO = opcode_three_info(type);
-    static_assert(OP_INFO.args == 0);
-
-    const Opcode opcode = make_implicit_instr(type);
-    emit_block_func(func,opcode);
-}
-
-
-
-template<const op_type type>
-void emit_reg2(Interloper& itl,Function& func, RegSlot dst, RegSlot src)
-{
-    // sanity checking fmt
-    constexpr auto OP_INFO = opcode_three_info(type);
-
-    static_assert(OP_INFO.group == op_group::reg_t);
-
-    static_assert(is_arg_dst_const(OP_INFO.type[0]));
-    static_assert(is_arg_src_const(OP_INFO.type[1]));
-    static_assert(OP_INFO.args == 2);
-
-    handle_src_storage(itl,func,src,is_arg_float_const(OP_INFO.type[1]));
-
-    const Opcode opcode = make_reg2_instr(type,dst,src);
-    emit_block_func(func,opcode);
-
-    handle_dst_storage(itl,func,dst,is_arg_float_const(OP_INFO.type[0]));
-}
-
-// emitter for reg_t 3
-void emit_reg3_unchecked(Interloper& itl,Function& func, op_type type, RegSlot dst, RegSlot v1, RegSlot v2)
-{
-    // sanity checking fmt
-    const auto OP_INFO = opcode_three_info(type);
-
-    handle_src_storage(itl,func,v1,is_arg_float_const(OP_INFO.type[1]));
-    handle_src_storage(itl,func,v2,is_arg_float_const(OP_INFO.type[2]));
-
-    const Opcode opcode = make_reg3_instr(type,dst,v1,v2);
-    emit_block_func(func,opcode);
-
-    handle_dst_storage(itl,func,dst,is_arg_float_const(OP_INFO.type[0]));
-}
-
-template<const op_type type>
-void emit_reg3(Interloper& itl,Function& func, RegSlot dst, RegSlot v1, RegSlot v2)
-{
-    // sanity checking fmt
-    constexpr auto OP_INFO = opcode_three_info(type);
-
-    static_assert(OP_INFO.group == op_group::reg_t);
-
-    static_assert(is_arg_dst_const(OP_INFO.type[0]));
-    static_assert(is_arg_src_const(OP_INFO.type[1]));
-    static_assert(is_arg_src_const(OP_INFO.type[2]));
-    static_assert(OP_INFO.args == 3);
-
-    emit_reg3_unchecked(itl,func,type,dst,v1,v2);
-}
-
-template<const op_type type>
-void emit_reg1(Interloper& itl, Function& func, RegSlot src)
-{
-    // sanity checking fmt
-    constexpr auto OP_INFO = opcode_three_info(type);
-
-    static_assert(OP_INFO.group == op_group::reg_t);
-
-    static_assert(is_arg_src_const(OP_INFO.type[0]));
-    static_assert(OP_INFO.args == 1);
-
-    const Opcode opcode = make_reg1_instr(type,src);
-    emit_block_func(func,opcode);
-
-    handle_src_storage(itl,func,src,is_arg_float_const(OP_INFO.type[0]));
-}
-
-
-
-template<const op_type type>
-void emit_store(Interloper& itl, Function& func, RegSlot src, PointerAddr pointer)
-{
-    // sanity checking fmt
-    constexpr auto OP_INFO = opcode_three_info(type);
-
-    static_assert(OP_INFO.group == op_group::addr_t);
-
-    static_assert(is_arg_src_const(OP_INFO.type[0]));
-    static_assert(is_arg_src_const(OP_INFO.type[1]));
-    static_assert(is_arg_src_const(OP_INFO.type[2]));
-    static_assert(OP_INFO.args == 3);
-
-    handle_src_storage(itl,func,src,is_arg_float_const(OP_INFO.type[0]));
-    handle_src_storage(itl,func,pointer.addr.base,is_arg_float_const(OP_INFO.type[1]));
-    handle_src_storage(itl,func,pointer.addr.index,is_arg_float_const(OP_INFO.type[2]));
-
-    const Opcode opcode = make_addr_instr(type,src,pointer.addr);
-    emit_block_func(func,opcode);    
-}
-
-template<const op_type type>
-void emit_load(Interloper& itl, Function& func, RegSlot dst, PointerAddr pointer)
-{
-    // sanity checking fmt
-    constexpr auto OP_INFO = opcode_three_info(type);
-
-    static_assert(OP_INFO.group == op_group::addr_t);
-
-    static_assert(is_arg_dst_const(OP_INFO.type[0]));
-    static_assert(is_arg_src_const(OP_INFO.type[1]));
-    static_assert(is_arg_src_const(OP_INFO.type[2]));
-    static_assert(OP_INFO.args == 3);
-
-    handle_src_storage(itl,func,pointer.addr.base,is_arg_float_const(OP_INFO.type[1]));
-    handle_src_storage(itl,func,pointer.addr.index,is_arg_float_const(OP_INFO.type[2]));
-    
-    const Opcode opcode = make_addr_instr(type,dst,pointer.addr);
-    emit_block_func(func,opcode);        
-
-    handle_dst_storage(itl,func,dst,is_arg_float_const(OP_INFO.type[0]));
-}
-
-template<const op_type type>
-void emit_imm2(Interloper& itl, Function& func, RegSlot dst, u64 imm)
-{
-    // sanity checking fmt
-    constexpr auto OP_INFO = opcode_three_info(type);
-
-    static_assert(OP_INFO.group == op_group::imm_t);
-
-    static_assert(is_arg_dst_const(OP_INFO.type[0]));
-    static_assert(OP_INFO.type[1] == arg_type::imm);
-    static_assert(OP_INFO.args == 2);
-
-    const Opcode opcode = make_imm2_instr(type,dst,imm);
-    emit_block_func(func,opcode);    
-
-    handle_dst_storage(itl,func,dst,is_arg_float_const(OP_INFO.type[0]));
-}
-
-template<const op_type type>
-void emit_imm1(Interloper& itl, Function& func, u64 imm)
-{
-    UNUSED(itl);
-
-    // sanity checking fmt
-    constexpr auto OP_INFO = opcode_three_info(type);
-
-    static_assert(OP_INFO.group == op_group::imm_t);
-
-    static_assert(OP_INFO.type[0] == arg_type::imm);
-    static_assert(OP_INFO.args == 1);
-
-    const Opcode opcode = make_imm1_instr(type,imm);
-    emit_block_func(func,opcode);    
-}
-
-
-void emit_imm3_unchecked(Interloper& itl, Function& func, op_type type, RegSlot dst, RegSlot src, u64 imm)
-{
-    const auto OP_INFO = opcode_three_info(type);
-
-    handle_src_storage(itl,func,src,is_arg_float_const(OP_INFO.type[1]));
-
-    const Opcode opcode = make_imm3_instr(type,dst,src,imm);
-    emit_block_func(func,opcode);    
-
-    handle_dst_storage(itl,func,dst,is_arg_float_const(OP_INFO.type[0]));
-}
-
-
-template<const op_type type>
-void emit_imm3(Interloper& itl, Function& func, RegSlot dst, RegSlot src, u64 imm)
-{
-    // sanity checking fmt
-    constexpr auto OP_INFO = opcode_three_info(type);
-
-    static_assert(OP_INFO.group == op_group::imm_t);
-
-    static_assert(is_arg_dst_const(OP_INFO.type[0]));
-    static_assert(is_arg_src_const(OP_INFO.type[1]));
-    static_assert(OP_INFO.type[2] == arg_type::imm);
-    static_assert(OP_INFO.args == 3);
-
-    emit_imm3_unchecked(itl,func,type,dst,src,imm);
-}
-
-template<const op_type type>
-void emit_fp_imm2(Interloper& itl, Function& func, RegSlot dst, f64 decimal)
-{
-    // sanity checking fmt
-    constexpr auto OP_INFO = opcode_three_info(type);
-
-    static_assert(OP_INFO.group == op_group::imm_t);
-
-    static_assert(OP_INFO.type[0] == arg_type::dst_float);
-    static_assert(OP_INFO.type[1] == arg_type::imm);
-    static_assert(OP_INFO.args == 2);
-
-    const Opcode opcode = make_float_imm2_instr(type,dst,decimal);
-    emit_block_func(func,opcode);    
-
-    handle_dst_storage(itl,func,dst,is_arg_float_const(OP_INFO.type[0]));
-}
-
-template<const op_type type>
-void emit_label1(Interloper& itl,Function& func, LabelSlot slot)
-{
-    UNUSED(itl);
-
-    constexpr auto OP_INFO = opcode_three_info(type);
-
-    static_assert(OP_INFO.type[0] == arg_type::label);
-    static_assert(OP_INFO.args == 1);
-
-    const Opcode opcode = make_branch_instr(type,slot);
-    emit_block_func(func,opcode);
-}
-
-#include "emit_opcode.cpp"
-#include "directive.cpp"

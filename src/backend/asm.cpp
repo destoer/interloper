@@ -1,4 +1,4 @@
-
+void emit_x86_asm(Interloper& itl);
 
 void destroy_asm_emitter(AsmEmitter& emitter)
 {

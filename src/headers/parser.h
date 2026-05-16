@@ -105,8 +105,8 @@ struct ExprBinOperNode
     AstNode* right = nullptr;
 };
 
-using ArithBinNode = ExprBinOperNode<arith_bin_op>;
-using ShiftNode = ExprBinOperNode<shift_op>;
+using ArithBinNode = ExprBinOperNode<arith_bin_type>;
+using ShiftNode = ExprBinOperNode<shift_type>;
 using CmpNode = ExprBinOperNode<comparison_op>;
 using BooleanLogicNode = ExprBinOperNode<boolean_logic_op>;
 
@@ -798,12 +798,12 @@ ParserResult ast_expr_oper_bin(Parser& parser, T oper, ParserResult left_res, Pa
 }
 
 
-ParserResult ast_bin_arith(Parser& parser, arith_bin_op oper, ParserResult left_res, ParserResult right_res, const Token& token)
+ParserResult ast_bin_arith(Parser& parser, arith_bin_type oper, ParserResult left_res, ParserResult right_res, const Token& token)
 {
     return ast_expr_oper_bin<ast_type::arith_bin>(parser,oper,left_res,right_res,token);
 }
 
-ParserResult ast_shift(Parser& parser, shift_op oper, ParserResult left_res, ParserResult right_res, const Token& token)
+ParserResult ast_shift(Parser& parser, shift_type oper, ParserResult left_res, ParserResult right_res, const Token& token)
 {
     return ast_expr_oper_bin<ast_type::shift>(parser,oper,left_res,right_res,token);
 }

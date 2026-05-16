@@ -130,6 +130,9 @@ struct Interloper
     Function* mem_equal = nullptr;
     Function* array_equal = nullptr;
     Function* start = nullptr;
+
+    IrRegSpanStorage reg_span_storage;
+    IrRegSpan reg_span = make_ir_reg_span(reg_span_storage);
 };
 
 void pop_context(Interloper& itl);

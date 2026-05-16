@@ -1,19 +1,20 @@
 #include <interloper.h>
-#include "backend/op_table.inl"
 
 #include "backend/pool.cpp"
+#include "backend/reg.cpp"
 #include "backend/emitter.cpp"
-#include "backend/rewrite_arch_ir.cpp"
 #include "backend/cfg.cpp"
 #include "backend/asm.cpp"
-#include "backend/x86_emitter.cpp"
+#include "backend/x86/asm.cpp"
+
 #include "backend/stack_allocator.cpp"
-#include "backend/linear_alloc.cpp"
 #include "backend/disass.cpp"
-#include "backend/ir_x86.cpp"
+#include "backend/lower_ir.cpp"
+#include "backend/x86/ir_x86.cpp"
+#include "backend/linear_alloc.cpp"
+#include "backend/reg_allocator.cpp"
 #include "backend/elf.cpp"
 #include "backend/intrin.cpp"
-#include "backend/ir.cpp"
 #include "backend/memory.cpp"
 
 TypedReg compile_oper(Interloper& itl,Function &func,AstNode *node);
@@ -64,7 +65,7 @@ Option<itl_error> func_graph_pass(Interloper& itl, Function& func)
         auto& label = label_from_slot(itl.symbol_table.label_lookup,start_block.label_slot);
 
         itl.ctx.expr = (AstNode*)func.root;
-        return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s",label.name.buf); 
+        return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %S",label.name); 
     }
 
     for(BlockSlot slot : start_block.links)
@@ -76,8 +77,8 @@ Option<itl_error> func_graph_pass(Interloper& itl, Function& func)
             auto& label = label_from_slot(itl.symbol_table.label_lookup,block.label_slot);
 
             itl.ctx.expr = (AstNode*)func.root;   
-            dump_ir_sym(itl,func,itl.symbol_table);
-            return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %s",label.name.buf);
+            dump_ir(itl,func,itl.symbol_table);
+            return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %S",label.name);
         }
     }
 
@@ -411,19 +412,11 @@ Option<itl_error> compile_functions(Interloper& itl)
     return option::none;
 }
 
-void dump_sym_ir(Interloper &itl)
+void dump_itl_ir(Interloper &itl)
 {
     for(Function* func : itl.func_table.used)
     {
-        dump_ir_sym(itl,*func,itl.symbol_table);
-    }
-}
-
-void dump_reg_ir(Interloper &itl)
-{
-    for(Function* func : itl.func_table.used)
-    {
-        dump_ir_reg(itl,*func,itl.symbol_table);
+        dump_ir(itl,*func,itl.symbol_table);
     }
 }
 
@@ -449,9 +442,10 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
 
     if(itl.print_ir)
     {
-        dump_sym_ir(itl);
+        dump_itl_ir(itl);
     }
     
+
     auto start = std::chrono::high_resolution_clock::now();
 
     switch(itl.arch)
@@ -465,8 +459,9 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
 
     if(itl.print_ir)
     {
-        dump_sym_ir(itl);
+        dump_itl_ir(itl);
     }
+
 
     // perform register allocation on used functions
     for(auto& func : itl.func_table.used)
@@ -481,7 +476,7 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
 
     if(itl.print_ir)
     {
-        dump_reg_ir(itl);
+        dump_itl_ir(itl);
     }
 
     // emit the actual target asm

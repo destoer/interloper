@@ -1,5 +1,4 @@
 
-
 Block make_block(LabelSlot label_slot,BlockSlot block_slot,ArenaAllocator* list_allocator)
 {
     Block block;
@@ -48,6 +47,8 @@ BlockSlot new_basic_block(Interloper &itl,Function &func)
 
     return block_slot;   
 }
+
+
 
 BlockSlot block_from_idx(u32 v)
 {
@@ -98,7 +99,6 @@ void add_block_exit(Function& func,BlockSlot slot, BlockSlot exit)
     push_var(exit_block.entry,slot);
 }
 
-
 void remove_block_exit(Function& func, BlockSlot slot, BlockSlot exit)
 {
     auto& block = block_from_slot(func,slot);
@@ -148,8 +148,15 @@ b32 in_loop(Block& block)
     return block.flags & IN_LOOP;
 }
 
+void add_branch_exit(Function& func, BlockSlot slot)
+{
+    auto& block = block_from_slot(func,slot);
+    block.flags |= BRANCH_EXIT;
+}
+
 void add_cond_exit(Function& func,BlockSlot slot, BlockSlot target, BlockSlot fall)
 {
+    add_branch_exit(func,slot);
     add_block_exit(func,slot,target);
     add_block_exit(func,slot,fall);
 }
@@ -173,21 +180,16 @@ void check_block_branch(Interloper& itl,Function& func, BlockSlot& block_slot)
 
     if(block.branch_count > 1)
     {
-        dump_ir_sym(itl,func,itl.symbol_table);
         crash_and_burn("Basic block has too many branches: at L%d\n",block.label_slot.handle);
     }
 }
 
-void emit_cond_branch(Interloper& itl,Function& func, BlockSlot block,BlockSlot target,BlockSlot fall, RegSlot reg_slot, b32 cond)
+void emit_cond_branch(Interloper& itl,Function& func, BlockSlot block,BlockSlot target,BlockSlot fall, RegSlot reg_slot, branch_cond_type type)
 {
-    const op_type branch_type = cond? op_type::bc : op_type::bnc;
-
     const auto& target_block = block_from_slot(func,target);
 
-    handle_src_storage(itl,func,reg_slot,false);
-
-    const Opcode opcode = make_cond_branch_instr(branch_type,target_block.label_slot,reg_slot);
-    emit_block_internal(func,block,opcode);
+    const Opcode opcode = make_branch_cond(reg_slot,target_block.label_slot,type);
+    emit_block_internal(itl,func,block,opcode);
 
     // build links into the cfg 
     add_cond_exit(func,block,target,fall);
@@ -195,18 +197,27 @@ void emit_cond_branch(Interloper& itl,Function& func, BlockSlot block,BlockSlot 
     check_block_branch(itl,func,block);
 }
 
+void branch_nez(Interloper& itl,Function& func, BlockSlot block,BlockSlot target,BlockSlot fall, RegSlot reg_slot)
+{
+    emit_cond_branch(itl,func,block,target,fall,reg_slot,branch_cond_type::nez);
+}
+
+void branch_eqz(Interloper& itl,Function& func, BlockSlot block,BlockSlot target,BlockSlot fall, RegSlot reg_slot)
+{
+    emit_cond_branch(itl,func,block,target,fall,reg_slot,branch_cond_type::eqz);
+}
+
 void emit_branch(Interloper& itl, Function& func, BlockSlot block,BlockSlot target)
 {
     const auto& target_block = block_from_slot(func,target);
 
-    const Opcode opcode = make_branch_instr(op_type::b,target_block.label_slot);
-    emit_block_internal(func,block,opcode);
+    const Opcode opcode = make_branch_label(branch_type::branch,target_block.label_slot);
+    emit_block_internal(itl,func,block,opcode);
     add_block_exit(func,block,target);
+    add_branch_exit(func,block);
 
     check_block_branch(itl,func,block);
 }
-
-
 
 
 void connect_node(Function& func,BlockSlot slot)
@@ -372,6 +383,49 @@ void connect_flow_graph(Interloper& itl,Function& func)
     }
 }
 
+void handle_src_regs(Interloper& itl, Function& func, Block& block, const ConstSpan<RegSlot>& src_span)
+{
+    for(const auto& src : src_span)
+    {
+        // Not interested in special regs
+        if(is_special_reg(src))
+        {
+            continue;
+        }
+
+        auto& ir_reg = reg_from_slot(itl.symbol_table,func,src);
+
+        // ir reg, that is not stored in memory
+        if(!stored_in_mem(ir_reg) && !contains(block.def,src))
+        {
+            // used as src, without a def -> use
+            add(block.use,src); 
+        }
+    }
+}
+
+
+void handle_dst_regs(Interloper& itl, Function& func, Block& block, const ConstSpan<RegSlot>& dst_span)
+{
+    for(const auto& dst : dst_span)
+    {
+        // Not interested in special regs
+        if(is_special_reg(dst))
+        {
+            continue;
+        }
+
+        auto& ir_reg = reg_from_slot(itl.symbol_table,func,dst);
+
+        // used as dst before use, def 
+        if(!stored_in_mem(ir_reg) && !contains(block.use,dst))
+        {
+            add(block.def,dst);
+        }
+    }
+}
+
+
 // TODO: would it be cheaper to do this inside the emitter?
 void compute_use_def(Interloper& itl,Function& func)
 {
@@ -387,47 +441,12 @@ void compute_use_def(Interloper& itl,Function& func)
         // run a pass on the block
         for(const OpcodeNode& node : block.list)
         {
-            // mark three address code
-            const auto opcode = node.value;
+            const auto regs = opcode_ir_reg_span(node.value,itl.reg_span);
 
-            const auto info = info_from_op(opcode);
+            handle_src_regs(itl,func,block,regs.src);
+            handle_src_regs(itl,func,block,regs.dst_src);
 
-            // look at src regs first, then dst!
-            for(s32 r = info.args - 1; r >= 0; r--)
-            {
-                const auto operand = opcode.v[r];
-
-                if(operand.type != operand_type::reg)
-                {
-                    continue;
-                }
-
-                const auto slot = operand.reg;
-
-                // Not interested in special regs
-                if(is_special_reg(slot))
-                {
-                    continue;
-                }
-
-                auto& ir_reg = reg_from_slot(itl.symbol_table,func,slot);
-
-                // ir reg, that is not stored in memory
-                if(!stored_in_mem(ir_reg))
-                {
-                    // used as src, without a def -> use
-                    if(is_arg_src(info.type[r]) && !contains(block.def,slot))
-                    {
-                        add(block.use,slot); 
-                    }
-
-                    // used as dst, def 
-                    else if(is_arg_dst(info.type[r]))
-                    {
-                        add(block.def,slot);
-                    }
-                }
-            }
+            handle_dst_regs(itl,func,block,regs.dst);
         }
 
         // if block has a use of a var it must be an input

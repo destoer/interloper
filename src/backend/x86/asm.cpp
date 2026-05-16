@@ -1,6 +1,5 @@
 namespace x86
 {
-
 // https://wheremyfoodat.github.io/floating-point-arithmetic-in-x86/
 // https://wiki.osdev.org/X86_Instruction_Encoding
 
@@ -692,7 +691,7 @@ void sub(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
     emit_reg2_rm_64(emitter,0x2B,dst,v1);
 }
 
-void cmp(AsmEmitter& emitter, x86_reg v1, x86_reg v2)
+void cmp_gpr(AsmEmitter& emitter, x86_reg v1, x86_reg v2)
 {
     // cmp r64, r64
     emit_reg2_rm_64(emitter,0x3B,v1,v2);
@@ -828,6 +827,12 @@ void lsr_imm(AsmEmitter& emitter, x86_reg dst, u32 v1)
 {
     emit_shift_imm(emitter,dst,v1,5);
 }
+
+void asr_imm(AsmEmitter& emitter, x86_reg dst, u32 v1)
+{
+    emit_shift_imm(emitter,dst,v1,7);
+}
+
 
 void cmp_imm(AsmEmitter& emitter, x86_reg dst, s64 v1)
 {
@@ -1133,22 +1138,22 @@ void add_rip_rel_link(AsmEmitter& emitter, const Opcode& opcode)
     add_link(emitter,opcode,offset);
 }
 
-template<typename FUNC_PTR>
-void emit_load_store(AsmEmitter& emitter, const Opcode& opcode, FUNC_PTR func)
+template<typename T, typename FUNC_PTR>
+void emit_load_store(AsmEmitter& emitter, const Opcode& opcode, const T& addr_op, FUNC_PTR func)
 {
-    const auto dst = x86_reg(opcode.v[0].lowered);
-    auto addr = x86_reg(opcode.v[1].lowered);
+    const auto dst = x86_reg(addr_op.v1.reg);
+    auto addr = x86_reg(addr_op.addr.base);
 
     Option<x86_reg> index = option::none; 
-    auto raw_index = u32(opcode.v[2].lowered);
+    auto raw_index = u32(addr_op.addr.index);
     
     if(raw_index != u32(spec_reg::null))
     {
         index = x86_reg(raw_index);
     }
     
-    s64 offset = s64(opcode.offset);
-    const s64 scale = s64(opcode.scale);
+    s64 offset = s64(addr_op.addr.offset);
+    const s64 scale = s64(addr_op.addr.scale);
 
     const bool is_data_sect = (addr == u32(spec_reg::const_seg) || addr == u32(spec_reg::global_seg));
 
@@ -1294,7 +1299,7 @@ void cvt_if(AsmEmitter& emitter, x86_reg dst, x86_reg src)
     push_u8(emitter,mod_rm(dst,src));
 }
 
-void cmp_flags_float(AsmEmitter& emitter, x86_reg dst, x86_reg src)
+void cmp_fpr(AsmEmitter& emitter, x86_reg dst, x86_reg src)
 {
     // ucomisd r, m
     push_xmm_66(emitter,dst,src);
@@ -1335,528 +1340,511 @@ void setfne(AsmEmitter& emitter, x86_reg dst)
     setne(emitter,dst);
 }
 
-void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
+
+void emit_reg1_src(AsmEmitter& emitter, const RegOneSrc& reg1_src)
 {
-    const auto dst = x86_reg(opcode.v[0].lowered);
-    const auto v1 = x86_reg(opcode.v[1].lowered);
-    const auto v2 = x86_reg(opcode.v[2].lowered);
+    const auto src = x86_reg(reg1_src.src.reg);
 
-    switch(opcode.op)
+    switch(reg1_src.type)
     {
-        case op_type::mov_imm:
+        case reg1_src_type::push: push(emitter,src); break;
+    }
+}
+
+void panic_lowered(const char* name)
+{
+    crash_and_burn("Opcode: %s should have been lowered",name);
+}
+
+
+void emit_sign_extend(AsmEmitter& emitter, const SignExtend& sign_extend)
+{
+    const auto dst = x86_reg(sign_extend.dst.reg);
+    const auto src = x86_reg(sign_extend.src.reg);
+
+    switch(sign_extend.type)
+    {
+        case sign_extend_op::sxb: sxb(emitter,dst,src); break;
+        case sign_extend_op::sxh: sxh(emitter,dst,src); break;
+        case sign_extend_op::sxw: sxw(emitter,dst,src); break;
+    }
+}
+
+
+void emit_unary_reg2(AsmEmitter& emitter, const UnaryRegTwo& unary_reg2)
+{
+    const auto dst = x86_reg(unary_reg2.dst.reg);
+    const auto src = x86_reg(unary_reg2.src.reg);
+
+    switch(unary_reg2.type)
+    {
+        case unary_reg2_op::mov_gpr_reg: mov(emitter,dst,src); break;
+        case unary_reg2_op::mov_fpr_reg: movf(emitter,dst,src); break;
+        case unary_reg2_op::bitwise_not: panic_lowered("not_unary_reg2"); break;
+        case unary_reg2_op::cvt_if: cvt_if(emitter,dst,src); break;
+        case unary_reg2_op::cvt_fi: cvt_fi(emitter,dst,src); break;
+    }
+}
+
+void emit_unary_reg1(AsmEmitter& emitter, const UnaryRegOne& unary_reg1)
+{
+    const auto dst = x86_reg(unary_reg1.dst.reg);
+
+    switch(unary_reg1.type)
+    {
+        case unary_reg1_op::bitwise_not: bitwise_not(emitter,dst);
+    }
+}
+
+
+void emit_mov_imm(AsmEmitter& emitter, const MovGprImm& mov)
+{
+    mov_imm(emitter,x86_reg(mov.dst.reg),mov.imm);
+}
+
+void emit_load(AsmEmitter& emitter, const Opcode& opcode, const Load& load)
+{
+    switch(load.type)
+    {
+        case load_type::lb: emit_load_store(emitter,opcode,load,lb); break;
+        case load_type::lh: emit_load_store(emitter,opcode,load,lh); break;
+        case load_type::lw: emit_load_store(emitter,opcode,load,lw); break;
+        case load_type::ld: emit_load_store(emitter,opcode,load,ld); break;
+
+        case load_type::lsb: emit_load_store(emitter,opcode,load,lsb); break;
+        case load_type::lsh: emit_load_store(emitter,opcode,load,lsh); break;
+        case load_type::lsw: emit_load_store(emitter,opcode,load,lsw); break;
+
+        case load_type::lf: emit_load_store(emitter,opcode,load,lf); break;
+    }
+}
+
+void emit_store(AsmEmitter& emitter, const Opcode& opcode, const Store& store)
+{
+    switch(store.type)
+    {
+        case store_type::sb: emit_load_store(emitter,opcode,store,sb); break;
+        case store_type::sh: emit_load_store(emitter,opcode,store,sh); break;
+        case store_type::sw: emit_load_store(emitter,opcode,store,sw); break;
+        case store_type::sd: emit_load_store(emitter,opcode,store,sd); break;
+        
+        case store_type::sf: emit_load_store(emitter,opcode,store,sf); break;
+    }
+}
+
+void emit_branch_label(AsmEmitter& emitter, const Opcode& opcode)
+{
+    u32 offset = 0;
+
+    switch(opcode.branch_label.type)
+    {
+        case branch_type::branch: offset = branch(emitter); break;
+        case branch_type::call: offset = call(emitter); break;
+    }
+    
+    add_link(emitter,opcode,offset);
+}
+
+void emit_branch_cond_flag(AsmEmitter& emitter, const Opcode& opcode)
+{
+    const auto& branch = opcode.branch_cond_flag;
+    u32 offset = 0;
+
+    switch(branch.type)
+    {
+        case branch_cond_type::eqz: offset = je(emitter); break;
+        case branch_cond_type::nez: offset = jne(emitter); break;
+    }
+
+    add_link(emitter,opcode,offset);
+}
+
+void emit_implicit(AsmEmitter& emitter, const Implicit& implicit)
+{
+    switch(implicit.type)
+    {
+        case implicit_type::syscall: syscall(emitter); break;
+        case implicit_type::ret: ret(emitter); break;
+        case implicit_type::cqo: cqo(emitter); break;
+        case implicit_type::leave: leave(emitter); break;        
+    }
+}
+
+void emit_arith_imm2(AsmEmitter& emitter, const ArithImm2& arith)
+{
+    const auto dst = x86_reg(arith.dst.reg);
+    const auto imm = arith.imm;
+
+    switch(arith.type)
+    {
+        case arith_bin_op::add_t: add_imm(emitter,dst,imm); break;
+        case arith_bin_op::sub_t: sub_imm(emitter,dst,imm); break;
+        case arith_bin_op::xor_t: xor_imm(emitter,dst,imm); break;
+        case arith_bin_op::and_t: and_imm(emitter,dst,imm); break;
+        default: panic_lowered(ARITH_BIN_NAMES[u32(arith.type)]);
+    }
+}
+
+void emit_arith_imm3(AsmEmitter& emitter, const ArithImm3& arith)
+{
+    const auto dst = x86_reg(arith.dst.reg);
+    const auto src = x86_reg(arith.src.reg);
+    const auto imm = arith.imm;
+
+    switch(arith.type)
+    {
+        case arith_bin_op::add_t: add_imm(emitter,dst,src,imm); break;
+        default: panic_lowered(ARITH_BIN_NAMES[u32(arith.type)]);
+    }
+}
+
+void emit_reg1_dst(AsmEmitter& emitter, const RegOneDst& reg)
+{
+    const auto dst = x86_reg(reg.dst.reg);
+
+    switch(reg.type)
+    {
+        case reg1_dst_type::pop: pop(emitter,dst); break;
+    }
+}
+
+void emit_directive(AsmEmitter& emitter, const Opcode& opcode, const Directive& directive)
+{
+    switch(directive.type)
+    {
+        case directive_type::pool_addr:
         {
-            mov_imm(emitter,dst,u64(v1));
-            break;
-        }
+            const auto dst = x86_reg(directive.operand[0].reg);
 
-        case op_type::add_reg2: 
-        {
-            add(emitter,dst,v1);
-            break;
-        }
-
-        case op_type::add_reg:
-        {
-            add(emitter,dst,v1,v2);
-            break;
-        }
-
-        case op_type::add_imm:
-        {
-            add_imm(emitter,dst,v1,opcode.v[2].lowered);
-            break;
-        }
-
-        case op_type::mul_reg2:
-        {
-            mul(emitter,dst,v1);
-            break;
-        }
-
-        case op_type::not_reg1: 
-        {
-            bitwise_not(emitter,dst);
-            break;
-        }
-
-        case op_type::xor_reg2: 
-        {
-            bitwise_xor(emitter,dst,v1);
-            break;
-        }
-
-        case op_type::xor_imm2:
-        {
-            xor_imm(emitter,dst,s64(v1));
-            break;
-        }
-
-        case op_type::and_reg2: 
-        {
-            bitwise_and(emitter,dst,v1);
-            break;
-        }
-
-        case op_type::and_imm2:
-        {
-            and_imm(emitter,dst,s64(v1));
-            break;
-        }
-
-        case op_type::or_reg2: 
-        {
-            bitwise_or(emitter,dst,v1);
-            break;
-        }
-
-        case op_type::sub_reg2: 
-        {
-            sub(emitter,dst,v1);
-            break;
-        }
-
-        case op_type::cmp_flags:
-        {
-            cmp(emitter,dst,v1);
-            break;
-        }
-
-
-        case op_type::test:
-        {
-            test(emitter,dst,v1);
-            break;
-        }
-
-        case op_type::cmp_flags_imm:
-        {
-            cmp_imm(emitter,dst,v1);
-            break;
-        }      
-
-        case op_type::setsgt:
-        {
-            setsgt(emitter,dst);
-            break;
-        }
-
-        case op_type::setsge:
-        {
-            setsge(emitter,dst);
-            break;
-        }
-
-        case op_type::setslt:
-        {
-            setslt(emitter,dst);
-            break;
-        }
-
-        case op_type::setsle:
-        {
-            setsle(emitter,dst);
-            break;
-        }
-
-        case op_type::setugt:
-        {
-            setugt(emitter,dst);
-            break;
-        }
-
-        case op_type::setuge:
-        {
-            setuge(emitter,dst);
-            break;
-        }
-
-        case op_type::setult:
-        {
-            setult(emitter,dst);
-            break;
-        }
-
-        case op_type::setule:
-        {
-            setule(emitter,dst);
-            break;
-        }
-
-        case op_type::seteq:
-        {
-            seteq(emitter,dst);
-            break;
-        }
-
-        case op_type::setne:
-        {
-            setne(emitter,dst);
-            break;
-        }
-
-        case op_type::add_imm2:
-        {
-            add_imm(emitter,dst,s32(v1));
-            break;
-        }
-
-        case op_type::sub_imm2:
-        {
-            sub_imm(emitter,dst,s32(v1));
-            break;
-        }
-
-        case op_type::mov_reg:
-        {
-            mov(emitter,dst,v1);
-            break;
-        }
-
-        case op_type::leave:
-        {
-            leave(emitter);
-            break;
-        }
-
-        case op_type::ret:
-        {
-            ret(emitter);
-            break;
-        }
-
-        case op_type::call:
-        {
-            const u32 offset = call(emitter);
-
-            add_link(emitter,opcode,offset);
-            break;
-        }
-
-        case op_type::pool_addr:
-        {
             lea(emitter,dst,x86_reg::rip,option::none,1,0);
             add_rip_rel_link(emitter,opcode);
             break;
         }
 
-        case op_type::je:
+        case directive_type::load_func_addr:
         {
-            const u32 offset = je(emitter);
+            const auto dst = x86_reg(directive.operand[0].reg);
 
-            add_link(emitter,opcode,offset);
-            break;
-        }
-
-        case op_type::jne:
-        {
-            const u32 offset = jne(emitter);
-
-            add_link(emitter,opcode,offset);
-            break;
-        }
-
-
-        case op_type::b:
-        {
-            const u32 offset = branch(emitter);
-
-            add_link(emitter,opcode,offset);
-            break;
-        }
-
-        case op_type::call_reg:
-        {
-            call_reg(emitter,dst);
-            break;
-        }
-
-        case op_type::b_reg:
-        {
-            branch_reg(emitter,dst);
-            break;
-        }
-
-        case op_type::push:
-        {
-            push(emitter,dst);
-            break;
-        }
-
-        case op_type::pop:
-        {
-            pop(emitter,dst);
-            break;
-        }
-
-        case op_type::syscall:
-        {
-            syscall(emitter);
-            break;
-        }
-
-        case op_type::cqo:
-        {
-            cqo(emitter);
-            break;
-        }
-
-        case op_type::sdiv_x86:
-        {
-            sdiv_x86(emitter,v1);
-            break;
-        }
-
-        case op_type::udiv_x86:
-        {
-            udiv_x86(emitter,v1);
-            break;
-        }
-
-        case op_type::umod_x86:
-        {
-            // same as div just different result reg used
-            udiv_x86(emitter,v1);
-            break;
-        }
-
-        case op_type::smod_x86:
-        {
-            // same as div just different result reg used
-            sdiv_x86(emitter,v1);
-            break;
-        }
-
-        case op_type::lsl_x86:
-        {
-            lsl_x86(emitter,dst);
-            break;
-        }
-
-        case op_type::lsl_imm2:
-        {
-            lsl_imm(emitter,dst,u32(v1));
-            break;
-        }
-
-        case op_type::lsr_imm2:
-        {
-            lsr_imm(emitter,dst,u32(v1));
-            break;
-        }
-
-        case op_type::lsr_x86:
-        {
-            lsr_x86(emitter,dst);
-            break;
-        }
-
-        case op_type::asr_x86:
-        {
-            asr_x86(emitter,dst);
-            break;
-        }
-
-        case op_type::lb:
-        {
-            emit_load_store(emitter,opcode,lb);
-            break;
-        }
-
-        case op_type::sb:
-        {
-            emit_load_store(emitter,opcode,sb);
-            break;
-        }
-
-        case op_type::lh:
-        {
-            emit_load_store(emitter,opcode,lh);
-            break;        
-        }
-
-        case op_type::sh:
-        {
-            emit_load_store(emitter,opcode,sh);
-            break;        
-        }
-
-        case op_type::lw:
-        {
-            emit_load_store(emitter,opcode,lw);
-            break;
-        }
-
-        case op_type::sw:
-        {
-            emit_load_store(emitter,opcode,sw);
-            break;
-        }
-
-        case op_type::lsb:
-        {
-            emit_load_store(emitter,opcode,lsb);
-            break;
-        }
-
-        case op_type::lsh:
-        {
-            emit_load_store(emitter,opcode,lsh);
-            break;
-        }
-
-        case op_type::lsw:
-        {
-            emit_load_store(emitter,opcode,lsw);
-            break;
-        }
-
-        case op_type::ld:
-        {
-            emit_load_store(emitter,opcode,ld);
-            break;
-        }
-
-        case op_type::sd:
-        {
-            emit_load_store(emitter,opcode,sd);;
-            break;
-        }
-
-        case op_type::lea:
-        {
-            emit_load_store(emitter,opcode,lea);
-            break;
-        }
-
-        case op_type::load_func_addr:
-        {
             lea(emitter,dst,x86_reg::rip,option::none,1,0);
             add_rip_rel_link(emitter,opcode);
             break;
         }
 
-        case op_type::sxb:
+        default: panic_lowered(DIRECTIVE_NAMES[u32(directive.type)]);
+    }
+}
+
+void emit_reg2_src(AsmEmitter& emitter, const RegTwoSrc& reg2_src)
+{
+    const auto v1 = x86_reg(reg2_src.v1.reg);
+    const auto v2 = x86_reg(reg2_src.v2.reg);
+
+    switch(reg2_src.type)
+    {
+        case reg_two_src::cmp_flags_gpr: cmp_gpr(emitter,v1,v2); break;
+        case reg_two_src::cmp_flags_fpr: cmp_fpr(emitter,v1,v2); break;
+        case reg_two_src::test: test(emitter,v1,v2); break;
+    }
+}
+
+
+void emit_arith_fpr2(AsmEmitter& emitter, const ArithFpr2& arith)
+{
+    const auto dst = x86_reg(arith.dst.reg);
+    const auto src = x86_reg(arith.src.reg);
+
+    switch(arith.type)
+    {
+        case fpr_arith::add_t: addf(emitter,dst,src); break;
+        case fpr_arith::sub_t: subf(emitter,dst,src); break;
+        case fpr_arith::mul_t: mulf(emitter,dst,src); break;
+        case fpr_arith::div_t: divf(emitter,dst,src); break;
+    }
+}
+
+void emit_arith_gpr2(AsmEmitter& emitter, const ArithGpr2& arith)
+{
+    const auto dst = x86_reg(arith.dst.reg);
+    const auto src = x86_reg(arith.src.reg);
+
+    switch(arith.type)
+    {
+        case arith_bin_op::add_t: add(emitter,dst,src); break;
+        case arith_bin_op::sub_t: sub(emitter,dst,src); break;
+        case arith_bin_op::mul_t: mul(emitter,dst,src); break;
+        case arith_bin_op::xor_t: bitwise_xor(emitter,dst,src); break;
+        case arith_bin_op::or_t: bitwise_or(emitter,dst,src); break;
+        case arith_bin_op::and_t: bitwise_and(emitter,dst,src); break;
+        
+        default: panic_lowered(ARITH_BIN_NAMES[u32(arith.type)]);
+    }
+}
+
+void emit_arith_gpr3(AsmEmitter& emitter, const ArithGpr3& arith)
+{
+    const auto dst = x86_reg(arith.dst.reg);
+    const auto v1 = x86_reg(arith.v1.reg);
+    const auto v2 = x86_reg(arith.v2.reg);
+
+
+    switch(arith.type)
+    {
+        case arith_bin_op::add_t: add(emitter,dst,v1,v2); break;
+        default: panic_lowered(ARITH_BIN_NAMES[u32(arith.type)]);
+    }
+}
+
+
+void emit_shift_imm2(AsmEmitter& emitter, const ShiftImm2& shift)
+{
+    const auto dst = x86_reg(shift.dst.reg);
+    const auto imm = shift.imm;
+    
+    switch(shift.type)
+    {
+        case shift_op::lsr: lsr_imm(emitter,dst,imm); break;
+        case shift_op::asr: asr_imm(emitter,dst,imm); break;
+        case shift_op::lsl: lsl_imm(emitter,dst,imm); break;
+    }
+}
+
+
+void emit_set_from_flag_fpr(AsmEmitter& emitter, const SetFromFlagFpr& set_flag)
+{
+    const auto dst = x86_reg(set_flag.dst.reg);
+
+    switch(set_flag.type)
+    {
+        case comparison_op::lt: setflt(emitter,dst); break;
+        case comparison_op::le: setfle(emitter,dst); break;
+        case comparison_op::gt: setfgt(emitter,dst); break;
+        case comparison_op::ge: setfge(emitter,dst); break;
+
+        case comparison_op::eq: setfeq(emitter,dst); break;
+        case comparison_op::ne: setfne(emitter,dst); break;
+    }
+}
+
+void emit_set_from_flag_gpr(AsmEmitter& emitter, const SetFromFlagGpr& set_flag)
+{
+    const auto dst = x86_reg(set_flag.dst.reg);
+
+    switch(set_flag.type)
+    {
+        case cmp_sign_op::ult: setult(emitter,dst); break;
+        case cmp_sign_op::ule: setule(emitter,dst); break;
+        case cmp_sign_op::ugt: setugt(emitter,dst); break;
+        case cmp_sign_op::uge: setuge(emitter,dst); break;   
+        
+        case cmp_sign_op::slt: setslt(emitter,dst); break;
+        case cmp_sign_op::sle: setsle(emitter,dst); break;
+        case cmp_sign_op::sgt: setsgt(emitter,dst); break;
+        case cmp_sign_op::sge: setsge(emitter,dst); break;  
+
+        case cmp_sign_op::eq: seteq(emitter,dst); break;
+        case cmp_sign_op::ne: setne(emitter,dst); break; 
+    }
+}
+
+void emit_imm2_src(AsmEmitter& emitter, const ImmTwoSrc& imm_two)
+{
+    const auto src = x86_reg(imm_two.src.reg);
+    const auto imm = imm_two.imm;
+
+    switch(imm_two.type)
+    {
+        case imm_two_src::cmp_flags_imm: cmp_imm(emitter,src,imm); break;
+    }
+}
+
+void emit_branch_reg(AsmEmitter& emitter, const BranchReg& branch)
+{
+    const auto src = x86_reg(branch.src.reg);
+
+    switch(branch.type)
+    {
+        case branch_type::branch:  branch_reg(emitter,src); break;
+        case branch_type::call: call_reg(emitter,src); break;
+    }
+}
+
+void emit_x86_fixed(AsmEmitter& emitter, X86Fixed x86_fixed)
+{
+    const auto dst = x86_reg(x86_fixed.dst.reg);
+    const auto src = x86_reg(x86_fixed.src.reg);
+
+    switch(x86_fixed.type)
+    {
+        case x86_fixed_type::lsl: lsl_x86(emitter,dst); break;
+        case x86_fixed_type::asr: asr_x86(emitter,dst); break;
+        case x86_fixed_type::lsr: lsr_x86(emitter,dst); break;
+        case x86_fixed_type::udiv: udiv_x86(emitter,src); break;
+        case x86_fixed_type::sdiv: sdiv_x86(emitter,src); break;
+
+        // Same instruction different result taken from the pair
+        case x86_fixed_type::umod: udiv_x86(emitter,src); break;
+        case x86_fixed_type::smod: sdiv_x86(emitter,src); break;
+    }
+}
+
+void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
+{  
+    switch(opcode.group)
+    {
+        case op_group::x86_fixed:
         {
-            sxb(emitter,dst,v1);
+            emit_x86_fixed(emitter,opcode.x86_fixed);
             break;
         }
 
-        case op_type::sxh:
+        case op_group::set_from_flag_gpr:
         {
-            sxh(emitter,dst,v1);
+            emit_set_from_flag_gpr(emitter,opcode.set_from_flag_gpr);
             break;
         }
 
-        case op_type::sxw:
+        case op_group::set_from_flag_fpr:
         {
-            sxw(emitter,dst,v1);
+            emit_set_from_flag_fpr(emitter,opcode.set_from_flag_fpr);
             break;
         }
 
-
-        case op_type::lf:
+        case op_group::arith_imm2:
         {
-            emit_load_store(emitter,opcode,lf);
+            emit_arith_imm2(emitter,opcode.arith_imm2);
             break;
         }
 
-        case op_type::sf:
+        case op_group::arith_imm3:
         {
-            emit_load_store(emitter,opcode,sf);
+            emit_arith_imm3(emitter,opcode.arith_imm3);
             break;
         }
 
-        case op_type::movf_reg:
+        case op_group::arith_gpr2:
         {
-            movf(emitter,dst,v1);
+            emit_arith_gpr2(emitter,opcode.arith_gpr2);
             break;
         }
 
-        case op_type::addf_reg2:
+        case op_group::arith_fpr2:
         {
-            addf(emitter,dst,v1);
+            emit_arith_fpr2(emitter,opcode.arith_fpr2);
             break;
         }
 
-        case op_type::subf_reg2:
+        case op_group::arith_gpr3:
         {
-            subf(emitter,dst,v1);
+            emit_arith_gpr3(emitter,opcode.arith_gpr3);
             break;
         }
 
-        case op_type::mulf_reg2:
+        case op_group::shift_imm2:
         {
-            mulf(emitter,dst,v1);
+            emit_shift_imm2(emitter,opcode.shift_imm2);
             break;
         }
 
-        case op_type::divf_reg2:
+        case op_group::imm2_src:
         {
-            divf(emitter,dst,v1);
+            emit_imm2_src(emitter,opcode.imm2_src);
             break;
         }
 
-        case op_type::cvt_fi:
+        case op_group::reg2_src:
         {
-            cvt_fi(emitter,dst,v1);
+            emit_reg2_src(emitter,opcode.reg2_src);
             break;
         }
 
-        case op_type::cmp_flags_float:
+        case op_group::reg1_dst:
         {
-            cmp_flags_float(emitter,dst,v1);
+            emit_reg1_dst(emitter,opcode.reg1_dst);
             break;
         }
 
-        case op_type::setfgt:
+        case op_group::implicit:
         {
-            setfgt(emitter,dst);
+            emit_implicit(emitter,opcode.implicit);
             break;
         }
 
-        case op_type::setfge:
+        case op_group::mov_gpr_imm: 
         {
-            setfge(emitter,dst);
+            emit_mov_imm(emitter,opcode.mov_gpr_imm); 
             break;
         }
 
-        case op_type::setflt:
+        case op_group::reg1_src:
         {
-            setflt(emitter,dst);
+            emit_reg1_src(emitter,opcode.reg1_src);
             break;
         }
 
-        case op_type::setfle:
+        case op_group::unary_reg1:
         {
-            setfle(emitter,dst);
+            emit_unary_reg1(emitter,opcode.unary_reg1);
             break;
         }
 
-        case op_type::setfeq:
+        case op_group::unary_reg2:
         {
-            setfeq(emitter,dst);
+            emit_unary_reg2(emitter,opcode.unary_reg2);
             break;
         }
 
-        case op_type::setfne:
+        case op_group::sign_extend:
         {
-            setfne(emitter,dst);
+            emit_sign_extend(emitter,opcode.sign_extend);
             break;
         }
 
-        case op_type::cvt_if:
+        case op_group::lea:
         {
-            cvt_if(emitter,dst,v1);
+            emit_load_store(emitter,opcode,opcode.lea,lea);
+            break;
+        }
+
+        case op_group::load:
+        {
+            emit_load(emitter,opcode,opcode.load);
+            break;
+        }
+
+        case op_group::store:
+        {
+            emit_store(emitter,opcode,opcode.store);
+            break;
+        }
+
+        case op_group::branch_label:
+        {
+            emit_branch_label(emitter,opcode);
+            break;
+        }
+
+        case op_group::branch_cond_flag:
+        {
+            emit_branch_cond_flag(emitter,opcode);
+            break;
+        }
+
+        case op_group::branch_reg:
+        {
+            emit_branch_reg(emitter,opcode.branch_reg);
+            break;
+        }
+
+        case op_group::directive:
+        {
+            emit_directive(emitter,opcode,opcode.directive);
             break;
         }
 
         default:
         {
-            auto& info = info_from_op(opcode);
-            printf("[EMIT X86]: unknown opcode: %s\n",info.fmt_string.buf);
-            assert(false);
-            break;
-        } 
+            unimplemented("[X86 EMITTER]: Invalid group: %s",OP_GROUP_NAMES[u32(opcode.group)]);
+        }
     }
 }
 

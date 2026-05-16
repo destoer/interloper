@@ -660,16 +660,16 @@ void rewrite_rel_const_pool(Interloper& itl,Elf& elf,const LinkOpcode& link, Poo
 }
 
 
-void rewrite_rel_load_store(Interloper& itl,Elf& elf,const LinkOpcode& link)
+
+template<typename T>
+void rewrite_rel_load_store_addr(Interloper& itl,Elf& elf,const LinkOpcode& link, const T& addr_op)
 {
     auto& asm_emitter = itl.asm_emitter;
     auto& const_pool = itl.const_pool;
     auto& global = itl.global_alloc;
 
-    const auto opcode = link.opcode;
-
-    const s64 section_offset = opcode.offset;
-    const auto spec = spec_reg(opcode.v[1].lowered);
+    const s64 section_offset = addr_op.addr.offset;
+    const auto spec = spec_reg(addr_op.addr.base);
 
     const u32 text_offset = itl.asm_emitter.base_offset;
 
@@ -705,144 +705,82 @@ void rewrite_rel_load_store(Interloper& itl,Elf& elf,const LinkOpcode& link)
     }
 }
 
+void link_directive(Interloper& itl, Elf& elf, const LinkOpcode& link)
+{
+    const auto directive = link.opcode.directive;
+
+    switch(directive.type)
+    {
+        case directive_type::load_func_addr:
+        {
+            const LabelSlot slot = directive.operand[1].label;
+            rewrite_rel_label(itl,elf,link,slot);
+            break;
+        }
+
+        case directive_type::pool_addr:
+        {
+            const PoolSlot slot = directive.operand[1].pool;
+            rewrite_rel_const_pool(itl,elf,link,slot);
+            break;
+        }
+
+        default: 
+        {
+            unimplemented("[ELF link X86]: unknown directive: %s\n",DIRECTIVE_NAMES[u32(directive.type)]);
+        }
+    }
+}
 
 void link_opcodes(Interloper& itl, Elf& elf)
 {
     auto& asm_emitter = itl.asm_emitter;
 
-    for(u32 l = 0; l < count(asm_emitter.link); l++)
+    for(const auto& link : asm_emitter.link)
     {
-        const auto link = asm_emitter.link[l];
         const auto opcode = link.opcode;
 
-        switch(opcode.op)
+        switch(opcode.group)
         {
-            case op_type::call:
+            case op_group::directive:
             {
-                const LabelSlot slot = opcode.v[0].label;
-                rewrite_rel_label(itl,elf,link,slot);
+                link_directive(itl,elf,link);
                 break;
             }
 
-            case op_type::load_func_addr:
+            case op_group::branch_cond_flag:
             {
-                const LabelSlot slot = opcode.v[1].label;
-                rewrite_rel_label(itl,elf,link,slot);
+                rewrite_rel_label(itl,elf,link,link.opcode.branch_cond_flag.label);
                 break;
             }
 
-            case op_type::je:
+            case op_group::branch_label:
             {
-                const LabelSlot slot = opcode.v[0].label;
-                rewrite_rel_label(itl,elf,link,slot);
+                rewrite_rel_label(itl,elf,link,link.opcode.branch_label.label);
                 break;
             }
 
-            case op_type::jne:
+            case op_group::store:
             {
-                const LabelSlot slot = opcode.v[0].label;
-                rewrite_rel_label(itl,elf,link,slot);
+                rewrite_rel_load_store_addr(itl,elf,link,opcode.store);
                 break;
             }
 
-            case op_type::b:
+            case op_group::load:
             {
-                const LabelSlot slot = opcode.v[0].label;
-                rewrite_rel_label(itl,elf,link,slot);
+                rewrite_rel_load_store_addr(itl,elf,link,opcode.load);
                 break;
             }
 
-            case op_type::pool_addr:
+            case op_group::lea:
             {
-                const PoolSlot slot = pool_slot_from_idx(opcode.v[1].lowered);
-                rewrite_rel_const_pool(itl,elf,link,slot);
-                break;
-            }
-
-            case op_type::lb:
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::lh:
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::lw:
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::ld:
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::lsb:
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::lsw:
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::sb:
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::sh:
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::sw:
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::sd:
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::lf: 
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::sf: 
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::lea:
-            {
-                rewrite_rel_load_store(itl,elf,link);
+                rewrite_rel_load_store_addr(itl,elf,link,opcode.lea);
                 break;
             }
 
             default:
             {
-                auto& info = info_from_op(opcode);
-                printf("[ELF link X86]: unknown opcode: %s\n",info.fmt_string.buf);
-                assert(false);
-                break;
+                unimplemented("[ELF link X86]: unknown opcode group: %s\n",OP_GROUP_NAMES[u32(opcode.group)]);
             }
         }
     }

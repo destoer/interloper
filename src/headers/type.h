@@ -15,7 +15,8 @@ enum class builtin_type
     u16_t,
     u32_t,
     u64_t,
-
+    
+    // In order with sign_extend_type
     s8_t,
     s16_t,
     s32_t,
@@ -415,6 +416,7 @@ struct Struct
     u32 data_size = 0;
 
     u32 type_idx = 0;
+    bool holds_refs = false;
 };
 
 enum class struct_state 

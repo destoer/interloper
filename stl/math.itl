@@ -4,6 +4,8 @@ import <trig>
 
 namespace std;
 
+constant PI: f64 = 3.14159265358979323846;
+
 func is_even(v : u64) bool 
 {
     return (v & 1) == 0;
@@ -140,11 +142,61 @@ func clamp_u64(v1: u64, min: u64, max: u64) u64
 }
 
 
+func clamp_f64(v1: f64, min: f64, max: f64) f64
+{
+    if(v1 < min) 
+    {
+        return min;
+    }
+
+    else if(v1 > max)
+    {
+        return max;
+    }
+
+    return v1;
+}
+
+
+
 func float_eq(f1: f64, f2: f64) bool
 {
     epsilon := 0.01;
     return fabs(f1 - f2) <= epsilon; 
 }
+
+
+func pow_s64(v1: s64, pow: s64) s64 
+{
+    if pow == 0 {
+        return v1;
+    }
+
+    for _i in 0 < pow - 1 {
+        v1 *= v1;
+    }
+
+    return v1;
+}
+
+func sqrt(square: f64) f64 {
+    if square < 0.0 {
+        return 0.0;
+    }
+
+    // Initial guess
+    root := square / 3.0;
+
+    // Newtons methods with fixed iterations 
+    // TODO: Should probably just check for convergence
+    // https://math.mit.edu/~stevenj/18.335/newton-sqrt.pdf
+    for _i in 0 < 32 {
+        root = (root + (square / root)) * 0.5;
+    }
+
+    return root;
+}
+
 
 /*
 func log10(v: f64) u64
