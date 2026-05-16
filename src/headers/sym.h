@@ -174,6 +174,7 @@ struct FunctionTable
 {
     Array<FunctionDef> table;
     Array<Function*> used;
+    Array<Function*> unused;
     ArenaAllocator arena;
 };
 

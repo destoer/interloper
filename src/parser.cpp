@@ -566,6 +566,7 @@ Result<ParsedAttr,parse_error> parse_attr(Parser& parser, const Token& tok)
         const auto err = parse_attr_internal(parser,tok,attr);
         if(err)
         {
+            destroy_attribute(attr);
             return *err;
         }
 
@@ -610,6 +611,7 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
                 const auto struct_decl_err = struct_decl(itl,parser,attr);
                 if(struct_decl_err)
                 {
+                    destroy_attribute(attr);
                     return struct_decl_err;
                 }
                 break;
@@ -622,6 +624,7 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
                 const auto enum_decl_err = enum_decl(itl,parser,attr);
                 if(enum_decl_err)
                 {
+                    destroy_attribute(attr);
                     return enum_decl_err;
                 } 
                 break; 
@@ -634,6 +637,7 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
                 const auto func_err = func_decl(itl,parser,attr);
                 if(func_err)
                 {
+                    destroy_attribute(attr);
                     return func_err;
                 }
                 break;        
@@ -641,6 +645,7 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
 
             default:
             {
+                destroy_attribute(attr);
                 return parser_error(parser,parse_error::malformed_stmt,stmt,"Attribute is not legal on stmt: %s\n",tok_name(stmt.type));
             }
         }

@@ -15,14 +15,21 @@ FunctionTable make_func_table()
 
 void destroy_func_table(FunctionTable& func_table)
 {
-    for(u32 f = 0; f < count(func_table.used); f++)
+    for(auto& func_ptr : func_table.used)
     {
-        auto& func = *func_table.used[f];
+        auto& func = *func_ptr;
+        destroy_func(func);
+    }
+
+    for(auto& func_ptr : func_table.unused)
+    {
+        auto& func = *func_ptr;
         destroy_func(func);
     }
 
     destroy_arr(func_table.table);
     destroy_arr(func_table.used);
+    destroy_arr(func_table.unused);
     destroy_allocator(func_table.arena);
 }
 
@@ -122,6 +129,12 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
     {
         // mark it used
         push_var(itl.func_table.used,func_def.func);
+    }
+
+    // Type checked only delete later after checking done
+    else
+    {
+        push_var(itl.func_table.unused,func_def.func);
     }
 
     if(func.root)
