@@ -669,7 +669,7 @@ void rewrite_rel_load_store_addr(Interloper& itl,Elf& elf,const LinkOpcode& link
     auto& global = itl.global_alloc;
 
     const s64 section_offset = addr_op.addr.offset;
-    const auto spec = spec_reg(addr_op.addr.index);
+    const auto spec = spec_reg(addr_op.addr.base);
 
     const u32 text_offset = itl.asm_emitter.base_offset;
 
@@ -769,6 +769,12 @@ void link_opcodes(Interloper& itl, Elf& elf)
             case op_group::load:
             {
                 rewrite_rel_load_store_addr(itl,elf,link,opcode.load);
+                break;
+            }
+
+            case op_group::lea:
+            {
+                rewrite_rel_load_store_addr(itl,elf,link,opcode.lea);
                 break;
             }
 
