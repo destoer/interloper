@@ -1582,10 +1582,34 @@ void emit_branch_reg(AsmEmitter& emitter, const BranchReg& branch)
     }
 }
 
+void emit_x86_fixed(AsmEmitter& emitter, X86Fixed x86_fixed)
+{
+    const auto src = x86_reg(x86_fixed.src.reg);
+
+    switch(x86_fixed.type)
+    {
+        case x86_fixed_type::lsl: lsl_x86(emitter,src); break;
+        case x86_fixed_type::asr: asr_x86(emitter,src); break;
+        case x86_fixed_type::lsr: lsr_x86(emitter,src); break;
+        case x86_fixed_type::udiv: udiv_x86(emitter,src); break;
+        case x86_fixed_type::sdiv: sdiv_x86(emitter,src); break;
+
+        // Same instruction different result taken from the pair
+        case x86_fixed_type::umod: udiv_x86(emitter,src); break;
+        case x86_fixed_type::smod: sdiv_x86(emitter,src); break;
+    }
+}
+
 void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {  
     switch(opcode.group)
     {
+        case op_group::x86_fixed:
+        {
+            emit_x86_fixed(emitter,opcode.x86_fixed);
+            break;
+        }
+
         case op_group::set_from_flag_gpr:
         {
             emit_set_from_flag_gpr(emitter,opcode.set_from_flag_gpr);
