@@ -1656,13 +1656,14 @@ void emit_branch_reg(AsmEmitter& emitter, const BranchReg& branch)
 
 void emit_x86_fixed(AsmEmitter& emitter, X86Fixed x86_fixed)
 {
+    const auto dst = x86_reg(x86_fixed.dst.reg);
     const auto src = x86_reg(x86_fixed.src.reg);
 
     switch(x86_fixed.type)
     {
-        case x86_fixed_type::lsl: lsl_x86(emitter,src); break;
-        case x86_fixed_type::asr: asr_x86(emitter,src); break;
-        case x86_fixed_type::lsr: lsr_x86(emitter,src); break;
+        case x86_fixed_type::lsl: lsl_x86(emitter,dst); break;
+        case x86_fixed_type::asr: asr_x86(emitter,dst); break;
+        case x86_fixed_type::lsr: lsr_x86(emitter,dst); break;
         case x86_fixed_type::udiv: udiv_x86(emitter,src); break;
         case x86_fixed_type::sdiv: sdiv_x86(emitter,src); break;
 
