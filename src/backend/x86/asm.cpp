@@ -1489,11 +1489,18 @@ void emit_reg1_dst(AsmEmitter& emitter, const RegOneDst& reg)
 
 void emit_directive(AsmEmitter& emitter, const Opcode& opcode, const Directive& directive)
 {
-    UNUSED(emitter); UNUSED(opcode);
-
     switch(directive.type)
     {
         case directive_type::pool_addr:
+        {
+            const auto dst = x86_reg(directive.operand[0].reg);
+
+            lea(emitter,dst,x86_reg::rip,option::none,1,0);
+            add_rip_rel_link(emitter,opcode);
+            break;
+        }
+
+        case directive_type::load_func_addr:
         {
             const auto dst = x86_reg(directive.operand[0].reg);
 
