@@ -66,6 +66,8 @@ Opcode make_lowered_store_instr(lowered_reg_t v1, lowered_reg_t base, u32 offset
 
 void addrof(Interloper& itl,Function& func, RegSlot dst, const StructAddr& struct_addr)
 {
+    assert(struct_addr.addr.scale <= 8);
+
     // mark reg as aliased
     auto& reg = reg_from_slot(itl,func,struct_addr.addr.base);
     reg.flags |= ALIASED;

@@ -1,0 +1,49 @@
+func mul_mat4(m1: const std::Mat4D@,m2: const std::Mat4D@) std::Mat4D
+{   
+    ans: std::Mat4D = {?};
+
+    constant MAT_4D_SIZE: u32 = 4;
+
+    for r in 0 < MAT_4D_SIZE 
+    {
+        for c in 0 < MAT_4D_SIZE
+        {
+            ans.mat[r][c] =  m1.mat[r][0] * m2.mat[0][c];
+            ans.mat[r][c] += m1.mat[r][1] * m2.mat[1][c];
+            ans.mat[r][c] += m1.mat[r][2] * m2.mat[2][c];
+            ans.mat[r][c] += m1.mat[r][3] * m2.mat[3][c];
+        }
+    }     
+
+    return ans;
+}
+
+
+func main() s32
+{
+    scale := std::Mat4D {{
+        {2.0,0.0,0.0,0.0},
+        {0.0,2.0,0.0,0.0},
+        {0.0,0.0,2.0,0.0},
+        {0.0,0.0,0.0,2.0},
+    }};
+
+    v1 := std::Mat4D {{
+        {1.0,2.0,3.0,4.0},
+        {5.0,6.0,7.0,8.0},
+        {9.0,10.0,11.0,12.0},
+        {13.0,14.0,15.0,16.0}
+    }};
+
+    ans := std::Mat4D {{
+        {2.0,4.0,6.0,8.0},
+        {10.0,12.0,14.0,16.0},
+        {18.0,20.0,22.0,24.0},
+        {26.0,28.0,30.0,32.0}        
+    }};
+
+    calc := mul_mat4(&v1,&scale);
+    std::test_mat4d(calc,ans,"v1 * scale");
+
+    return 0;
+}

@@ -245,7 +245,7 @@ AddrSlot make_addr_from_pointer(const PointerAddr pointer)
 
 PointerAddr collapse_array_addr(Interloper& itl, Function& func, AddrSlot addr_slot)
 {
-    rescale_addr(itl,func,addr_slot);
+    addr_slot = rescale_addr(itl,func,addr_slot);
 
     const RegSlot base = collapse_struct_addr_res(itl,func,addr_slot);
     return PointerAddr{ make_addr(base,0) };
@@ -448,7 +448,7 @@ void compile_array_slice(Interloper& itl, Function& func, SliceNode* slice, cons
                 array_addr.addr.index = lower.slot;
                 array_addr.addr.scale = data_size;
 
-                rescale_addr(itl,func,array_addr);
+                array_addr = rescale_addr(itl,func,array_addr);
             }
 
             else
