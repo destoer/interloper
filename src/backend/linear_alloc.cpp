@@ -1140,6 +1140,18 @@ void rewrite_opcode(LinearAlloc& alloc,Block& block,OpcodeNode* node)
     const auto opcode = node->value;
     const auto info = info_from_op(opcode);
 
+    if(info.type[0] == arg_type::src_reg)
+    {
+        // rewrite source
+        for(u32 a = 0; a < info.args; a++)
+        {
+            allocate_and_rewrite(alloc,block,node,a);
+        }
+
+        return;
+    }
+
+
     // rewrite source
     for(u32 a = 1; a < info.args; a++)
     {
