@@ -1,9 +1,40 @@
 #include <interloper.h>
 
 
+OpcodeNode* optimise_opcode(Interloper& itl, Block& block, OpcodeNode* node)
+{
+    UNUSED(itl); UNUSED(block); UNUSED(node);
+
+    auto& opcode = node->value;
+
+    switch(opcode.group)
+    {
+        case op_group::implicit:
+        {
+            switch(opcode.implicit.type)
+            {
+                case implicit_type::ret: node->next = nullptr;
+                default: break; 
+            }
+
+            break;
+        }
+
+        default: break;
+    }
+
+    return node->next;
+}
+
 void optimise_block(Interloper& itl, Function& func, Block& block)
 {
-    UNUSED(itl); UNUSED(func); UNUSED(block);
+    UNUSED(func);
+    auto node = block.list.start;
+
+    while(node)
+    {
+        node = optimise_opcode(itl,block,node);
+    }
 }
 
 void optimise_func(Interloper& itl, Function& func)

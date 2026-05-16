@@ -16,6 +16,7 @@
 #include "backend/elf.cpp"
 #include "backend/intrin.cpp"
 #include "backend/memory.cpp"
+#include "backend/optimise.cpp"
 
 TypedReg compile_oper(Interloper& itl,Function &func,AstNode *node);
 Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot);
@@ -447,6 +448,8 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
     
 
     auto start = std::chrono::high_resolution_clock::now();
+
+    optimise_ir(itl);
 
     switch(itl.arch)
     {
