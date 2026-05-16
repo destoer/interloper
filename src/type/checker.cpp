@@ -117,6 +117,9 @@ TypeResult check_comparison_operation(Interloper& itl,const Type *ltype, const T
     // both are builtin
     if(is_builtin(rtype) && is_builtin(ltype))
     {
+        const bool both_float = is_float(rtype) && is_float(ltype);
+        const bool both_bool = is_bool(ltype) && is_bool(rtype);
+
         // both integers 
         if(is_integer(rtype) && is_integer(ltype))
         {
@@ -126,8 +129,7 @@ TypeResult check_comparison_operation(Interloper& itl,const Type *ltype, const T
             }
         }
 
-        // both float or bool
-        else if(!(is_float(rtype) && is_float(ltype)) || (is_bool(ltype) && is_bool(rtype)))
+        else if(!(both_float || both_bool))
         {
             return compile_error(itl,itl_error::undefined_type_oper,"logical operation undefined for %t and %t",ltype,rtype);
         }
