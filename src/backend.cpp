@@ -13,10 +13,8 @@
 #include "backend/x86/ir_x86.cpp"
 #include "backend/linear_alloc.cpp"
 #include "backend/reg_allocator.cpp"
-// #include "backend/elf.cpp"
-// #include "backend/x86_emitter.cpp"
+#include "backend/elf.cpp"
 #include "backend/intrin.cpp"
-// #include "backend/ir.cpp"
 #include "backend/memory.cpp"
 
 TypedReg compile_oper(Interloper& itl,Function &func,AstNode *node);
@@ -434,8 +432,6 @@ void compile_globals(Interloper& itl)
 
 Option<itl_error> backend(Interloper& itl, const String& executable_path)
 {
-    UNUSED(executable_path);
-
     compile_globals(itl);
 
     const auto func_err = compile_functions(itl);
@@ -486,6 +482,14 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
     // emit the actual target asm
     emit_asm(itl);
 
+    switch(itl.os)
+    {
+        case os_target::linux_t:
+        {
+            emit_elf(itl,executable_path);
+            break;
+        }
+    }
 
     auto end = std::chrono::high_resolution_clock::now();
     itl.backend_time = std::chrono::duration<double, std::milli>(end-start).count();
