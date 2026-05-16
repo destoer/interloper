@@ -1453,6 +1453,19 @@ void emit_arith_imm2(AsmEmitter& emitter, const ArithImm2& arith)
     }
 }
 
+void emit_arith_imm3(AsmEmitter& emitter, const ArithImm3& arith)
+{
+    const auto dst = x86_reg(arith.dst.reg);
+    const auto src = x86_reg(arith.src.reg);
+    const auto imm = arith.imm;
+
+    switch(arith.type)
+    {
+        case arith_bin_op::add_t: add_imm(emitter,dst,src,imm); break;
+        default: panic_lowered(ARITH_BIN_NAMES[u32(arith.type)]);
+    }
+}
+
 void emit_reg1_dst(AsmEmitter& emitter, const RegOneDst& reg)
 {
     const auto dst = x86_reg(reg.dst.reg);
@@ -1558,6 +1571,17 @@ void emit_imm2_src(AsmEmitter& emitter, const ImmTwoSrc& imm_two)
     }
 }
 
+void emit_branch_reg(AsmEmitter& emitter, const BranchReg& branch)
+{
+    const auto src = x86_reg(branch.src.reg);
+
+    switch(branch.type)
+    {
+        case branch_type::branch:  branch_reg(emitter,src); break;
+        case branch_type::call: call_reg(emitter,src); break;
+    }
+}
+
 void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {  
     switch(opcode.group)
@@ -1571,6 +1595,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_group::arith_imm2:
         {
             emit_arith_imm2(emitter,opcode.arith_imm2);
+            break;
+        }
+
+        case op_group::arith_imm3:
+        {
+            emit_arith_imm3(emitter,opcode.arith_imm3);
             break;
         }
 
@@ -1655,6 +1685,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_group::branch_cond_flag:
         {
             emit_branch_cond_flag(emitter,opcode);
+            break;
+        }
+
+        case op_group::branch_reg:
+        {
+            emit_branch_reg(emitter,opcode.branch_reg);
             break;
         }
 
