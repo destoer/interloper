@@ -1519,6 +1519,21 @@ void emit_reg2_src(AsmEmitter& emitter, const RegTwoSrc& reg2_src)
     }
 }
 
+
+void emit_arith_fpr2(AsmEmitter& emitter, const ArithFpr2& arith)
+{
+    const auto dst = x86_reg(arith.dst.reg);
+    const auto src = x86_reg(arith.src.reg);
+
+    switch(arith.type)
+    {
+        case fpr_arith::add_t: addf(emitter,dst,src); break;
+        case fpr_arith::sub_t: subf(emitter,dst,src); break;
+        case fpr_arith::mul_t: mulf(emitter,dst,src); break;
+        case fpr_arith::div_t: divf(emitter,dst,src); break;
+    }
+}
+
 void emit_arith_gpr2(AsmEmitter& emitter, const ArithGpr2& arith)
 {
     const auto dst = x86_reg(arith.dst.reg);
@@ -1657,6 +1672,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_group::arith_gpr2:
         {
             emit_arith_gpr2(emitter,opcode.arith_gpr2);
+            break;
+        }
+
+        case op_group::arith_fpr2:
+        {
+            emit_arith_fpr2(emitter,opcode.arith_fpr2);
             break;
         }
 
