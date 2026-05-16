@@ -1420,7 +1420,14 @@ void emit_store(AsmEmitter& emitter, const Opcode& opcode, const Store& store)
 
 void emit_branch_label(AsmEmitter& emitter, const Opcode& opcode)
 {
-    const u32 offset = branch(emitter);
+    u32 offset = 0;
+
+    switch(opcode.branch_label.type)
+    {
+        case branch_type::branch: offset = branch(emitter); break;
+        case branch_type::call: offset = call(emitter); break;
+    }
+    
     add_link(emitter,opcode,offset);
 }
 
