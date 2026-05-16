@@ -1341,7 +1341,7 @@ void setfne(AsmEmitter& emitter, x86_reg dst)
 }
 
 
-void emit_x86_reg1_src(AsmEmitter& emitter, const RegOneSrc& reg1_src)
+void emit_reg1_src(AsmEmitter& emitter, const RegOneSrc& reg1_src)
 {
     const auto src = x86_reg(reg1_src.src.reg);
 
@@ -1357,7 +1357,7 @@ void panic_lowered(const char* name)
 }
 
 
-void emit_x86_unary_reg2(AsmEmitter& emitter, const UnaryRegTwo& unary_reg2)
+void emit_unary_reg2(AsmEmitter& emitter, const UnaryRegTwo& unary_reg2)
 {
     const auto dst = x86_reg(unary_reg2.dst.reg);
     const auto src = x86_reg(unary_reg2.src.reg);
@@ -1371,6 +1371,17 @@ void emit_x86_unary_reg2(AsmEmitter& emitter, const UnaryRegTwo& unary_reg2)
         case unary_reg2_op::cvt_fi: cvt_fi(emitter,dst,src); break;
     }
 }
+
+void emit_unary_reg1(AsmEmitter& emitter, const UnaryRegOne& unary_reg1)
+{
+    const auto dst = x86_reg(unary_reg1.dst.reg);
+
+    switch(unary_reg1.type)
+    {
+        case unary_reg1_op::bitwise_not: bitwise_not(emitter,dst);
+    }
+}
+
 
 void emit_mov_imm(AsmEmitter& emitter, const MovGprImm& mov)
 {
@@ -1693,13 +1704,19 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 
         case op_group::reg1_src:
         {
-            emit_x86_reg1_src(emitter,opcode.reg1_src);
+            emit_reg1_src(emitter,opcode.reg1_src);
+            break;
+        }
+
+        case op_group::unary_reg1:
+        {
+            emit_unary_reg1(emitter,opcode.unary_reg1);
             break;
         }
 
         case op_group::unary_reg2:
         {
-            emit_x86_unary_reg2(emitter,opcode.unary_reg2);
+            emit_unary_reg2(emitter,opcode.unary_reg2);
             break;
         }
 
