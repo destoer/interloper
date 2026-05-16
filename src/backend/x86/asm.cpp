@@ -1130,39 +1130,37 @@ void add_rip_rel_link(AsmEmitter& emitter, const Opcode& opcode)
     add_link(emitter,opcode,offset);
 }
 
-template<typename FUNC_PTR>
-void emit_load_store(AsmEmitter& emitter, const Opcode& opcode, FUNC_PTR func)
+template<typename T, typename FUNC_PTR>
+void emit_load_store(AsmEmitter& emitter, const Opcode& opcode, const T& addr_op, FUNC_PTR func)
 {
-    UNUSED(emitter); UNUSED(opcode); UNUSED(func);
-    assert(false);
-    // const auto dst = x86_reg(opcode.v[0].lowered);
-    // auto addr = x86_reg(opcode.v[1].lowered);
+    const auto dst = x86_reg(addr_op.v1.reg);
+    auto addr = x86_reg(addr_op.addr.base);
 
-    // Option<x86_reg> index = option::none; 
-    // auto raw_index = u32(opcode.v[2].lowered);
+    Option<x86_reg> index = option::none; 
+    auto raw_index = u32(addr_op.addr.index);
     
-    // if(raw_index != u32(spec_reg::null))
-    // {
-    //     index = x86_reg(raw_index);
-    // }
+    if(raw_index != u32(spec_reg::null))
+    {
+        index = x86_reg(raw_index);
+    }
     
-    // s64 offset = s64(opcode.offset);
-    // const s64 scale = s64(opcode.scale);
+    s64 offset = s64(addr_op.addr.offset);
+    const s64 scale = s64(addr_op.addr.scale);
 
-    // const bool is_data_sect = (addr == u32(spec_reg::const_seg) || addr == u32(spec_reg::global_seg));
+    const bool is_data_sect = (addr == u32(spec_reg::const_seg) || addr == u32(spec_reg::global_seg));
 
-    // if(is_data_sect)
-    // {
-    //     addr = x86_reg::rip;
-    //     offset = 0;
-    // }
+    if(is_data_sect)
+    {
+        addr = x86_reg::rip;
+        offset = 0;
+    }
 
-    // func(emitter,dst,addr,index,scale,offset);
+    func(emitter,dst,addr,index,scale,offset);
 
-    // if(is_data_sect)
-    // {
-    //     add_rip_rel_link(emitter,opcode);
-    // }
+    if(is_data_sect)
+    {
+        add_rip_rel_link(emitter,opcode);
+    }
 }
 
 void push_xmm_f2(AsmEmitter& emitter, x86_reg dst, x86_reg src)
@@ -1366,6 +1364,27 @@ void emit_x86_unary_reg2(AsmEmitter& emitter, const UnaryRegTwo& unary_reg2)
     }
 }
 
+void emit_mov_imm(AsmEmitter& emitter, const MovGprImm& mov)
+{
+    mov_imm(emitter,x86_reg(mov.dst.reg),mov.imm);
+}
+
+void emit_load(AsmEmitter& emitter, const Opcode& opcode, const Load& load)
+{
+    switch(load.type)
+    {
+        case load_type::lb: emit_load_store(emitter,opcode,load,lb); break;
+        case load_type::lh: emit_load_store(emitter,opcode,load,lh); break;
+        case load_type::lw: emit_load_store(emitter,opcode,load,lw); break;
+        case load_type::ld: emit_load_store(emitter,opcode,load,ld); break;
+
+        case load_type::lsb: emit_load_store(emitter,opcode,load,lsb); break;
+        case load_type::lsh: emit_load_store(emitter,opcode,load,lsh); break;
+        case load_type::lsw: emit_load_store(emitter,opcode,load,lsw); break;
+
+        case load_type::lf: emit_load_store(emitter,opcode,load,lf); break;
+    }
+}
 
 void emit_x86_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {  
@@ -1373,6 +1392,12 @@ void emit_x86_opcode(AsmEmitter& emitter, const Opcode& opcode)
 
     switch(opcode.group)
     {
+        case op_group::mov_gpr_imm: 
+        {
+            emit_mov_imm(emitter,opcode.mov_gpr_imm); 
+            break;
+        }
+
         case op_group::reg1_src:
         {
             emit_x86_reg1_src(emitter,opcode.reg1_src);
@@ -1385,9 +1410,15 @@ void emit_x86_opcode(AsmEmitter& emitter, const Opcode& opcode)
             break;
         }
 
+        case op_group::load:
+        {
+            emit_load(emitter,opcode,opcode.load);
+            break;
+        }
+
         default:
         {
-            unimplemented("[X86 EMITTER]: Invalid group :%d",opcode.group);
+            unimplemented("[X86 EMITTER]: Invalid group: %s",OP_GROUP_NAMES[u32(opcode.group)]);
         }
     }
 }

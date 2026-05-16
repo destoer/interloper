@@ -715,6 +715,47 @@ enum class op_group
     x86_fixed,
 };
 
+const char* OP_GROUP_NAMES[] =
+{
+    "implicit",
+    "branch_label",
+    "branch_reg",
+    "branch_cond",
+    "branch_cond_flag",
+    "directive",
+    "mov_gpr_imm",
+    "mov_fpr_imm",
+    "arith_imm3",
+    "arith_imm2",
+    "arith_gpr3",
+    "arith_gpr2",
+    "arith_fpr3",
+    "arith_fpr2",
+    "shift_reg3",
+    "shift_reg2",
+    "lea",
+    "addrof",
+    "load",
+    "load_struct",
+    "store",
+    "store_struct",
+    "shift_imm3",
+    "shift_imm2",
+    "unary_reg2",
+    "unary_reg1",
+    "sign_extend",
+    "cmp_imm3",
+    "cmp_gpr3",
+    "cmp_fpr3",
+    "reg2_src",
+    "reg1_src",
+    "reg1_dst",
+    "imm2_src",
+    "set_from_flag_gpr",
+    "set_from_flag_fpr",
+    "x86_fixed",    
+};
+
 enum class ir_reg_type
 {
     src,
