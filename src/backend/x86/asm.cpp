@@ -1,3 +1,5 @@
+namespace x86
+{
 // https://wheremyfoodat.github.io/floating-point-arithmetic-in-x86/
 // https://wiki.osdev.org/X86_Instruction_Encoding
 
@@ -1405,10 +1407,8 @@ void emit_branch_label(AsmEmitter& emitter, const Opcode& opcode)
     add_link(emitter,opcode,offset);
 }
 
-void emit_x86_opcode(AsmEmitter& emitter, const Opcode& opcode)
+void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {  
-    UNUSED(emitter);
-
     switch(opcode.group)
     {
         case op_group::mov_gpr_imm: 
@@ -1426,6 +1426,12 @@ void emit_x86_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_group::unary_reg2:
         {
             emit_x86_unary_reg2(emitter,opcode.unary_reg2);
+            break;
+        }
+
+        case op_group::lea:
+        {
+            emit_load_store(emitter,opcode,opcode.lea,lea);
             break;
         }
 
@@ -1454,7 +1460,7 @@ void emit_x86_opcode(AsmEmitter& emitter, const Opcode& opcode)
     }
 }
 
-void emit_x86_func(Interloper& itl, Function& func)
+void emit_func(Interloper& itl, Function& func)
 {
     const u32 func_idx = add_func(itl.asm_emitter,func);
 
@@ -1465,17 +1471,19 @@ void emit_x86_func(Interloper& itl, Function& func)
 
         for(const OpcodeNode &node : block.list)
         {
-            emit_x86_opcode(itl.asm_emitter,node.value);
+            emit_opcode(itl.asm_emitter,node.value);
         }
     }
 
     end_func(itl.asm_emitter,func_idx);
 }
 
-void emit_x86_asm(Interloper& itl)
+void emit_asm(Interloper& itl)
 {
     for(auto& func : itl.func_table.used)
     {
-        emit_x86_func(itl,*func);
+        emit_func(itl,*func);
     }
+}
+
 }

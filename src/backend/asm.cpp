@@ -92,7 +92,7 @@ void emit_asm(Interloper &itl)
     {
         case arch_target::x86_64_t:
         {
-            emit_x86_asm(itl);
+            x86::emit_asm(itl);
             break;
         }
     }
