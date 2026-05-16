@@ -5,6 +5,8 @@
 #include "backend/emitter.cpp"
 #include "backend/cfg.cpp"
 #include "backend/asm.cpp"
+#include "backend/x86/asm.cpp"
+
 #include "backend/stack_allocator.cpp"
 #include "backend/disass.cpp"
 #include "backend/lower_ir.cpp"
@@ -480,6 +482,9 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
     {
         dump_itl_ir(itl);
     }
+
+    // emit the actual target asm
+    emit_asm(itl);
 
 
     auto end = std::chrono::high_resolution_clock::now();

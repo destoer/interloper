@@ -1,4 +1,4 @@
-
+void emit_x86_asm(Interloper& itl);
 
 void destroy_asm_emitter(AsmEmitter& emitter)
 {
@@ -92,8 +92,7 @@ void emit_asm(Interloper &itl)
     {
         case arch_target::x86_64_t:
         {
-            assert(false);
-            // x86::emit_asm(itl);
+            emit_x86_asm(itl);
             break;
         }
     }
