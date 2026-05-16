@@ -204,42 +204,7 @@ ParserResult const_assert(Parser& parser,const Token& t)
 ParserResult parse_ret(Parser& parser, const Token& t)
 {
     // return value is optional
-    if(!match(parser,token_type::semi_colon))
-    {
-        if(match(parser,token_type::left_c_brace,1))
-        {
-            auto initializer_res = parse_struct_initializer(parser);
-
-            if(!initializer_res)
-            {
-                return initializer_res;
-            }
-
-            auto initializer = (StructInitializerNode*)initializer_res.value();
-            initializer->is_return = true;
-
-            return (AstNode*)initializer;
-        }
-
-        RetNode* ret_node = ast_ret(parser,t);
-        b32 done = false;
-
-        // can be more than one expr (comma separated)
-        while(!done)
-        {
-            auto list_res = expr_list(parser,"return",token_type::semi_colon,&done);
-            if(!list_res)
-            {
-                return list_res.error();
-            }
-
-            push_var(ret_node->expr,*list_res);
-        }
-
-        return (AstNode*)ret_node;
-    }
-
-    else
+    if(match(parser,token_type::semi_colon))
     {
         const auto term_err = consume(parser,token_type::semi_colon);
         if(term_err)
@@ -248,6 +213,33 @@ ParserResult parse_ret(Parser& parser, const Token& t)
         }
         return (AstNode*)ast_ret(parser,t);
     }
+
+    RetNode* ret_node = ast_ret(parser,t);
+    b32 done = false;
+
+    // can be more than one expr (comma separated)
+    while(!done)
+    {
+        auto list_res = expr_list(parser,"return",token_type::semi_colon,&done);
+        if(!list_res)
+        {
+            return list_res.error();
+        }
+
+        push_var(ret_node->expr,*list_res);
+    }
+
+    // Detect struct return
+    if(count(ret_node->expr) == 1 && ret_node->expr[0]->type == ast_type::struct_initializer)
+    {
+        auto initializer = (StructInitializerNode*)ret_node->expr[0];
+        initializer->is_return = true;
+        return (AstNode*)initializer;
+    }
+
+
+    return (AstNode*)ret_node;
+    
 }
 
 ParserResult statement(Parser &parser)

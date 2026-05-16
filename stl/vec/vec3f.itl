@@ -49,14 +49,11 @@ func vec3f_normalize(v1: const Vec3F@) Vec3F {
 
     // TODO: Can use fast inverse sqrt, but we probably want a constant that tell us when we are 
     // compiling for a compliant platform. (and make sure its optimized)
-
     scale := 1.0 / vec3f_norm(v1);
 
-    normalized := std::Vec3F {
+    return Vec3F {
         v1.x * scale, v1.y * scale, v1.z * scale
     };
-
-    return normalized;
 }
 
 
@@ -67,13 +64,11 @@ func vec3f_dot(v1: const Vec3F@, v2: const Vec3F@) f64
 }
 
 func vec3f_cross(v1: const Vec3F@, v2: const Vec3F@) Vec3F {
-    cross := Vec3F {
+    return Vec3F {
         (v1.y * v2.z) - (v1.z * v2.y), 
         -((v1.x * v2.z) - (v1.z * v2.x)),
         (v1.x * v2.y) - (v1.y * v2.x)
     };
-
-    return cross;
 }
 
 func print_vec3f(tag: const string, v1: Vec3F)

@@ -190,38 +190,32 @@ func rotate(angle: f64) std::Mat4D {
     cos_a := std::cos(angle);
     sin_a := std::sin(angle);
 
-    rot := std::Mat4D {{
+    return std::Mat4D {{
         {cos_a,0.0,sin_a,0.0},
         {0.0,1.0,0.0,0.0},
         {-sin_a,0.0,cos_a,0.0},
         {0.0,0.0,0.0,1.0}
     }};
-
-    return rot;
 }
 
 func project(win: gfx::Window@) std::Mat4D {
-    proj := std::Mat4D {{
+    return std::Mat4D {{
         {win.half_size.x,0.0,0.0,win.half_size.x},
         {0.0,-win.half_size.y,0.0,win.half_size.y},
         {0.0,0.0,1.0,0.0},
         {0.0,0.0,0.0,1.0}
     }};
-
-    return proj;
 }
 
 func perspective(f: f64) std::Mat4D {
     scale := -1.0 / f;
 
-    persp := std::Mat4D {{
+    return std::Mat4D {{
         {1.0,0.0,0.0,0.0},
         {0.0,1.0,0.0,0.0},
         {0.0,0.0,1.0,0.0},
         {0.0,0.0,scale,1.0}
     }};
-
-    return persp;
 }
 
 // This part of the maths i don't fully understand.

@@ -27,6 +27,7 @@ AddrSlot make_indexed_pointer_addr(RegSlot base,RegSlot index, u32 scale,u32 off
 
 AddrSlot make_struct_addr(RegSlot base, u32 offset)
 {
+    assert(base.kind != reg_kind::spec);
     return {make_addr(base,offset),true};
 }
 
