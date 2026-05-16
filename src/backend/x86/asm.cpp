@@ -828,6 +828,12 @@ void lsr_imm(AsmEmitter& emitter, x86_reg dst, u32 v1)
     emit_shift_imm(emitter,dst,v1,5);
 }
 
+void asr_imm(AsmEmitter& emitter, x86_reg dst, u32 v1)
+{
+    emit_shift_imm(emitter,dst,v1,7);
+}
+
+
 void cmp_imm(AsmEmitter& emitter, x86_reg dst, s64 v1)
 {
     emit_arith_imm(emitter,dst,v1,7);
@@ -1507,10 +1513,61 @@ void emit_arith_gpr2(AsmEmitter& emitter, const ArithGpr2& arith)
     }
 }
 
+void emit_shift_imm2(AsmEmitter& emitter, const ShiftImm2& shift)
+{
+    const auto dst = x86_reg(shift.dst.reg);
+    const auto imm = shift.imm;
+    
+    switch(shift.type)
+    {
+        case shift_op::lsr: lsr_imm(emitter,dst,imm); break;
+        case shift_op::asr: asr_imm(emitter,dst,imm); break;
+        case shift_op::lsl: lsl_imm(emitter,dst,imm); break;
+    }
+}
+
+void emit_set_from_flag_gpr(AsmEmitter& emitter, const SetFromFlagGpr& set_flag)
+{
+    const auto dst = x86_reg(set_flag.dst.reg);
+
+    switch(set_flag.type)
+    {
+        case cmp_sign_op::ult: setult(emitter,dst); break;
+        case cmp_sign_op::ule: setule(emitter,dst); break;
+        case cmp_sign_op::ugt: setugt(emitter,dst); break;
+        case cmp_sign_op::uge: setuge(emitter,dst); break;   
+        
+        case cmp_sign_op::slt: setslt(emitter,dst); break;
+        case cmp_sign_op::sle: setsle(emitter,dst); break;
+        case cmp_sign_op::sgt: setsgt(emitter,dst); break;
+        case cmp_sign_op::sge: setsge(emitter,dst); break;  
+
+        case cmp_sign_op::eq: seteq(emitter,dst); break;
+        case cmp_sign_op::ne: setne(emitter,dst); break; 
+    }
+}
+
+void emit_imm2_src(AsmEmitter& emitter, const ImmTwoSrc& imm_two)
+{
+    const auto src = x86_reg(imm_two.src.reg);
+    const auto imm = imm_two.imm;
+
+    switch(imm_two.type)
+    {
+        case imm_two_src::cmp_flags_imm: cmp_imm(emitter,src,imm); break;
+    }
+}
+
 void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {  
     switch(opcode.group)
     {
+        case op_group::set_from_flag_gpr:
+        {
+            emit_set_from_flag_gpr(emitter,opcode.set_from_flag_gpr);
+            break;
+        }
+
         case op_group::arith_imm2:
         {
             emit_arith_imm2(emitter,opcode.arith_imm2);
@@ -1520,6 +1577,18 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_group::arith_gpr2:
         {
             emit_arith_gpr2(emitter,opcode.arith_gpr2);
+            break;
+        }
+
+        case op_group::shift_imm2:
+        {
+            emit_shift_imm2(emitter,opcode.shift_imm2);
+            break;
+        }
+
+        case op_group::imm2_src:
+        {
+            emit_imm2_src(emitter,opcode.imm2_src);
             break;
         }
 
