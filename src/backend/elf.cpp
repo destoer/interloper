@@ -668,7 +668,7 @@ void rewrite_rel_load_store_addr(Interloper& itl,Elf& elf,const LinkOpcode& link
     auto& const_pool = itl.const_pool;
     auto& global = itl.global_alloc;
 
-    const s64 section_offset = addr_op.offset;
+    const s64 section_offset = addr_op.addr.offset;
     const auto spec = spec_reg(addr_op.addr.index);
 
     const u32 text_offset = itl.asm_emitter.base_offset;
@@ -705,33 +705,6 @@ void rewrite_rel_load_store_addr(Interloper& itl,Elf& elf,const LinkOpcode& link
     }
 }
 
-void rewrite_rel_load_store(Interloper& itl,Elf& elf,const LinkOpcode& link)
-{
-    const auto opcode = link.opcode;
-
-    switch(opcode.group)
-    {
-        case op_group::store:
-        {
-            rewrite_rel_load_store_addr(itl,elf,link,opcode.store);
-            break;
-        }
-
-        case op_group::load:
-        {
-            rewrite_rel_load_store_addr(itl,elf,link,opcode.load);
-            break;
-        }
-
-        default:
-        {
-            unimplemented("[ELF X86 LINK]: load store link %s",OP_GROUP_NAMES[u32(opcode.group)]);
-            break;
-        }
-    }
-}
-
-
 void link_opcodes(Interloper& itl, Elf& elf)
 {
     auto& asm_emitter = itl.asm_emitter;
@@ -743,37 +716,9 @@ void link_opcodes(Interloper& itl, Elf& elf)
 
         switch(opcode.op)
         {
-            case op_type::call:
-            {
-                const LabelSlot slot = opcode.v[0].label;
-                rewrite_rel_label(itl,elf,link,slot);
-                break;
-            }
-
             case op_type::load_func_addr:
             {
                 const LabelSlot slot = opcode.v[1].label;
-                rewrite_rel_label(itl,elf,link,slot);
-                break;
-            }
-
-            case op_type::je:
-            {
-                const LabelSlot slot = opcode.v[0].label;
-                rewrite_rel_label(itl,elf,link,slot);
-                break;
-            }
-
-            case op_type::jne:
-            {
-                const LabelSlot slot = opcode.v[0].label;
-                rewrite_rel_label(itl,elf,link,slot);
-                break;
-            }
-
-            case op_type::b:
-            {
-                const LabelSlot slot = opcode.v[0].label;
                 rewrite_rel_label(itl,elf,link,slot);
                 break;
             }
@@ -785,90 +730,34 @@ void link_opcodes(Interloper& itl, Elf& elf)
                 break;
             }
 
-            case op_type::lb:
+
+            case op_group::branch_cond_flag:
             {
-                rewrite_rel_load_store(itl,elf,link);
+                rewrite_rel_label(itl,elf,link,link.opcode.branch_cond_flag.label);
                 break;
             }
 
-            case op_type::lh:
+            case op_group::branch_label:
             {
-                rewrite_rel_load_store(itl,elf,link);
+                rewrite_rel_label(itl,elf,link,link.opcode.branch_label.label);
                 break;
             }
 
-            case op_type::lw:
+            case op_group::store:
             {
-                rewrite_rel_load_store(itl,elf,link);
+                rewrite_rel_load_store_addr(itl,elf,link,opcode.store);
                 break;
             }
 
-            case op_type::ld:
+            case op_group::load:
             {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::lsb:
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::lsw:
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::sb:
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::sh:
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::sw:
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::sd:
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::lf: 
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::sf: 
-            {
-                rewrite_rel_load_store(itl,elf,link);
-                break;
-            }
-
-            case op_type::lea:
-            {
-                rewrite_rel_load_store(itl,elf,link);
+                rewrite_rel_load_store_addr(itl,elf,link,opcode.load);
                 break;
             }
 
             default:
             {
-                auto& info = info_from_op(opcode);
-                printf("[ELF link X86]: unknown opcode: %s\n",info.fmt_string.buf);
-                assert(false);
-                break;
+                unimplemented("[ELF link X86]: unknown opcode group: %s\n",OP_GROUP_NAMES[u32(opcode.group)]);
             }
         }
     }
