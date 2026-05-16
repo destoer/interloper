@@ -691,7 +691,7 @@ void sub(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
     emit_reg2_rm_64(emitter,0x2B,dst,v1);
 }
 
-void cmp(AsmEmitter& emitter, x86_reg v1, x86_reg v2)
+void cmp_gpr(AsmEmitter& emitter, x86_reg v1, x86_reg v2)
 {
     // cmp r64, r64
     emit_reg2_rm_64(emitter,0x3B,v1,v2);
@@ -1293,7 +1293,7 @@ void cvt_if(AsmEmitter& emitter, x86_reg dst, x86_reg src)
     push_u8(emitter,mod_rm(dst,src));
 }
 
-void cmp_flags_float(AsmEmitter& emitter, x86_reg dst, x86_reg src)
+void cmp_fpr(AsmEmitter& emitter, x86_reg dst, x86_reg src)
 {
     // ucomisd r, m
     push_xmm_66(emitter,dst,src);
@@ -1407,6 +1407,20 @@ void emit_branch_label(AsmEmitter& emitter, const Opcode& opcode)
     add_link(emitter,opcode,offset);
 }
 
+void emit_branch_cond_flag(AsmEmitter& emitter, const Opcode& opcode)
+{
+    const auto& branch = opcode.branch_cond_flag;
+    u32 offset = 0;
+
+    switch(branch.type)
+    {
+        case branch_cond_type::eqz: offset = je(emitter); break;
+        case branch_cond_type::nez: offset = jne(emitter); break;
+    }
+
+    add_link(emitter,opcode,offset);
+}
+
 void emit_implicit(AsmEmitter& emitter, const Implicit& implicit)
 {
     switch(implicit.type)
@@ -1462,6 +1476,19 @@ void emit_directive(AsmEmitter& emitter, const Opcode& opcode, const Directive& 
     }
 }
 
+void emit_reg2_src(AsmEmitter& emitter, const RegTwoSrc& reg2_src)
+{
+    const auto v1 = x86_reg(reg2_src.v1.reg);
+    const auto v2 = x86_reg(reg2_src.v2.reg);
+
+    switch(reg2_src.type)
+    {
+        case reg_two_src::cmp_flags_gpr: cmp_gpr(emitter,v1,v2); break;
+        case reg_two_src::cmp_flags_fpr: cmp_fpr(emitter,v1,v2); break;
+        case reg_two_src::test: test(emitter,v1,v2); break;
+    }
+}
+
 void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {  
     switch(opcode.group)
@@ -1469,6 +1496,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_group::arith_imm2:
         {
             emit_arith_imm2(emitter,opcode.arith_imm2);
+            break;
+        }
+
+        case op_group::reg2_src:
+        {
+            emit_reg2_src(emitter,opcode.reg2_src);
             break;
         }
 
@@ -1523,6 +1556,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_group::branch_label:
         {
             emit_branch_label(emitter,opcode);
+            break;
+        }
+
+        case op_group::branch_cond_flag:
+        {
+            emit_branch_cond_flag(emitter,opcode);
             break;
         }
 
