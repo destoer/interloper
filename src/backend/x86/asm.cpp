@@ -1526,6 +1526,21 @@ void emit_arith_gpr2(AsmEmitter& emitter, const ArithGpr2& arith)
     }
 }
 
+void emit_arith_gpr3(AsmEmitter& emitter, const ArithGpr3& arith)
+{
+    const auto dst = x86_reg(arith.dst.reg);
+    const auto v1 = x86_reg(arith.v1.reg);
+    const auto v2 = x86_reg(arith.v2.reg);
+
+
+    switch(arith.type)
+    {
+        case arith_bin_op::add_t: add(emitter,dst,v1,v2); break;
+        default: panic_lowered(ARITH_BIN_NAMES[u32(arith.type)]);
+    }
+}
+
+
 void emit_shift_imm2(AsmEmitter& emitter, const ShiftImm2& shift)
 {
     const auto dst = x86_reg(shift.dst.reg);
@@ -1631,6 +1646,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_group::arith_gpr2:
         {
             emit_arith_gpr2(emitter,opcode.arith_gpr2);
+            break;
+        }
+
+        case op_group::arith_gpr3:
+        {
+            emit_arith_gpr3(emitter,opcode.arith_gpr3);
             break;
         }
 
