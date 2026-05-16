@@ -1418,10 +1418,31 @@ void emit_implicit(AsmEmitter& emitter, const Implicit& implicit)
     }
 }
 
+void emit_arith_imm2(AsmEmitter& emitter, const ArithImm2& arith)
+{
+    const auto dst = x86_reg(arith.dst.reg);
+    const auto imm = arith.imm;
+
+    switch(arith.type)
+    {
+        case arith_bin_op::add_t: add_imm(emitter,dst,imm); break;
+        case arith_bin_op::sub_t: sub_imm(emitter,dst,imm); break;
+        case arith_bin_op::xor_t: xor_imm(emitter,dst,imm); break;
+        case arith_bin_op::and_t: and_imm(emitter,dst,imm); break;
+        default: panic_lowered(ARITH_BIN_NAMES[u32(arith.type)]);
+    }
+}
+
 void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {  
     switch(opcode.group)
     {
+        case op_group::arith_imm2:
+        {
+            emit_arith_imm2(emitter,opcode.arith_imm2);
+            break;
+        }
+
         case op_group::implicit:
         {
             emit_implicit(emitter,opcode.implicit);
