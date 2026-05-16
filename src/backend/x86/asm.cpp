@@ -1357,6 +1357,20 @@ void panic_lowered(const char* name)
 }
 
 
+void emit_sign_extend(AsmEmitter& emitter, const SignExtend& sign_extend)
+{
+    const auto dst = x86_reg(sign_extend.dst.reg);
+    const auto src = x86_reg(sign_extend.src.reg);
+
+    switch(sign_extend.type)
+    {
+        case sign_extend_op::sxb: sxb(emitter,dst,src); break;
+        case sign_extend_op::sxh: sxh(emitter,dst,src); break;
+        case sign_extend_op::sxw: sxw(emitter,dst,src); break;
+    }
+}
+
+
 void emit_unary_reg2(AsmEmitter& emitter, const UnaryRegTwo& unary_reg2)
 {
     const auto dst = x86_reg(unary_reg2.dst.reg);
@@ -1776,6 +1790,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_group::unary_reg2:
         {
             emit_unary_reg2(emitter,opcode.unary_reg2);
+            break;
+        }
+
+        case op_group::sign_extend:
+        {
+            emit_sign_extend(emitter,opcode.sign_extend);
             break;
         }
 

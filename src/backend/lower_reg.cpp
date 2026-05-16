@@ -226,6 +226,12 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
             break;
         }
 
+        case op_group::sign_extend:
+        {
+            lower_unary_reg2(opcode.sign_extend,regs);
+            break;       
+        }
+
         case op_group::reg2_src:
         {
             lower_reg2_src(opcode.reg2_src,regs);
@@ -304,7 +310,7 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
 
         default:
         {
-            unimplemented("Lower registers for %d",u32(opcode.group));
+            unimplemented("Lower registers for %s",OP_GROUP_NAMES[u32(opcode.group)]);
         }
     }
 
