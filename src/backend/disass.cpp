@@ -333,7 +333,7 @@ void disass_branch_cond(const Opcode& opcode, const Disass& disass)
 void disass_branch_cond_flag(const Opcode& opcode, const Disass& disass)
 {
     auto& branch = opcode.branch_cond_flag;
-    print_disass(opcode,disass,"%s %a\n",JUMP_COND_NAMES[u32(branch.type)],branch.label);
+    print_disass(opcode,disass,"%s %a\n",BRANCH_COND_NAMES[u32(branch.type)],branch.label);
 }
 
 template<typename type,op_group group>

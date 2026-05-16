@@ -7,7 +7,6 @@ ConstIrRegSpan addr_opcode_ir_reg_span(const AddrOpcode<type,IS_LOAD,STRUCT_ADDR
         reg.dst[reg.dst.size++] = addr_op.v1.ir;
     }
 
-    // TODO: This should be processed last for compat :P (switch it out later for sanity)
     if constexpr(!IS_LOAD)
     {
         reg.src[reg.src.size++] = addr_op.v1.ir;

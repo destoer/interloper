@@ -927,20 +927,10 @@ enum class branch_cond_type
     nez,
 };
 
-// TODO: change these once we have confirmed a match
-// beqz
-// bnez
 static const char* BRANCH_COND_NAMES[] =
 {
-    "bnc",
-    "bc"
-};
-
-// TODO: change these once we have confirmed a match
-static const char* JUMP_COND_NAMES[] =
-{
-    "je",
-    "jne"
+    "beqz",
+    "bnez"
 };
 
 struct BranchCond
