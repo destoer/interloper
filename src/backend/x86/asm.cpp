@@ -1407,10 +1407,27 @@ void emit_branch_label(AsmEmitter& emitter, const Opcode& opcode)
     add_link(emitter,opcode,offset);
 }
 
+void emit_implicit(AsmEmitter& emitter, const Implicit& implicit)
+{
+    switch(implicit.type)
+    {
+        case implicit_type::syscall: syscall(emitter); break;
+        case implicit_type::ret: ret(emitter); break;
+        case implicit_type::cqo: cqo(emitter); break;
+        case implicit_type::leave: leave(emitter); break;        
+    }
+}
+
 void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {  
     switch(opcode.group)
     {
+        case op_group::implicit:
+        {
+            emit_implicit(emitter,opcode.implicit);
+            break;
+        }
+
         case op_group::mov_gpr_imm: 
         {
             emit_mov_imm(emitter,opcode.mov_gpr_imm); 
