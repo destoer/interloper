@@ -1386,6 +1386,25 @@ void emit_load(AsmEmitter& emitter, const Opcode& opcode, const Load& load)
     }
 }
 
+void emit_store(AsmEmitter& emitter, const Opcode& opcode, const Store& store)
+{
+    switch(store.type)
+    {
+        case store_type::sb: emit_load_store(emitter,opcode,store,sb); break;
+        case store_type::sh: emit_load_store(emitter,opcode,store,sh); break;
+        case store_type::sw: emit_load_store(emitter,opcode,store,sw); break;
+        case store_type::sd: emit_load_store(emitter,opcode,store,sd); break;
+        
+        case store_type::sf: emit_load_store(emitter,opcode,store,sf); break;
+    }
+}
+
+void emit_branch_label(AsmEmitter& emitter, const Opcode& opcode)
+{
+    const u32 offset = branch(emitter);
+    add_link(emitter,opcode,offset);
+}
+
 void emit_x86_opcode(AsmEmitter& emitter, const Opcode& opcode)
 {  
     UNUSED(emitter);
@@ -1413,6 +1432,18 @@ void emit_x86_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_group::load:
         {
             emit_load(emitter,opcode,opcode.load);
+            break;
+        }
+
+        case op_group::store:
+        {
+            emit_store(emitter,opcode,opcode.store);
+            break;
+        }
+
+        case op_group::branch_label:
+        {
+            emit_branch_label(emitter,opcode);
             break;
         }
 
