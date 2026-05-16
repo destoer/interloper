@@ -1580,6 +1580,23 @@ void emit_shift_imm2(AsmEmitter& emitter, const ShiftImm2& shift)
     }
 }
 
+
+void emit_set_from_flag_fpr(AsmEmitter& emitter, const SetFromFlagFpr& set_flag)
+{
+    const auto dst = x86_reg(set_flag.dst.reg);
+
+    switch(set_flag.type)
+    {
+        case comparison_op::lt: setflt(emitter,dst); break;
+        case comparison_op::le: setfle(emitter,dst); break;
+        case comparison_op::gt: setfgt(emitter,dst); break;
+        case comparison_op::ge: setfge(emitter,dst); break;
+
+        case comparison_op::eq: setfeq(emitter,dst); break;
+        case comparison_op::ne: setfne(emitter,dst); break;
+    }
+}
+
 void emit_set_from_flag_gpr(AsmEmitter& emitter, const SetFromFlagGpr& set_flag)
 {
     const auto dst = x86_reg(set_flag.dst.reg);
@@ -1654,6 +1671,12 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
         case op_group::set_from_flag_gpr:
         {
             emit_set_from_flag_gpr(emitter,opcode.set_from_flag_gpr);
+            break;
+        }
+
+        case op_group::set_from_flag_fpr:
+        {
+            emit_set_from_flag_fpr(emitter,opcode.set_from_flag_fpr);
             break;
         }
 
