@@ -660,16 +660,16 @@ void rewrite_rel_const_pool(Interloper& itl,Elf& elf,const LinkOpcode& link, Poo
 }
 
 
-void rewrite_rel_load_store(Interloper& itl,Elf& elf,const LinkOpcode& link)
+
+template<typename T>
+void rewrite_rel_load_store_addr(Interloper& itl,Elf& elf,const LinkOpcode& link, const T& addr_op)
 {
     auto& asm_emitter = itl.asm_emitter;
     auto& const_pool = itl.const_pool;
     auto& global = itl.global_alloc;
 
-    const auto opcode = link.opcode;
-
-    const s64 section_offset = opcode.offset;
-    const auto spec = spec_reg(opcode.v[1].lowered);
+    const s64 section_offset = addr_op.offset;
+    const auto spec = spec_reg(addr_op.addr.index);
 
     const u32 text_offset = itl.asm_emitter.base_offset;
 
@@ -700,6 +700,32 @@ void rewrite_rel_load_store(Interloper& itl,Elf& elf,const LinkOpcode& link)
         default:
         {
             unimplemented("[ELF X86 LINK]: unknown load_store handle %s",spec_reg_name(spec));
+            break;
+        }
+    }
+}
+
+void rewrite_rel_load_store(Interloper& itl,Elf& elf,const LinkOpcode& link)
+{
+    const auto opcode = link.opcode;
+
+    switch(opcode.group)
+    {
+        case op_group::store:
+        {
+            rewrite_rel_load_store_addr(itl,elf,link,opcode.store);
+            break;
+        }
+
+        case op_group::load:
+        {
+            rewrite_rel_load_store_addr(itl,elf,link,opcode.load);
+            break;
+        }
+
+        default:
+        {
+            unimplemented("[ELF X86 LINK]: load store link %s",OP_GROUP_NAMES[u32(opcode.group)]);
             break;
         }
     }
