@@ -705,31 +705,48 @@ void rewrite_rel_load_store_addr(Interloper& itl,Elf& elf,const LinkOpcode& link
     }
 }
 
+void link_directive(Interloper& itl, Elf& elf, const LinkOpcode& link)
+{
+    const auto directive = link.opcode.directive;
+
+    switch(directive.type)
+    {
+        case directive_type::load_func_addr:
+        {
+            const LabelSlot slot = directive.operand[1].label;
+            rewrite_rel_label(itl,elf,link,slot);
+            break;
+        }
+
+        case directive_type::pool_addr:
+        {
+            const PoolSlot slot = directive.operand[1].pool;
+            rewrite_rel_const_pool(itl,elf,link,slot);
+            break;
+        }
+
+        default: 
+        {
+            unimplemented("[ELF link X86]: unknown directive: %s\n",DIRECTIVE_NAMES[u32(directive.type)]);
+        }
+    }
+}
+
 void link_opcodes(Interloper& itl, Elf& elf)
 {
     auto& asm_emitter = itl.asm_emitter;
 
-    for(u32 l = 0; l < count(asm_emitter.link); l++)
+    for(const auto& link : asm_emitter.link)
     {
-        const auto link = asm_emitter.link[l];
         const auto opcode = link.opcode;
 
-        switch(opcode.op)
+        switch(opcode.group)
         {
-            case op_type::load_func_addr:
+            case op_group::directive:
             {
-                const LabelSlot slot = opcode.v[1].label;
-                rewrite_rel_label(itl,elf,link,slot);
+                link_directive(itl,elf,link);
                 break;
             }
-
-            case op_type::pool_addr:
-            {
-                const PoolSlot slot = pool_slot_from_idx(opcode.v[1].lowered);
-                rewrite_rel_const_pool(itl,elf,link,slot);
-                break;
-            }
-
 
             case op_group::branch_cond_flag:
             {
