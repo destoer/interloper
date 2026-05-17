@@ -943,14 +943,54 @@ void sxw(AsmEmitter& emitter, x86_reg dst, x86_reg v1)
     emit_reg2_rm_64(emitter,0x63,dst,v1);
 }
 
-u32 je(AsmEmitter& emitter)
+u32 beqz(AsmEmitter& emitter)
 {
     return emit_cond_jump(emitter,0x84'0f);
 }
 
-u32 jne(AsmEmitter& emitter)
+u32 bnez(AsmEmitter& emitter)
 {
     return emit_cond_jump(emitter,0x85'0f);
+}
+
+u32 bult(AsmEmitter& emitter)
+{
+    return emit_cond_jump(emitter,0x82'0f);
+}
+
+u32 bule(AsmEmitter& emitter)
+{
+    return emit_cond_jump(emitter,0x86'0f);
+}
+
+u32 bugt(AsmEmitter& emitter)
+{
+    return emit_cond_jump(emitter,0x87'0f);
+}
+
+u32 buge(AsmEmitter& emitter)
+{
+    return emit_cond_jump(emitter,0x83'0f);
+}
+
+u32 bslt(AsmEmitter& emitter)
+{
+    return emit_cond_jump(emitter,0x8c'0f);
+}
+
+u32 bsle(AsmEmitter& emitter)
+{
+    return emit_cond_jump(emitter,0x8e'0f);
+}
+
+u32 bsgt(AsmEmitter& emitter)
+{
+    return emit_cond_jump(emitter,0x8f'0f);
+}
+
+u32 bsge(AsmEmitter& emitter)
+{
+    return emit_cond_jump(emitter,0x8d'0f);
 }
 
 u32 branch(AsmEmitter& emitter)
@@ -1445,15 +1485,25 @@ void emit_branch_label(AsmEmitter& emitter, const Opcode& opcode)
     add_link(emitter,opcode,offset);
 }
 
-void emit_branch_cond_flag(AsmEmitter& emitter, const Opcode& opcode)
+void emit_branch_cmp_flag(AsmEmitter& emitter, const Opcode& opcode)
 {
-    const auto& branch = opcode.branch_cond_flag;
+    const auto& branch = opcode.branch_cmp_flag;
     u32 offset = 0;
 
     switch(branch.type)
     {
-        case branch_cond_type::eqz: offset = je(emitter); break;
-        case branch_cond_type::nez: offset = jne(emitter); break;
+        case cmp_sign_op::ult: offset = bult(emitter); break;
+        case cmp_sign_op::ule: offset = bule(emitter); break;
+        case cmp_sign_op::ugt: offset = bugt(emitter); break;
+        case cmp_sign_op::uge: offset = buge(emitter); break;   
+        
+        case cmp_sign_op::slt: offset = bslt(emitter); break;
+        case cmp_sign_op::sle: offset = bsle(emitter); break;
+        case cmp_sign_op::sgt: offset = bsgt(emitter); break;
+        case cmp_sign_op::sge: offset = bsge(emitter); break;  
+
+        case cmp_sign_op::eq: offset = beqz(emitter); break;
+        case cmp_sign_op::ne: offset = bnez(emitter); break; 
     }
 
     add_link(emitter,opcode,offset);
@@ -1823,9 +1873,9 @@ void emit_opcode(AsmEmitter& emitter, const Opcode& opcode)
             break;
         }
 
-        case op_group::branch_cond_flag:
+        case op_group::branch_cmp_flag:
         {
-            emit_branch_cond_flag(emitter,opcode);
+            emit_branch_cmp_flag(emitter,opcode);
             break;
         }
 

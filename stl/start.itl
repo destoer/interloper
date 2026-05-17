@@ -1,4 +1,4 @@
-// import <system>
+import <system>
 import <mem>
 
 global global_setup : bool = false;

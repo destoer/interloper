@@ -306,7 +306,7 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
 
         case op_group::implicit: break;
         case op_group::branch_label: break;
-        case op_group::branch_cond_flag: break;
+        case op_group::branch_cmp_flag: break;
 
         default:
         {
