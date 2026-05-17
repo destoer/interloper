@@ -135,8 +135,9 @@ ConstIrRegSpan opcode_ir_reg_span(const Opcode& opcode, IrRegSpan& reg)
         case op_group::implicit: return reg; 
         case op_group::branch_label: return reg; 
         case op_group::branch_reg: return branch_reg_span(opcode.branch_reg,reg);
+        case op_group::branch_cmp: return branch_cmp_reg_span(opcode.branch_cmp,reg);
+        case op_group::branch_cmp_flag: return reg;
         case op_group::branch_cond: return branch_cond_reg_span(opcode.branch_cond,reg);
-        case op_group::branch_cond_flag: return reg; 
         case op_group::directive: return directive_reg_span(opcode.directive,reg); 
         case op_group::mov_gpr_imm: return mov_gpr_imm_reg_span(opcode.mov_gpr_imm,reg); 
         case op_group::mov_fpr_imm: return mov_fpr_imm_reg_span(opcode.mov_fpr_imm,reg); 

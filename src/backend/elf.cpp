@@ -748,9 +748,9 @@ void link_opcodes(Interloper& itl, Elf& elf)
                 break;
             }
 
-            case op_group::branch_cond_flag:
+            case op_group::branch_cmp_flag:
             {
-                rewrite_rel_label(itl,elf,link,link.opcode.branch_cond_flag.label);
+                rewrite_rel_label(itl,elf,link,link.opcode.branch_cmp_flag.label);
                 break;
             }
 

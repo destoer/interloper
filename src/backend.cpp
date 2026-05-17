@@ -16,6 +16,7 @@
 #include "backend/elf.cpp"
 #include "backend/intrin.cpp"
 #include "backend/memory.cpp"
+#include "backend/optimise.cpp"
 
 TypedReg compile_oper(Interloper& itl,Function &func,AstNode *node);
 Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot dst_slot);
@@ -372,7 +373,7 @@ void compile_block_stmt(Interloper& itl, Function& func, AstNode* stmt)
     compile_block(itl,func,nested_block->block);
 }
 
-Option<itl_error> compile_function(Interloper& itl, Function& func)
+void compile_function(Interloper& itl, Function& func)
 {
     // Dummy function just output a block and setup the graph
     if(!func.root)
@@ -383,31 +384,38 @@ Option<itl_error> compile_function(Interloper& itl, Function& func)
             new_basic_block(itl,func);
         }
 
-        return func_graph_pass(itl,func);
+        return;
     }
 
     new_basic_block(itl,func);
     setup_passing_convention(itl,func);
 
     compile_block(itl,func,func.root->block);
-    return func_graph_pass(itl,func);
 }
 
-Option<itl_error> compile_functions(Interloper& itl)
+void compile_functions(Interloper& itl)
 {
     auto start = std::chrono::high_resolution_clock::now();
 
     for(Function* func : itl.func_table.used)
     {
-        const auto func_err = compile_function(itl,*func);
-        if(func_err)
-        {
-            return func_err;
-        }
+        compile_function(itl,*func);
     }
 
     auto end = std::chrono::high_resolution_clock::now();
     itl.code_gen_time = std::chrono::duration<double, std::milli>(end-start).count();
+}
+
+Option<itl_error> graph_pass_functions(Interloper& itl)
+{
+    for(Function* func : itl.func_table.used)
+    {
+        const auto err = func_graph_pass(itl,*func);
+        if(err)
+        {
+            return err;
+        }
+    }
 
     return option::none;
 }
@@ -434,7 +442,11 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
 {
     compile_globals(itl);
 
-    const auto func_err = compile_functions(itl);
+    compile_functions(itl);
+    
+    // optimise_ir(itl);
+
+    const auto func_err = graph_pass_functions(itl);
     if(func_err)
     {
         return func_err;
@@ -447,6 +459,7 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
     
 
     auto start = std::chrono::high_resolution_clock::now();
+
 
     switch(itl.arch)
     {

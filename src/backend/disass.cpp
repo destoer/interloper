@@ -330,10 +330,16 @@ void disass_branch_cond(const Opcode& opcode, const Disass& disass)
 }
 
 
-void disass_branch_cond_flag(const Opcode& opcode, const Disass& disass)
+void disass_branch_cmp(const Opcode& opcode, const Disass& disass)
 {
-    auto& branch = opcode.branch_cond_flag;
-    print_disass(opcode,disass,"%s %a\n",BRANCH_COND_NAMES[u32(branch.type)],branch.label);
+    auto& branch = opcode.branch_cmp;
+    print_disass(opcode,disass,"%s %a, %r, %r\n",BRANCH_CMP_NAMES[u32(branch.type)],branch.label,branch.v1,branch.v2);
+}
+
+void disass_branch_cmp_flag(const Opcode& opcode, const Disass& disass)
+{
+    auto& branch = opcode.branch_cmp_flag;
+    print_disass(opcode,disass,"%s %a\n",BRANCH_CMP_NAMES[u32(branch.type)],branch.label);
 }
 
 template<typename type,op_group group>
@@ -386,7 +392,8 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
     {
         case op_group::implicit: printf("%s\n",IMPLICIT_NAMES[u32(opcode.implicit.type)]); break;
         case op_group::branch_cond: disass_branch_cond(opcode,disass); break;
-        case op_group::branch_cond_flag: disass_branch_cond_flag(opcode,disass); break;
+        case op_group::branch_cmp: disass_branch_cmp(opcode,disass); break;
+        case op_group::branch_cmp_flag: disass_branch_cmp_flag(opcode,disass); break;
         case op_group::directive: disass_directive(opcode,disass); break;
         case op_group::mov_gpr_imm: disass_mov_gpr_imm(opcode,disass); break;
         case op_group::mov_fpr_imm: disass_mov_fpr_imm(opcode,disass); break;

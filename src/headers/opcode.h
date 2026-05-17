@@ -400,6 +400,22 @@ enum class cmp_sign_op
     ne, 
 };
 
+static constexpr cmp_sign_op CMP_SIGN_INVERSE[] =
+{
+    cmp_sign_op::uge, // ult
+    cmp_sign_op::ugt, // ule
+    cmp_sign_op::ule, // ugt
+    cmp_sign_op::ult, // uge   
+
+    cmp_sign_op::sge, // slt
+    cmp_sign_op::sgt, // sle
+    cmp_sign_op::sle, // sgt
+    cmp_sign_op::slt, // sge  
+
+    cmp_sign_op::ne, // eq
+    cmp_sign_op::eq, // ne     
+};
+
 static constexpr u32 CMP_SIGN_OP_SIZE = 10;
 
 static const char* CMP_SIGN_NAMES[CMP_SIGN_OP_SIZE] = 
@@ -414,8 +430,8 @@ static const char* CMP_SIGN_NAMES[CMP_SIGN_OP_SIZE] =
     "cmpsgt",
     "cmpsge",
 
-    "cmpeq",
-    "cmpne"
+    "cmpeqz",
+    "cmpnez"
 };
 
 static const char* SET_FROM_GPR_NAMES[CMP_SIGN_OP_SIZE] = 
@@ -428,8 +444,24 @@ static const char* SET_FROM_GPR_NAMES[CMP_SIGN_OP_SIZE] =
     "setsle",
     "setsgt",
     "setsge",
-    "seteq",
-    "setne"
+    "seteqz",
+    "setnez"
+};
+
+static const char* BRANCH_CMP_NAMES[CMP_SIGN_OP_SIZE] =
+{
+    "bult",
+    "bule",
+    "bugt",
+    "buge",   
+    
+    "bslt",
+    "bsle",
+    "bsgt",
+    "bsge",  
+
+    "beq",
+    "bne",     
 };
 
 enum class comparison_op
@@ -680,7 +712,8 @@ enum class op_group
     branch_label,
     branch_reg,
     branch_cond,
-    branch_cond_flag,
+    branch_cmp,
+    branch_cmp_flag,
     directive,
     mov_gpr_imm,
     mov_fpr_imm,
@@ -722,6 +755,8 @@ const char* OP_GROUP_NAMES[] =
     "branch_reg",
     "branch_cond",
     "branch_cond_flag",
+    "branch_cmp",
+    "branch_cmp_flag",
     "directive",
     "mov_gpr_imm",
     "mov_fpr_imm",
@@ -914,10 +949,15 @@ struct BranchReg
 
 struct BranchCmp
 {
-    branch_type type;
-    cmp_sign_op cmp_type;
+    cmp_sign_op type;
     IrRegister v1;
-    IrRegister V2;
+    IrRegister v2;
+    LabelSlot label;
+};
+
+struct BranchCmpFlag
+{
+    cmp_sign_op type;
     LabelSlot label;
 };
 
@@ -939,13 +979,6 @@ struct BranchCond
     IrRegister src;
     LabelSlot label;
 };
-
-struct BranchCondFlag
-{
-    branch_cond_type type;
-    LabelSlot label;
-};
-
 
 struct MovGprImm
 {
@@ -1309,7 +1342,8 @@ struct Opcode
     Opcode(const Directive& value,opcode_state state) : group(op_group::directive), directive(value), state(state) {}
     Opcode(const BranchLabel& value,opcode_state state) : group(op_group::branch_label), branch_label(value), state(state) {}
     Opcode(const BranchCond& value,opcode_state state) : group(op_group::branch_cond), branch_cond(value), state(state) {}
-    Opcode(const BranchCondFlag& value,opcode_state state) : group(op_group::branch_cond_flag), branch_cond_flag(value), state(state) {}
+    Opcode(const BranchCmp& value, opcode_state state) : group(op_group::branch_cmp), branch_cmp(value), state(state) {}
+    Opcode(const BranchCmpFlag& value, opcode_state state) : group(op_group::branch_cmp_flag), branch_cmp_flag(value), state(state) {}
     Opcode(const Implicit& value,opcode_state state) : group(op_group::implicit), implicit(value), state(state) {}
     Opcode(const MovGprImm& value,opcode_state state) : group(op_group::mov_gpr_imm), mov_gpr_imm(value), state(state) {} 
     Opcode(const MovFprImm& value,opcode_state state) : group(op_group::mov_fpr_imm), mov_fpr_imm(value), state(state) {} 
@@ -1351,7 +1385,8 @@ struct Opcode
         Directive directive = {};
         BranchLabel branch_label;
         BranchCond branch_cond;
-        BranchCondFlag branch_cond_flag;
+        BranchCmp branch_cmp;
+        BranchCmpFlag branch_cmp_flag;
         Implicit implicit;
         MovGprImm mov_gpr_imm;
         MovFprImm mov_fpr_imm;
