@@ -549,3 +549,24 @@ void compute_var_live(Interloper& itl, Function& func)
         dump_cfg(itl,func);
     }
 }
+
+void destroy_block_use_def(Block& block)
+{
+    clear_set(block.def);
+    clear_set(block.use);
+}
+
+void destroy_block_liveness(Block& block)
+{
+    clear_set(block.live_in);
+    clear_set(block.live_out);
+}
+
+void destroy_liveness_info(Function& func)
+{
+    for(auto& block : func.emitter.program)
+    {
+        destroy_block_use_def(block);
+        destroy_block_liveness(block);
+    }
+}
