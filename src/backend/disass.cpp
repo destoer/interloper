@@ -336,6 +336,12 @@ void disass_branch_cmp(const Opcode& opcode, const Disass& disass)
     print_disass(opcode,disass,"%s %a, %r, %r\n",BRANCH_CMP_NAMES[u32(branch.type)],branch.label,branch.v1,branch.v2);
 }
 
+void disass_branch_cmp_imm(const Opcode& opcode, const Disass& disass)
+{
+    auto& branch = opcode.branch_cmp_imm;
+    print_disass(opcode,disass,"%s %a, %r, %x\n",BRANCH_CMP_NAMES[u32(branch.type)],branch.label,branch.src,branch.imm);
+}
+
 void disass_branch_cmp_flag(const Opcode& opcode, const Disass& disass)
 {
     auto& branch = opcode.branch_cmp_flag;
@@ -393,6 +399,7 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
         case op_group::implicit: printf("%s\n",IMPLICIT_NAMES[u32(opcode.implicit.type)]); break;
         case op_group::branch_cond: disass_branch_cond(opcode,disass); break;
         case op_group::branch_cmp: disass_branch_cmp(opcode,disass); break;
+        case op_group::branch_cmp_imm: disass_branch_cmp_imm(opcode,disass); break;
         case op_group::branch_cmp_flag: disass_branch_cmp_flag(opcode,disass); break;
         case op_group::directive: disass_directive(opcode,disass); break;
         case op_group::mov_gpr_imm: disass_mov_gpr_imm(opcode,disass); break;

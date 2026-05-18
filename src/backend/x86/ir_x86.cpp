@@ -25,12 +25,28 @@ OpcodeNode* lower_x86_branch_cmp_ir(Block& block, OpcodeNode* node)
 
     node->value = Opcode(BranchCmpFlag { cond,label }, opcode_state::ir);
 
-    const auto test = Opcode(make_reg2_src(v1,v2,reg_two_src::cmp_flags_gpr),opcode_state::ir);
-    node = insert_at(block.list,node,test);
+    const auto cmp = Opcode(make_reg2_src(v1,v2,reg_two_src::cmp_flags_gpr),opcode_state::ir);
+    node = insert_at(block.list,node,cmp);
             
     return node->next;
 }
 
+
+OpcodeNode* lower_x86_branch_cmp_imm_ir(Block& block, OpcodeNode* node)
+{
+    auto& branch = node->value.branch_cmp_imm;
+    const auto src = branch.src.ir;
+    const auto imm = branch.imm;
+    const auto cond = branch.type;
+    const auto label = branch.label;
+
+    node->value = Opcode(BranchCmpFlag { cond,label }, opcode_state::ir);
+
+    const auto cmp = Opcode(make_imm2_src(src,imm,imm_two_src::cmp_flags_imm),opcode_state::ir);
+    node = insert_at(block.list,node,cmp);
+            
+    return node->next;
+}
 
 template<typename op_type,op_group group>
 OpcodeNode* lower_x86_fixed_ir(Block& block, OpcodeNode* node, const RegThree<op_type,group>& reg, x86_fixed_type fixed)
@@ -135,6 +151,11 @@ OpcodeNode* rewrite_x86_opcode(Interloper& itl, Function& func, Block& block,Opc
         case op_group::branch_cmp:
         {
             return lower_x86_branch_cmp_ir(block,node);
+        }
+
+        case op_group::branch_cmp_imm:
+        {
+            return lower_x86_branch_cmp_imm_ir(block,node);
         }
 
         case op_group::unary_reg2:
