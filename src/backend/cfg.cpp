@@ -455,6 +455,17 @@ void compute_use_def(Interloper& itl,Function& func)
     }
 }
 
+void push_worklist(Array<BlockSlot>& to_visit, Set<BlockSlot>& seen, const Array<BlockSlot>& list)
+{
+    for(const BlockSlot slot : list)
+    {
+        if(!contains(seen,slot))
+        {
+            add(seen,slot);
+            push_var(to_visit,slot);            
+        }
+    }
+}
 
 void compute_var_live(Interloper& itl, Function& func)
 {
@@ -524,25 +535,8 @@ void compute_var_live(Interloper& itl, Function& func)
                 }
             }
 
-            // add entrys we havent seen for parsing
-            for(const BlockSlot entry : block.entry)
-            {
-                if(!contains(seen,entry))
-                {
-                    add(seen,entry);
-                    push_var(to_visit,entry);            
-                }
-            }
-
-            // add any exits while we are at it 
-            for(const BlockSlot exit : block.exit)
-            {
-                if(!contains(seen,exit))
-                {
-                    add(seen,exit);
-                    push_var(to_visit,exit);            
-                }
-            }
+            push_worklist(to_visit,seen,block.entry);
+            push_worklist(to_visit,seen,block.exit);
         }
 
         // cleanup mem for current pass
