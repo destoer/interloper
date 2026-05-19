@@ -713,6 +713,7 @@ enum class op_group
     branch_reg,
     branch_cond,
     branch_cmp,
+    branch_cmp_imm,
     branch_cmp_flag,
     directive,
     mov_gpr_imm,
@@ -756,6 +757,7 @@ const char* OP_GROUP_NAMES[] =
     "branch_cond",
     "branch_cond_flag",
     "branch_cmp",
+    "branch_cmp_imm",
     "branch_cmp_flag",
     "directive",
     "mov_gpr_imm",
@@ -952,6 +954,14 @@ struct BranchCmp
     cmp_sign_op type;
     IrRegister v1;
     IrRegister v2;
+    LabelSlot label;
+};
+
+struct BranchCmpImm
+{
+    cmp_sign_op type;
+    IrRegister src;
+    u64 imm;
     LabelSlot label;
 };
 
@@ -1343,6 +1353,7 @@ struct Opcode
     Opcode(const BranchLabel& value,opcode_state state) : group(op_group::branch_label), branch_label(value), state(state) {}
     Opcode(const BranchCond& value,opcode_state state) : group(op_group::branch_cond), branch_cond(value), state(state) {}
     Opcode(const BranchCmp& value, opcode_state state) : group(op_group::branch_cmp), branch_cmp(value), state(state) {}
+    Opcode(const BranchCmpImm& value, opcode_state state) : group(op_group::branch_cmp_imm), branch_cmp_imm(value), state(state) {}
     Opcode(const BranchCmpFlag& value, opcode_state state) : group(op_group::branch_cmp_flag), branch_cmp_flag(value), state(state) {}
     Opcode(const Implicit& value,opcode_state state) : group(op_group::implicit), implicit(value), state(state) {}
     Opcode(const MovGprImm& value,opcode_state state) : group(op_group::mov_gpr_imm), mov_gpr_imm(value), state(state) {} 
@@ -1386,6 +1397,7 @@ struct Opcode
         BranchLabel branch_label;
         BranchCond branch_cond;
         BranchCmp branch_cmp;
+        BranchCmpImm branch_cmp_imm;
         BranchCmpFlag branch_cmp_flag;
         Implicit implicit;
         MovGprImm mov_gpr_imm;

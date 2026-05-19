@@ -443,8 +443,12 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
     compile_globals(itl);
 
     compile_functions(itl);
-    
-    // optimise_ir(itl);
+
+    const auto opt_err = optimise_ir(itl);
+    if(opt_err)
+    {
+        return opt_err;
+    }
 
     const auto func_err = graph_pass_functions(itl);
     if(func_err)

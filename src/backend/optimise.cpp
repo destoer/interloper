@@ -12,7 +12,7 @@ OpcodeNode* collapse_cmp_branch(Block& block, OpcodeNode* node)
     const auto& branch = node->next->value.branch_cond;
     const auto& cmp = node->value.cmp_gpr3;
 
-    if(branch.src.ir != cmp.dst.ir && cmp.dst.ir.kind == reg_kind::tmp)
+    if(branch.src.ir != cmp.dst.ir || contains(block.live_out,cmp.dst.ir))
     {
         return node->next;
     }
@@ -28,13 +28,34 @@ OpcodeNode* collapse_cmp_branch(Block& block, OpcodeNode* node)
     return node->next = remove(block.list,node->next);
 }
 
+OpcodeNode* collapse_cmp_imm_branch(Block& block, OpcodeNode* node)
+{
+    const auto& branch = node->next->value.branch_cond;
+    const auto& cmp = node->value.cmp_imm3;
+
+    if(branch.src.ir != cmp.dst.ir || contains(block.live_out,cmp.dst.ir))
+    {
+        return node->next;
+    }
+
+	// cmpult t0, v1, imm
+	// beqz L393, t0
+
+    // buge L393, v1, imm
+
+    const auto cmp_type = branch.type == branch_cond_type::nez? cmp.type : CMP_SIGN_INVERSE[u32(cmp.type)];
+    node->value = make_branch_cmp_imm(cmp.src.ir,cmp.imm,branch.label,cmp_type);
+
+    return node->next = remove(block.list,node->next);
+}
+
 OpcodeNode* collapse_inverted_branch(Block& block, OpcodeNode* node)
 {
     const auto& branch = node->next->value.branch_cond;
     const auto& invert = node->value.arith_imm3;
 
-    const bool inverted_branch = invert.imm == 1 && invert.dst.ir == branch.src.ir && branch.src.ir.kind == reg_kind::tmp;
-    if(!inverted_branch)
+    const bool inverted_branch = invert.imm == 1 && invert.dst.ir == branch.src.ir;
+    if(!inverted_branch || contains(block.live_out,invert.dst.ir)) 
     {
         return node->next;
     }
@@ -68,7 +89,6 @@ OpcodeNode* optimise_opcode(Interloper& itl, Block& block, OpcodeNode* node)
             break;
         }
 
-        // TODO: Should work for imm cmp too
         case op_group::cmp_gpr3:
         {
             if(next_instr_is(node->next,op_group::branch_cond))
@@ -78,6 +98,17 @@ OpcodeNode* optimise_opcode(Interloper& itl, Block& block, OpcodeNode* node)
 
             break;
         }
+
+        case op_group::cmp_imm3:
+        {
+            if(next_instr_is(node->next,op_group::branch_cond))
+            {
+                return collapse_cmp_imm_branch(block,node);
+            }
+
+            break;
+        }
+
 
         case op_group::arith_imm3:
         {
@@ -118,17 +149,28 @@ void optimise_func(Interloper& itl, Function& func)
 }
 
 
-void optimise_ir(Interloper &itl)
+Option<itl_error> func_graph_pass(Interloper& itl, Function& func);
+
+Option<itl_error> optimise_ir(Interloper &itl)
 {   
     auto start = std::chrono::high_resolution_clock::now();
     
     for(u32 f = 0; f < count(itl.func_table.used); f++)
     {
         auto& func = *itl.func_table.used[f];
+        const auto err = func_graph_pass(itl,func);
+        if(err)
+        {
+            return err;
+        }
+
         optimise_func(itl,func);
+        destroy_liveness_info(func);
     }
 
     auto end = std::chrono::high_resolution_clock::now();
 
     itl.optimise_time = std::chrono::duration<double, std::milli>(end-start).count();
+
+    return option::none;
 }

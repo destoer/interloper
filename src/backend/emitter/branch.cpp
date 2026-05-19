@@ -21,6 +21,16 @@ ConstIrRegSpan branch_cmp_reg_span(const BranchCmp&  branch, IrRegSpan& span)
     return span;
 }
 
+
+ConstIrRegSpan branch_cmp_imm_reg_span(const BranchCmpImm&  branch, IrRegSpan& span)
+{
+    span.src[0] = branch.src.ir;
+    span.src.size = 1;
+    return span;
+}
+
+
+
 Opcode make_branch_cmp(RegSlot v1, RegSlot v2, LabelSlot label, cmp_sign_op type)
 {
     BranchCmp cmp;
@@ -31,6 +41,18 @@ Opcode make_branch_cmp(RegSlot v1, RegSlot v2, LabelSlot label, cmp_sign_op type
 
     return Opcode(cmp,opcode_state::ir);
 }
+
+Opcode make_branch_cmp_imm(RegSlot src, u64 imm, LabelSlot label, cmp_sign_op type)
+{
+    BranchCmpImm cmp;
+    cmp.src.ir = src;
+    cmp.imm = imm;
+    cmp.label = label;
+    cmp.type = type;
+
+    return Opcode(cmp,opcode_state::ir);
+}
+
 
 Opcode make_branch_cond(RegSlot src, LabelSlot label, branch_cond_type type)
 {   
