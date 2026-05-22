@@ -201,6 +201,14 @@ func sqrt(square: f64) f64 {
     return root;
 }
 
+func deg_to_rad(deg: f64) f64 {
+    return deg * (PI / 180.0);
+}
+
+func rad_to_deg(rad: f64) f64 {
+    return rad * (180.0 / PI);
+}
+
 
 /*
 func log10(v: f64) u64

@@ -16,3 +16,12 @@ struct ParamLine3F
 
     v: Vec3F;
 };
+
+
+enum param_line_intersect_res
+{
+    no_intersect,
+    in_segment,
+    out_segment,
+    everywhere,
+};
