@@ -154,14 +154,19 @@ func test_mat()
 
 func test_trig()
 {
-    std::assert_float_eq(std::sin(66.0),0.9135,"sin(66)");
-    std::assert_float_eq(std::cos(66.0),0.4067,"cos(66)");
+    std::assert_float_eq(std::sin(66.0),0.9135,0.01,"sin(66)");
+    std::assert_float_eq(std::cos(66.0),0.4067,0.01,"cos(66)");
 
-    std::assert_float_eq(std::cos(361.0),0.9998,"cos(361)");
-    std::assert_float_eq(std::sin(361.0),0.0174,"sin(361)");
+    std::assert_float_eq(std::cos(361.0),0.9998,0.01,"cos(361)");
+    std::assert_float_eq(std::sin(361.0),0.0174,0.01,"sin(361)");
 
-    std::assert_float_eq(std::cos(-24.0),0.9135,"cos(-24)");
-    std::assert_float_eq(std::sin(-24.0),-0.4067,"sin(-24)");
+    std::assert_float_eq(std::cos(-24.0),0.9135,0.01,"cos(-24)");
+    std::assert_float_eq(std::sin(-24.0),-0.4067,0.01,"sin(-24)");
+
+    std::assert_float_eq(std::atan(1.4825),56.0,0.01,"atan(1.4825)");
+    std::assert_float_eq(std::atan(-0.67),-33.822,0.01,"atan(-0.67)");
+
+    std::assert_float_eq(std::atan2(5.0,3.0),59.036,0.06,"atan(5,3)");
 }
 
 func test_tri()
@@ -171,7 +176,7 @@ func test_tri()
 
     [u,v,w] := std::barycentric_tri(tri1,&point);
 
-    std::assert_log(std::float_eq(u,0.68) && std::float_eq(v,0.21) && std::float_eq(w,0.11) ,"Barycentric {} {} {}",u,v,w);
+    std::assert_log(std::float_eq(u,0.68,0.01) && std::float_eq(v,0.21,0.01) && std::float_eq(w,0.11,0.01) ,"Barycentric {} {} {}",u,v,w);
 }
 
 func main() s32 

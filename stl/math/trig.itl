@@ -125,3 +125,48 @@ func cos(value: f64) f64
 
     return v1 + ((v2 - v1) * (value - cast(f64,idx)));
 }
+
+// https://math.stackexchange.com/questions/1098487/atan2-faster-approximation
+
+func atan_approx(z: f64) f64
+{
+    return z * (45.0 - ((z - 1.0) * (14.0 + 3.83 * z)));
+}
+
+func atan(z: f64) f64
+{
+    if z < 0.0 
+    {
+        return -atan_approx(-z);
+    }
+
+    if z > 1.0 
+    {
+        return 90.0 - atan_approx(1.0 / z);
+    }
+
+    return atan_approx(z);
+}
+
+func atan2(y: f64, x: f64) f64
+{
+    correction := 0.0;
+
+    if(x == 0.0)
+    {
+        // technically undefined
+        return 0.0;
+    }
+
+    if x < 0.0
+    {
+        correction = 180.0;
+    }
+
+    else if y < 0.0
+    {
+        correction = 360.0;
+    }
+
+    return atan(y / x);
+}

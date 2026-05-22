@@ -3,7 +3,7 @@ namespace std;
 
 func test_f64(v1: f64, ans: f64, name: const string)
 {
-    if(!float_eq(v1,ans))
+    if(!float_eq(v1,ans,0.01))
     {
         println("Test {} failed: {} != {}",name,v1,ans);
         exit(1);
@@ -12,7 +12,7 @@ func test_f64(v1: f64, ans: f64, name: const string)
 
 func test_vec2f(v1: Vec2F, ans: Vec2F, name: const string)
 {
-    if(!float_eq(v1.x,ans.x) || !float_eq(v1.y,ans.y))
+    if(!float_eq(v1.x,ans.x,0.01) || !float_eq(v1.y,ans.y,0.01))
     {
         println("Test {} failed: ( {}, {} ) != ( {}, {} )",name,v1.x,v1.y,ans.x,ans.y);
         exit(1);
@@ -21,7 +21,7 @@ func test_vec2f(v1: Vec2F, ans: Vec2F, name: const string)
 
 func test_vec3f(v1: Vec3F, ans: Vec3F, name: const string)
 {
-    if(!float_eq(v1.x,ans.x) || !float_eq(v1.y,ans.y) || !float_eq(v1.z,ans.z))
+    if(!float_eq(v1.x,ans.x,0.01) || !float_eq(v1.y,ans.y,0.01) || !float_eq(v1.z,ans.z,0.01))
     {
         println("Test {} failed: ( {}, {}, {} ) != ( {}, {}, {} )",name,v1.x,v1.y,v1.z,ans.x,ans.y,ans.z);
         exit(1);
@@ -39,9 +39,9 @@ func assert_log(cond: bool, fmt: const string, args: ...)
     }
 }
 
-func assert_float_eq(ans: f64, expected: f64, fmt: const string, args: ...)
+func assert_float_eq(ans: f64, expected: f64, epsilon: f64, fmt: const string, args: ...)
 {
-    if(!float_eq(ans,expected))
+    if(!float_eq(ans,expected,epsilon))
     {
         std::print("Assert failed: ");
         println_args(fmt,args);

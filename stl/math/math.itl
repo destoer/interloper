@@ -163,9 +163,8 @@ func clamp_f64(v1: f64, min: f64, max: f64) f64
 
 
 
-func float_eq(f1: f64, f2: f64) bool
+func float_eq(f1: f64, f2: f64, epsilon: f64) bool
 {
-    epsilon := 0.01;
     return fabs(f1 - f2) <= epsilon; 
 }
 

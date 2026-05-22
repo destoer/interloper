@@ -27,3 +27,34 @@ struct Spherical3F
     // Angle between xy plane and origin -> point on xy plane
     phi: f64;
 }
+
+
+func polar_to_cartesian(polar: const Polar2F@) Point2F
+{    
+    // TODO: Type aliases are not handled in context sensitive parsing
+    return Vec2F {
+        polar.r * cos(polar.angle), // x = r * cos(theta)
+        polar.r * sin(polar.angle)  // y = r * cos(theta)
+    };
+}
+
+func cartesian_to_polar(point: const Point2F@) Polar2F
+{
+    // theta = atan(y / x)
+    // r = sqrt(x*x + y*y);
+
+    // x = 0 will give the wrong angle
+    angle := 90.0;
+
+    if point.x != 0.0 
+    {
+        angle = atan2(point.y,point.x);
+    }
+
+    r := vec2f_norm(point);
+
+    return Polar2F {
+        r,
+        angle
+    };
+}
