@@ -9,7 +9,6 @@ struct Vec3F
 
 type_alias Point3F = Vec3F;
 
-
 func vec3f_add(v1: const Vec3F@, v2: const Vec3F@) Vec3F
 {
     return Vec3F {
