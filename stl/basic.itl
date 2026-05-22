@@ -16,7 +16,7 @@ import <bit>
 import <util>
 import <sort>
 
-import <math>
+import <math/math>
 import <itl_context>
 
 #attr(use_result)

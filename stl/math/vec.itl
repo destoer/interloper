@@ -1,7 +1,7 @@
 namespace std;
-import <vec/vec2f>
-import <vec/vec2i>
-import <vec/vec3f>
+import "vec/vec2f"
+import "vec/vec2i"
+import "vec/vec3f"
 
 
 func barycentric_tri(tri: const Vec2F[3], point: const Vec2F@) [f64,f64,f64]

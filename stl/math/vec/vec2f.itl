@@ -6,6 +6,7 @@ struct Vec2F
     y : f64;
 }
 
+type_alias Point2F = Vec2F;
 
 func vec2f_aabb_intersect(p1: Vec2F,s1: Vec2F, p2: Vec2F, s2: Vec2F) bool
 {
