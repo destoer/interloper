@@ -1,0 +1,7 @@
+namespace std;
+
+struct Quaternion
+{
+    q0: f64;
+    qv: Vec3F;
+};

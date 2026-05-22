@@ -1,0 +1,18 @@
+namespace std
+
+struct ParamLine2F
+{
+    p0: Point2F;
+    p1: Point2F;
+
+    v: Vec2F;
+};
+
+
+struct ParamLine3F
+{
+    p0: Point3F;
+    p1: Point3F;
+
+    v: Vec3F;
+};

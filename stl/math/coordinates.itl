@@ -1,0 +1,29 @@
+namespace std;
+
+struct Polar2F
+{
+    // Length of line
+    r: f64;
+    angle: f64;
+};
+
+struct Cylindrical3F
+{
+    // Length of line
+    r: f64;
+    // Angle about z axis
+    angle: f64; 
+    // Z coordinate
+    z: f64;   
+};
+
+
+struct Spherical3F
+{
+    // length of line
+    r: f64;
+    // angle between z axis and line origin -> point
+    theta: f64;
+    // Angle between xy plane and origin -> point on xy plane
+    phi: f64;
+}
