@@ -225,7 +225,8 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
         {
             case type_node_kind::generic:
             {
-                
+                assert(false);
+                break;
             }
 
             case type_node_kind::user:

@@ -178,7 +178,7 @@ struct FunctionTable
     ArenaAllocator arena;
 };
 
-Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def, bool forced = false);
+Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def, FuncCallNode* func_call = nullptr, bool forced = false);
 
 b32 func_exists(Interloper& itl, const String& name, const String& name_space);
 

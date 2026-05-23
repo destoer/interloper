@@ -691,7 +691,7 @@ Result<Array<String>,parse_error> split_namespace_internal(Parser& parser, const
     }
 
 done:
-    if(count(name_space) == 0)
+    if(!name_space)
     {
         destroy_arr(name_space);
         return parser_error(parser,parse_error::missing_expr,start,"Namespace is empty");

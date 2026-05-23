@@ -75,13 +75,34 @@ Option<itl_error> type_check_function(Interloper& itl, Function& func)
     return type_check_block(itl,func,func.root->block);
 }
 
-Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def, bool forced)
+Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def, FuncCallNode* func_call, bool forced)
 {
     // have finalised this func
     if(func_def.func)
     {
         return func_def.func;
     }
+
+    // Handle generic functions.
+    if(func_def.root && func_def.root->generic)
+    {
+        // This is a forced type check as we have no calling context we do actually have an instantiation of the function.
+        if(forced)
+        {
+            return nullptr;
+        }
+
+        if(!func_call)
+        {
+            return compile_error(itl,itl_error::invalid_statement,"Generic function call %S has no calling context.",func_def.name);
+        }
+
+        // Determine the type of generic args and scope them
+        print(itl,(AstNode*)func_call);
+
+        assert(false);
+    }
+
 
     Function func;
     func.name = func_def.name;
@@ -302,7 +323,7 @@ Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& 
     u32 arg_offset = 0;
 
     // NOTE: void return's will have a void type
-    if(count(node.return_type) == 1)
+    if(node.return_type)
     {
         itl.ctx.expr = (AstNode*)node.return_type[0].type;
         auto type_res = get_complete_type(itl,node.return_type[0].type);

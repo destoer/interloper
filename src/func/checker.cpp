@@ -19,8 +19,10 @@ FuncCall call_info_from_func_pointer(Symbol& sym)
     return call_info;
 }
 
-Result<FuncCall,itl_error> get_symbol_sig(Interloper& itl, SymbolNode* sym_node)
+Result<FuncCall,itl_error> get_symbol_sig(Interloper& itl, FuncCallNode* func_call)
 {
+    SymbolNode* sym_node = (SymbolNode*)func_call->expr;
+
     const String& name = sym_node->name;
     NameSpace* name_space = sym_node->name_space;
 
@@ -29,7 +31,7 @@ Result<FuncCall,itl_error> get_symbol_sig(Interloper& itl, SymbolNode* sym_node)
     // Function is known Just we are done
     if(func_call_def)
     {
-        auto func_call_res = finalise_func(itl,*func_call_def);
+        auto func_call_res = finalise_func(itl,*func_call_def,func_call);
 
         if(!func_call_res)
         {
@@ -62,12 +64,14 @@ Result<FuncCall,itl_error> get_symbol_sig(Interloper& itl, SymbolNode* sym_node)
     return call_info_from_func_pointer(sym);
 }
 
-Result<FuncCall,itl_error> get_calling_sig(Interloper& itl,AstNode* expr)
+Result<FuncCall,itl_error> get_calling_sig(Interloper& itl,FuncCallNode* func_call)
 {
+    AstNode* expr = func_call->expr;
+
     // just a plain literal
     if(expr->type == ast_type::symbol)
     {
-        return get_symbol_sig(itl,(SymbolNode*)expr);
+        return get_symbol_sig(itl,func_call);
     }
 
     const auto res = type_check_expr(itl,expr);
@@ -170,7 +174,7 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
     // Check function exists.
     // get the signature of what we are actually calling
     // NOTE: this might be plain function, or it could be a function pointer
-    const auto call_info_res = get_calling_sig(itl,func_call->expr);
+    const auto call_info_res = get_calling_sig(itl,func_call);
     if(!call_info_res)
     {
         return call_info_res.error();
