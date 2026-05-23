@@ -127,11 +127,18 @@ func cos(value: f64) f64
 }
 
 // https://math.stackexchange.com/questions/1098487/atan2-faster-approximation
+// https://stackoverflow.com/questions/42537957/fast-accurate-atan-arctan-approximation-algorithm
 
 func atan_approx(z: f64) f64
 {
-    // TODO: I don't think this approximation is good enough?
-    return z * (45.0 - ((z - 1.0) * (14.0 + (3.83 * z))));
+    c0 := 57.2051885728;
+    c1 := -17.1850102992;
+    c2 := 4.97982172642;
+
+    zz := z * z;
+    return ((((c2 * zz) + c1) * zz) + c0) * z;
+
+// return z * (45.0 - ((z - 1.0) * (14.0202772 + (3.79871018 * z))));
 }
 
 func atan(z: f64) f64
@@ -170,4 +177,36 @@ func atan2(y: f64, x: f64) f64
     }
 
     return atan(y / x);
+}
+
+// https://developer.nvidia.com/w/cg/acos.html
+func acos(x: f64) f64
+{
+  negate := cast(f64,cast(s64,x < 0.0));
+  x = fabs(x);
+  ret := -0.0187293;
+  ret = ret * x;
+  ret = ret + 0.0742610;
+  ret = ret * x;
+  ret = ret - 0.2121144;
+  ret = ret * x;
+  ret = ret + 1.5707288;
+  ret = ret * sqrt(1.0 - x);
+  ret = ret - 2.0 * negate * ret;
+  return rad_to_deg(negate * 3.14159265358979 + ret);
+}
+
+func asin(x: f64) f64
+{
+  negate := cast(f64,cast(s64,x < 0.0));
+  x = fabs(x);
+  ret := -0.0187293;
+  ret *= x;
+  ret += 0.0742610;
+  ret *= x;
+  ret -= 0.2121144;
+  ret *= x;
+  ret += 1.5707288;
+  ret = (3.14159265358979 * 0.5) - sqrt(1.0 - x) * ret;
+  return rad_to_deg(ret - (2.0 * negate * ret));
 }
