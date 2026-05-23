@@ -171,6 +171,17 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
         }
     }
 
+    // Pre type check the args from call because we may need the types
+    // for resolving generics
+    for(AstNode* expr : func_call->args)
+    {
+        auto rtype_res = type_check_expr(itl,expr);
+        if(!rtype_res)
+        {
+            return rtype_res.error();
+        }
+    }
+
     // Check function exists.
     // get the signature of what we are actually calling
     // NOTE: this might be plain function, or it could be a function pointer
@@ -241,14 +252,10 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
     // Type check args against the sig.
     for(u32 a = 0; a < user_args.size; a++)
     {
-        auto rtype_res = type_check_expr(itl,func_call->args[a]);
-        if(!rtype_res)
-        {
-            return rtype_res.error();
-        }
+        auto rtype = func_call->args[a]->expr_type;
 
         auto& sym = sym_from_slot(itl.symbol_table,user_args[a]);
-        const auto pass_err = check_assign_arg(itl,sym.type,*rtype_res);
+        const auto pass_err = check_assign_arg(itl,sym.type,rtype);
         if(pass_err)
         {
             return *pass_err;
