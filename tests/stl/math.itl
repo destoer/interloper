@@ -184,6 +184,7 @@ func test_tri()
 
 func test_coordinates()
 {
+    // Polar
     point2d := std::Vec2F {5.0,6.0};
 
     polar_ans:= std::cartesian_to_polar(&point2d);
@@ -195,16 +196,30 @@ func test_coordinates()
     std::test_vec2f(polar_inverse,point2d,"polar_to_cart(7.81,50.194)");
 
 
-    point3d := std::Vec3F {-1.0,1.0,-std::sqrt(2.0)};
+    // Cylindrical
+    point_cylindrical := std::Vec3F {-2.0,2.0 * std::sqrt(3.0),-2.0};
 
-    spherical := std::cartesian_to_spherical(&point3d);
+    
+    cylindrical := std::cartesian_to_cylindrical(&point_cylindrical);
+    std::assert_log(std::float_eq(cylindrical.r,4.0,0.01) &&  std::float_eq(cylindrical.angle,120.0,0.01) && std::float_eq(cylindrical.z,-2.0,0.01),
+        "cartesian_to_cylindrical(-2.0,2.0 * sqrt(3),-2.0)");
+
+    cylindrical_inverse := std::cylindrical_to_cartesian(&cylindrical);
+
+    std::test_vec3f(cylindrical_inverse,point_cylindrical,"cylindrical_to_cartesian(4.0,120.0,-2.0)");
+
+
+    // Spherical
+    point_spherical := std::Vec3F {-1.0,1.0,-std::sqrt(2.0)};
+
+    spherical := std::cartesian_to_spherical(&point_spherical);
 
     std::assert_log(std::float_eq(spherical.r,2.0,0.01) && std::float_eq(spherical.phi,135.0,0.01) && std::float_eq(spherical.theta,135.0,0.01),
         "cartesian_to_spherical(-1.0,1.0,-sqrt(2.0))");
 
     spherical_inverse := std::spherical_to_cartesian(&spherical);
 
-    std::test_vec3f(spherical_inverse,point3d,"spherical_to_cartesian(2.0,135.0,135.0)");
+    std::test_vec3f(spherical_inverse,point_spherical,"spherical_to_cartesian(2.0,135.0,135.0)");
 }
 
 func main() s32 
