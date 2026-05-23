@@ -20,7 +20,7 @@ func draw_line(win: gfx::Window@, p1: const std::Vec2F@, p2: const std::Vec2F@, 
     y2 := p2.y;
 
     // Make sure we render more x than y
-    steep := std::fabs(y2 - y1) > std::fabs(x2 - x1);
+    steep := std::abs(y2 - y1) > std::abs(x2 - x1);
 
     if steep
     {

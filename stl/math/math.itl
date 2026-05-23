@@ -69,7 +69,7 @@ func clamp<T: Real>(v1: $T, min: $T, max: $T) s64
 
 func float_eq(f1: f64, f2: f64, epsilon: f64) bool
 {
-    return fabs(f1 - f2) <= epsilon; 
+    return abs(f1 - f2) <= epsilon; 
 }
 
 

@@ -1,5 +1,18 @@
 namespace std;
 
+
+/*
+struct Matrix<M: usize, N: usize>
+{
+    mat: f64[M][N];
+}
+
+type_alias Mat2F = Matrix<2,2>;
+type_alias Mat3F = Matrix<3,3>;
+type_alias Mat4F = Matrix<4,4>;
+
+*/
+
 struct Mat2F
 {
     mat: f64[2][2];
