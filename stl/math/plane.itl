@@ -1,0 +1,7 @@
+namespace std
+
+struct Plane2F
+{
+    point: Point3F;
+    normal: Vec3F;
+};

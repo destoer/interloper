@@ -1,0 +1,118 @@
+namespace std;
+
+struct Polar2F
+{
+    // Length of line
+    r: f64;
+    angle: f64;
+};
+
+struct Cylindrical3F
+{
+    // Length of line
+    r: f64;
+    // Angle about z axis
+    angle: f64; 
+    // Z coordinate
+    z: f64;   
+};
+
+
+struct Spherical3F
+{
+    // length of line
+    r: f64;
+    // angle between z axis and line origin -> point
+    phi: f64;
+    // Angle between xy plane and origin -> point on xy plane
+    theta: f64;
+}
+
+
+func polar_to_cartesian(polar: const Polar2F@) Point2F
+{    
+    // TODO: Type aliases are not handled in context sensitive parsing
+    return Vec2F {
+        polar.r * cos(polar.angle), // x = r * cos(theta)
+        polar.r * sin(polar.angle)  // y = r * cos(theta)
+    };
+}
+
+func cartesian_to_polar(point: const Point2F@) Polar2F
+{
+    // theta = atan(y / x)
+    // r = sqrt(x*x + y*y);
+
+    // x = 0 will give the wrong angle
+    angle := 90.0;
+
+    if point.x != 0.0 
+    {
+        angle = atan2(point.y,point.x);
+    }
+
+    r := vec2f_norm(point);
+
+    return Polar2F {
+        r,
+        angle
+    };
+}
+
+func cylindrical_to_cartesian(cylindrical: const Cylindrical3F@) Point3F
+{
+    // TODO: Type aliases are not handled in context sensitive parsing
+    return Vec3F {
+        cylindrical.r * cos(cylindrical.angle), // x = r * cos(theta)
+        cylindrical.r * sin(cylindrical.angle),  // y = r * cos(theta)
+        cylindrical.z
+    };
+}
+
+func cartesian_to_cylindrical(point: const Point3F@) Cylindrical3F 
+{
+    r := sqrt(point.x*point.x + point.y * point.y);
+
+    angle := 90.0;
+
+    if point.x != 0.0 
+    {
+        angle = atan2(point.y,point.x);
+    }
+
+    return Cylindrical3F {
+        r,
+        angle,
+        point.z
+    };
+}
+
+func cartesian_to_spherical(point: const Point3F@) Spherical3F
+{
+    theta := 90.0;
+
+    if point.x != 0.0 
+    {
+        theta = atan2(point.y,point.x);
+    } 
+
+    r := vec3f_norm(point);
+    phi := acos(point.z / r);
+
+    return Spherical3F {
+        r,
+        phi,
+        theta
+    };
+}
+
+func spherical_to_cartesian(spherical: const Spherical3F@) Point3F
+{
+    r_sine_phi := spherical.r * sin(spherical.phi);
+
+    return Vec3F {
+        r_sine_phi  * cos(spherical.theta),
+        r_sine_phi  * sin(spherical.theta),
+        spherical.r * cos(spherical.phi)
+    };
+}

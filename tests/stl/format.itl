@@ -2,8 +2,10 @@
 
 func main() s32
 {
-    str := std::format("Hello {} is {} + {}\n","John",20, 0.5);
+    vec := std::Vec2F {3.0,1.0};
+
+    str := std::format("Hello {} is {} + {} {}\n","John",20, 0.5,vec);
     std::write_string(str.buf);
 
-    return cast(s32,str.buf == "Hello John is 20 + 0.500000\n");
+    return cast(s32,str.buf == "Hello John is 20 + 0.500000 Vec2F {x: 3.000000, y: 1.000000}\n");
 }

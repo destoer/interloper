@@ -6,6 +6,7 @@ struct Vec2F
     y : f64;
 }
 
+type_alias Point2F = Vec2F;
 
 func vec2f_aabb_intersect(p1: Vec2F,s1: Vec2F, p2: Vec2F, s2: Vec2F) bool
 {
@@ -41,6 +42,11 @@ func rand_vec2f(x0: s64, x1: s64, y0: s64, y1: s64) Vec2F
 func vec2f_dot(v1: const Vec2F@, v2: const Vec2F@) f64
 {
     return (v1.x * v2.x) + (v1.y * v2.y);
+}
+
+func vec2f_norm(v1: const Vec2F@) f64 
+{
+    return sqrt((v1.x * v1.x) + (v1.y * v1.y));
 }
 
 func print_vec2f(tag: const string,v1: Vec2F)

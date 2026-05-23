@@ -186,11 +186,11 @@ func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: 
     }
 }
 
-func rotate(angle: f64) std::Mat4D {
+func rotate(angle: f64) std::Mat4F {
     cos_a := std::cos(angle);
     sin_a := std::sin(angle);
 
-    return std::Mat4D {{
+    return std::Mat4F {{
         {cos_a,0.0,sin_a,0.0},
         {0.0,1.0,0.0,0.0},
         {-sin_a,0.0,cos_a,0.0},
@@ -198,8 +198,8 @@ func rotate(angle: f64) std::Mat4D {
     }};
 }
 
-func project(win: gfx::Window@) std::Mat4D {
-    return std::Mat4D {{
+func project(win: gfx::Window@) std::Mat4F {
+    return std::Mat4F {{
         {win.half_size.x,0.0,0.0,win.half_size.x},
         {0.0,-win.half_size.y,0.0,win.half_size.y},
         {0.0,0.0,1.0,0.0},
@@ -207,10 +207,10 @@ func project(win: gfx::Window@) std::Mat4D {
     }};
 }
 
-func perspective(f: f64) std::Mat4D {
+func perspective(f: f64) std::Mat4F {
     scale := -1.0 / f;
 
-    return std::Mat4D {{
+    return std::Mat4F {{
         {1.0,0.0,0.0,0.0},
         {0.0,1.0,0.0,0.0},
         {0.0,0.0,1.0,0.0},
@@ -219,7 +219,7 @@ func perspective(f: f64) std::Mat4D {
 }
 
 // This part of the maths i don't fully understand.
-func look_at(eye: const std::Vec3F@, centre: const std::Vec3F@, up: const std::Vec3F@) std::Mat4D
+func look_at(eye: const std::Vec3F@, centre: const std::Vec3F@, up: const std::Vec3F@) std::Mat4F
 {
     eye_to_centre := std::vec3f_sub(eye,centre);
 
@@ -231,14 +231,14 @@ func look_at(eye: const std::Vec3F@, centre: const std::Vec3F@, up: const std::V
     n_l_cross := std::vec3f_cross(&n,&l);
     m := std::vec3f_normalize(&n_l_cross);
 
-    m1 := std::Mat4D {{
+    m1 := std::Mat4F {{
         {l.x,l.y,l.z,0.0},
         {m.x,m.y,m.z,0.0},
         {n.x,n.y,n.z,0.0},
         {0.0,0.0,0.0,1.0}
     }};
 
-    m2 := std::Mat4D {{
+    m2 := std::Mat4F {{
         {1.0,0.0,0.0,-centre.x},
         {0.0,1.0,0.0,-centre.y},
         {0.0,0.0,1.0,-centre.z},

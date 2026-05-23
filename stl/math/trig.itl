@@ -125,3 +125,88 @@ func cos(value: f64) f64
 
     return v1 + ((v2 - v1) * (value - cast(f64,idx)));
 }
+
+func tan(value: f64) f64
+{
+    return sin(value) / cos(value);
+}
+
+
+// https://developer.nvidia.com/w/cg/atan2.html
+func atan2(y: f64, x: f64) f64
+{
+    t2 := fabs(x);
+    t1 := fabs(y);
+    t0 := max_f64(t2, t1);
+    t1 = min_f64(t2, t1);
+    t2 = 1.0 / t0;
+    t2 = t1 * t2;
+
+    t3 := t2 * t2;
+    t0 =         - 0.013480470;
+    t0 = t0 * t3 + 0.057477314;
+    t0 = t0 * t3 - 0.121239071;
+    t0 = t0 * t3 + 0.195635925;
+    t0 = t0 * t3 - 0.332994597;
+    t0 = t0 * t3 + 0.999995630;
+    t2 = t0 * t2;
+
+    
+    if fabs(y) > fabs(x)
+    {
+        t2 =  (PI / 2.0) - t2;
+    }
+
+    if x < 0.0
+    {
+        t2 = PI - t2;
+    }
+
+    if y < 0.0
+    {
+        t2 = -t2;
+    }
+
+    return rad_to_deg(t2);
+}
+
+func atan(z: f64) f64
+{
+    return atan2(z,1.0);
+}
+
+
+// https://developer.nvidia.com/w/cg/acos.html
+
+func acos(x: f64) f64
+{
+  negate := cast(f64,x < 0.0);
+  x = fabs(x);
+  ret := -0.0187293;
+  ret = ret * x;
+  ret = ret + 0.0742610;
+  ret = ret * x;
+  ret = ret - 0.2121144;
+  ret = ret * x;
+  ret = ret + 1.5707288;
+  ret = ret * sqrt(1.0 - x);
+  ret = ret - 2.0 * negate * ret;
+  return rad_to_deg((negate * PI) + ret);
+}
+
+// https://developer.nvidia.com/w/cg/asin.html
+
+func asin(x: f64) f64
+{
+  negate := cast(f64,x < 0.0);
+  x = fabs(x);
+  ret := -0.0187293;
+  ret *= x;
+  ret += 0.0742610;
+  ret *= x;
+  ret -= 0.2121144;
+  ret *= x;
+  ret += 1.5707288;
+  ret = (PI / 2.0) - sqrt(1.0 - x) * ret;
+  return rad_to_deg(ret - (2.0 * negate * ret));
+}

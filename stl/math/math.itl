@@ -1,6 +1,10 @@
-import <vec>
-import <matrix>
-import <trig>
+import "vec"
+import "matrix"
+import "trig"
+import "line"
+import "plane"
+import "quaternion"
+import "coordinates"
 
 namespace std;
 
@@ -159,9 +163,8 @@ func clamp_f64(v1: f64, min: f64, max: f64) f64
 
 
 
-func float_eq(f1: f64, f2: f64) bool
+func float_eq(f1: f64, f2: f64, epsilon: f64) bool
 {
-    epsilon := 0.01;
     return fabs(f1 - f2) <= epsilon; 
 }
 
@@ -195,6 +198,14 @@ func sqrt(square: f64) f64 {
     }
 
     return root;
+}
+
+func deg_to_rad(deg: f64) f64 {
+    return deg * (PI / 180.0);
+}
+
+func rad_to_deg(rad: f64) f64 {
+    return rad * (180.0 / PI);
 }
 
 

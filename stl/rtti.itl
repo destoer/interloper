@@ -227,9 +227,18 @@ func enum_idx_from_any(any : const Any) idx: u32
 
 func float_from_any(any : const Any) f64
 {
-    v := cast(u64,any.data);
+    if !any.stored_extern
+    {
+        v := cast(u64,any.data);
+        out: f64;
+        std::memcpy(&out,&v,sizeof(out));
+        return out;
+    }
+
+    // Memcpy it out from the memory
     out: f64;
-    std::memcpy(&out,&v,sizeof(out));
+    std::memcpy(&out,any.data,sizeof(out));
+
     return out;
 }
 

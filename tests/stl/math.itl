@@ -1,56 +1,129 @@
 
 
-func test_vec()
+func test_vec2f()
 {
     // Test Vec2
-    {
-        v1: const std::Vec2F = {2.0,1.3};
-        v2: const std::Vec2F = {0.5,0.4};
+    v1: const std::Vec2F = {2.0,1.3};
+    v2: const std::Vec2F = {0.5,0.4};
 
-        std::test_vec2f(std::vec2f_add(&v1,&v2), std::Vec2F {2.5,1.7},"vec2f v1 + v2");
-        std::test_vec2f(std::vec2f_sub(&v1,&v2), std::Vec2F {1.5,0.9},"vec2f v1 - v2");
-        std::test_f64(std::vec2f_dot(&v1,&v2),1.52,"vec2f v1 dot v2");
-    }
+    std::test_vec2f(std::vec2f_add(&v1,&v2), std::Vec2F {2.5,1.7},"vec2f v1 + v2");
+    std::test_vec2f(std::vec2f_sub(&v1,&v2), std::Vec2F {1.5,0.9},"vec2f v1 - v2");
+    std::test_f64(std::vec2f_dot(&v1,&v2),1.52,"vec2f v1 dot v2");
 
-    // Test Vec3
-    {
-        v1: const std::Vec3F = {2.0,1.3,0.4};
-        ident: std::Mat4D = std::MAT4_IDENT;
-
-
-        // Ident should do nothing!
-        std::test_vec3f(std::mul_vec3_mat4(&v1,&ident),v1,"vec3f v1 * mat4_ident");
-
-        m1: const std::Mat4D = {{
-            {1.0,2.0,3.0,4.0},
-            {2.0,4.0,4.0,2.0},
-            {8.0,6.0,4.0,1.0},
-            {0.0,0.0,0.0,1.0}
-        }};
-
-        v2: const std::Vec3F = {1.0,2.0,3.0};
-
-        std::test_vec3f(std::mul_vec3_mat4(&v2,&m1),std::Vec3F {18.0,24.0,33.0},"vec3f v2 * m1");
-    }
+    std::test_f64(std::vec2f_norm(&v1),2.385,"vec2 norm v1");
 }
 
-func test_mat()
+func test_vec3f()
 {
-    scale_2 := std::Mat4D {{
+    v1: const std::Vec3F = {2.0,1.3,0.4};
+    ident: std::Mat4F = std::MAT4_IDENT;
+
+    // Ident should do nothing!
+    std::test_vec3f(std::mul_vec3_mat4(&v1,&ident),v1,"vec3f v1 * mat4_ident");
+
+    m1: const std::Mat4F = {{
+        {1.0,2.0,3.0,4.0},
+        {2.0,4.0,4.0,2.0},
+        {8.0,6.0,4.0,1.0},
+        {0.0,0.0,0.0,1.0}
+    }};
+
+    v2: const std::Vec3F = {1.0,2.0,3.0};
+
+    std::test_vec3f(std::mul_vec3_mat4(&v2,&m1),std::Vec3F {18.0,24.0,33.0},"vec3f v2 * m1");
+
+    std::test_f64(std::vec3f_norm(&v1),2.418,"vec2 norm v1");
+}
+
+func test_vec()
+{
+    test_vec2f();
+    test_vec3f();    
+}
+
+func test_mat2()
+{
+    scale_2 := std::Mat2F {{
+        {2.0,0.0},
+        {0.0,2.0},
+    }};
+
+    v1 := std::Mat2F {{
+        {1.0,2.0},
+        {5.0,6.0},
+    }};
+
+    ans := std::Mat2F {{
+        {2.0,4.0},
+        {10.0,12.0},
+    }};
+
+    calc := std::mul_mat2(&v1,&scale_2);
+    std::test_mat2d(calc,ans,"v1 * scale_2");
+
+    ans_transpose := std::Mat2F {{
+        {1.0,5.0},
+        {2.0,6.0},
+    }};
+
+
+    transpose := std::transpose_mat2(&v1);
+    std::test_mat2d(transpose,ans_transpose,"transpose(v1)");
+}
+
+func test_mat3()
+{
+    scale_2 := std::Mat3F {{
+        {2.0,0.0,0.0},
+        {0.0,2.0,0.0},
+        {0.0,0.0,2.0},
+    }};
+
+    v1 := std::Mat3F {{
+        {1.0,2.0,3.0},
+        {5.0,6.0,7.0},
+        {9.0,10.0,11.0},
+    }};
+
+    ans := std::Mat3F {{
+        {2.0,4.0,6.0},
+        {10.0,12.0,14.0},
+        {18.0,20.0,22.0},
+    }};
+
+    calc := std::mul_mat3(&v1,&scale_2);
+    std::test_mat3d(calc,ans,"v1 * scale_2");
+
+
+    ans_transpose := std::Mat3F {{
+        {1.0,5.0,9.0},
+        {2.0,6.0,10.0},
+        {3.0,7.0,11.0},
+    }};
+
+
+    transpose := std::transpose_mat3(&v1);
+    std::test_mat3d(transpose,ans_transpose,"transpose(v1)");
+}
+
+
+func test_mat4()
+{
+    scale_2 := std::Mat4F {{
         {2.0,0.0,0.0,0.0},
         {0.0,2.0,0.0,0.0},
         {0.0,0.0,2.0,0.0},
         {0.0,0.0,0.0,2.0},
     }};
 
-    v1 := std::Mat4D {{
+    v1 := std::Mat4F {{
         {1.0,2.0,3.0,4.0},
         {5.0,6.0,7.0,8.0},
         {9.0,10.0,11.0,12.0},
         {13.0,14.0,15.0,16.0}
     }};
 
-    ans := std::Mat4D {{
+    ans_mul := std::Mat4F {{
         {2.0,4.0,6.0,8.0},
         {10.0,12.0,14.0,16.0},
         {18.0,20.0,22.0,24.0},
@@ -58,19 +131,45 @@ func test_mat()
     }};
 
     calc := std::mul_mat4(&v1,&scale_2);
-    std::test_mat4d(calc,ans,"v1 * scale_2");
+    std::test_mat4d(calc,ans_mul,"v1 * scale_2");
+
+    ans_transpose := std::Mat4F {{
+        {1.0,5.0,9.0,13.0},
+        {2.0,6.0,10.0,14.0},
+        {3.0,7.0,11.0,15.0},
+        {4.0,8.0,12.0,16.0}
+    }};
+
+
+    transpose := std::transpose_mat4(&v1);
+    std::test_mat4d(transpose,ans_transpose,"transpose(v1)");
+}
+
+func test_mat()
+{
+    test_mat2();
+    test_mat3();
+    test_mat4();
 }
 
 func test_trig()
 {
-    std::assert_float_eq(std::sin(66.0),0.9135,"sin(66)");
-    std::assert_float_eq(std::cos(66.0),0.4067,"cos(66)");
+    std::assert_float_eq(std::sin(66.0),0.9135,0.01,"sin(66)");
+    std::assert_float_eq(std::cos(66.0),0.4067,0.01,"cos(66)");
 
-    std::assert_float_eq(std::cos(361.0),0.9998,"cos(361)");
-    std::assert_float_eq(std::sin(361.0),0.0174,"sin(361)");
+    std::assert_float_eq(std::cos(361.0),0.9998,0.01,"cos(361)");
+    std::assert_float_eq(std::sin(361.0),0.0174,0.01,"sin(361)");
 
-    std::assert_float_eq(std::cos(-24.0),0.9135,"cos(-24)");
-    std::assert_float_eq(std::sin(-24.0),-0.4067,"sin(-24)");
+    std::assert_float_eq(std::cos(-24.0),0.9135,0.01,"cos(-24)");
+    std::assert_float_eq(std::sin(-24.0),-0.4067,0.01,"sin(-24)");
+
+    std::assert_float_eq(std::atan(1.4825),56.0,0.02,"atan(1.4825)");
+    std::assert_float_eq(std::atan(-0.67),-33.822,0.02,"atan(-0.67)");
+
+    std::assert_float_eq(std::atan2(5.0,3.0),59.036,0.02,"atan2(5,3)");
+
+    std::assert_float_eq(std::acos(0.52991926423),58.0,0.02,"acos(0.52991926423)");
+    std::assert_float_eq(std::asin(0.84804809615),58.0,0.02,"asin(0.84804809615)");
 }
 
 func test_tri()
@@ -80,7 +179,47 @@ func test_tri()
 
     [u,v,w] := std::barycentric_tri(tri1,&point);
 
-    std::assert_log(std::float_eq(u,0.68) && std::float_eq(v,0.21) && std::float_eq(w,0.11) ,"Barycentric {} {} {}",u,v,w);
+    std::assert_log(std::float_eq(u,0.68,0.01) && std::float_eq(v,0.21,0.01) && std::float_eq(w,0.11,0.01) ,"Barycentric {} {} {}",u,v,w);
+}
+
+func test_coordinates()
+{
+    // Polar
+    point2d := std::Vec2F {5.0,6.0};
+
+    polar_ans:= std::cartesian_to_polar(&point2d);
+
+    std::assert_log(std::float_eq(polar_ans.r,7.81,0.01) && std::float_eq(polar_ans.angle,50.194,0.02),"cart_to_polar(5.0,6.0)");
+
+    polar_inverse := std::polar_to_cartesian(&polar_ans);
+
+    std::test_vec2f(polar_inverse,point2d,"polar_to_cart(7.81,50.194)");
+
+
+    // Cylindrical
+    point_cylindrical := std::Vec3F {-2.0,2.0 * std::sqrt(3.0),-2.0};
+
+    
+    cylindrical := std::cartesian_to_cylindrical(&point_cylindrical);
+    std::assert_log(std::float_eq(cylindrical.r,4.0,0.01) &&  std::float_eq(cylindrical.angle,120.0,0.01) && std::float_eq(cylindrical.z,-2.0,0.01),
+        "cartesian_to_cylindrical(-2.0,2.0 * sqrt(3),-2.0)");
+
+    cylindrical_inverse := std::cylindrical_to_cartesian(&cylindrical);
+
+    std::test_vec3f(cylindrical_inverse,point_cylindrical,"cylindrical_to_cartesian(4.0,120.0,-2.0)");
+
+
+    // Spherical
+    point_spherical := std::Vec3F {-1.0,1.0,-std::sqrt(2.0)};
+
+    spherical := std::cartesian_to_spherical(&point_spherical);
+
+    std::assert_log(std::float_eq(spherical.r,2.0,0.01) && std::float_eq(spherical.phi,135.0,0.01) && std::float_eq(spherical.theta,135.0,0.01),
+        "cartesian_to_spherical(-1.0,1.0,-sqrt(2.0))");
+
+    spherical_inverse := std::spherical_to_cartesian(&spherical);
+
+    std::test_vec3f(spherical_inverse,point_spherical,"spherical_to_cartesian(2.0,135.0,135.0)");
 }
 
 func main() s32 
@@ -88,6 +227,7 @@ func main() s32
     test_vec();
     test_tri();
     test_trig();
+    test_coordinates();
     test_mat();
 
     return 0;
