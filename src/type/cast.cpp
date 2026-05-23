@@ -164,7 +164,7 @@ TypeResult type_check_cast(Interloper& itl, AstNode* expr)
             cast->oper = cast_oper::from_float;
         }
 
-        else if(is_integer(old_type) && is_float(new_type))
+        else if((is_integer(old_type) || is_bool(old_type)) && is_float(new_type))
         {
             cast->oper = cast_oper::to_float;
         }

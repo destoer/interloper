@@ -163,10 +163,10 @@ func test_trig()
     std::assert_float_eq(std::cos(-24.0),0.9135,0.01,"cos(-24)");
     std::assert_float_eq(std::sin(-24.0),-0.4067,0.01,"sin(-24)");
 
-    std::assert_float_eq(std::atan(1.4825),56.0,0.1,"atan(1.4825)");
-    std::assert_float_eq(std::atan(-0.67),-33.822,0.1,"atan(-0.67)");
+    std::assert_float_eq(std::atan(1.4825),56.0,0.02,"atan(1.4825)");
+    std::assert_float_eq(std::atan(-0.67),-33.822,0.02,"atan(-0.67)");
 
-    std::assert_float_eq(std::atan2(5.0,3.0),59.036,0.1,"atan(5,3)");
+    std::assert_float_eq(std::atan2(5.0,3.0),59.036,0.02,"atan2(5,3)");
 
     std::assert_float_eq(std::acos(0.52991926423),58.0,0.02,"acos(0.52991926423)");
     std::assert_float_eq(std::asin(0.84804809615),58.0,0.02,"asin(0.84804809615)");
@@ -188,7 +188,7 @@ func test_coordinates()
 
     polar_ans:= std::cartesian_to_polar(&point);
 
-    std::assert_log(std::float_eq(polar_ans.r,7.81,0.01) && std::float_eq(polar_ans.angle,50.194,0.1),"cart_to_polar(5.0,6.0)");
+    std::assert_log(std::float_eq(polar_ans.r,7.81,0.01) && std::float_eq(polar_ans.angle,50.194,0.02),"cart_to_polar(5.0,6.0)");
 
     polar_inverse := std::polar_to_cartesian(&polar_ans);
 

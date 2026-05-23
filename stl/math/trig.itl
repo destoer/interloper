@@ -129,60 +129,68 @@ func cos(value: f64) f64
 // https://math.stackexchange.com/questions/1098487/atan2-faster-approximation
 // https://stackoverflow.com/questions/42537957/fast-accurate-atan-arctan-approximation-algorithm
 
-func atan_approx(z: f64) f64
-{
-    c0 := 57.2051885728;
-    c1 := -17.1850102992;
-    c2 := 4.97982172642;
+// func atan_approx(z: f64) f64
+// {
+//     c0 := 57.2051885728;
+//     c1 := -17.1850102992;
+//     c2 := 4.97982172642;
 
-    zz := z * z;
-    return ((((c2 * zz) + c1) * zz) + c0) * z;
+//     zz := z * z;
+//     return ((((c2 * zz) + c1) * zz) + c0) * z;
 
-// return z * (45.0 - ((z - 1.0) * (14.0202772 + (3.79871018 * z))));
-}
+// // return z * (45.0 - ((z - 1.0) * (14.0202772 + (3.79871018 * z))));
+// }
 
-func atan(z: f64) f64
-{
-    if z < 0.0 
-    {
-        return -atan_approx(-z);
-    }
 
-    if z > 1.0 
-    {
-        return 90.0 - atan_approx(1.0 / z);
-    }
-
-    return atan_approx(z);
-}
-
+// https://developer.nvidia.com/w/cg/atan2.html
 func atan2(y: f64, x: f64) f64
 {
-    correction := 0.0;
+    t2 := fabs(x);
+    t1 := fabs(y);
+    t0 := max_f64(t2, t1);
+    t1 = min_f64(t2, t1);
+    t2 = 1.0 / t0;
+    t2 = t1 * t2;
 
-    if(x == 0.0)
+    t3 := t2 * t2;
+    t0 =         - 0.013480470;
+    t0 = t0 * t3 + 0.057477314;
+    t0 = t0 * t3 - 0.121239071;
+    t0 = t0 * t3 + 0.195635925;
+    t0 = t0 * t3 - 0.332994597;
+    t0 = t0 * t3 + 0.999995630;
+    t2 = t0 * t2;
+
+    
+    if fabs(y) > fabs(x)
     {
-        // technically undefined
-        return 0.0;
+        t2 =  (PI / 2.0) - t2;
     }
 
     if x < 0.0
     {
-        correction = 180.0;
+        t2 = PI - t2;
     }
 
-    else if y < 0.0
+    if y < 0.0
     {
-        correction = 360.0;
+        t2 = -t2;
     }
 
-    return atan(y / x);
+    return rad_to_deg(t2);
 }
 
+func atan(z: f64) f64
+{
+    return atan2(z,1.0);
+}
+
+
 // https://developer.nvidia.com/w/cg/acos.html
+
 func acos(x: f64) f64
 {
-  negate := cast(f64,cast(s64,x < 0.0));
+  negate := cast(f64,x < 0.0);
   x = fabs(x);
   ret := -0.0187293;
   ret = ret * x;
@@ -193,12 +201,14 @@ func acos(x: f64) f64
   ret = ret + 1.5707288;
   ret = ret * sqrt(1.0 - x);
   ret = ret - 2.0 * negate * ret;
-  return rad_to_deg(negate * 3.14159265358979 + ret);
+  return rad_to_deg((negate * PI) + ret);
 }
+
+// https://developer.nvidia.com/w/cg/asin.html
 
 func asin(x: f64) f64
 {
-  negate := cast(f64,cast(s64,x < 0.0));
+  negate := cast(f64,x < 0.0);
   x = fabs(x);
   ret := -0.0187293;
   ret *= x;
@@ -207,6 +217,6 @@ func asin(x: f64) f64
   ret -= 0.2121144;
   ret *= x;
   ret += 1.5707288;
-  ret = (3.14159265358979 * 0.5) - sqrt(1.0 - x) * ret;
+  ret = (PI / 2.0) - sqrt(1.0 - x) * ret;
   return rad_to_deg(ret - (2.0 * negate * ret));
 }
