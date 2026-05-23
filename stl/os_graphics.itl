@@ -781,7 +781,7 @@ func os_draw_window(win: OSWindow@, screen: const u32[], width : u32, height : u
 
     for(y : u32 = 0; y < height; y += lines)
     {
-        to_draw := std::min_u32(lines,height - y);
+        to_draw := std::min(lines,height - y);
 
         res := draw_lines(win,ptr,y,to_draw,width);
 

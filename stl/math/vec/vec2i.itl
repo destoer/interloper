@@ -14,8 +14,8 @@ func vec2i_add(v1: const Vec2I, v2: const Vec2I) Vec2I
 func ved2i_clamp_zero(v1: const Vec2I@,limit: const Vec2I@) Vec2I
 {
     return Vec2I {
-        clamp_s64(v1.x,0,limit.x),
-        clamp_s64(v1.y,0,limit.y)
+        clamp(v1.x,0,limit.x),
+        clamp(v1.y,0,limit.y)
     };
 }
 

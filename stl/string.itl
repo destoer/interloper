@@ -18,7 +18,7 @@ constant MAX_INT_CHARS : u32 = 64;
 
 func str_copy(dst: string,src: const string) usize
 {
-    size := min_u64(src.len,dst.len);
+    size := min(src.len,dst.len);
 
     memcpy(dst.data,src.data,size);
 
@@ -32,7 +32,7 @@ func str_copy_term(dst: string,src: const string) usize
 
     if(size != 0)
     {
-        term_pos := min_u64(size,dst.len - 1);
+        term_pos := min(size,dst.len - 1);
         dst[term_pos] = '\0';
     }
 

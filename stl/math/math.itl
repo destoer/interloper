@@ -15,57 +15,27 @@ func is_even(v : u64) bool
     return (v & 1) == 0;
 }
 
-func abs(v1: s64) u64
+func abs<T: Real>(v1: $T) $T
 {
-    if(v1 < 0)
+    if v1 < cast($T,0)
     {
-        return cast(u64,-v1);
+        return -v1;
     }
 
-    return cast(u64,v1);
+    return v1;
 }
 
-func fabs(f1: f64) f64
-{
-    if(f1 < 0.0)
-    {
-        return -f1;
-    }
-
-    return f1;
-}
-
-func min_s64(v1 : s64, v2 : s64) s64
+func min<T: Real>(v1: $T, v2: $T) $T
 {
     if(v1 < v2)
     {
         return v1;
     }
 
-    return v2;
+    return v2;   
 }
 
-func min_u64(v1 : u64, v2 : u64) u64
-{
-    if(v1 < v2)
-    {
-        return v1;
-    }
-
-    return v2;
-}
-
-func min_u32(v1 : u32, v2 : u32) u32
-{
-    if(v1 < v2)
-    {
-        return v1;
-    }
-
-    return v2;
-}
-
-func max_s64(v1 : s64, v2 : s64) s64
+func max<T: Real>(v1: $T, v2: $T) $T
 {
     if(v1 > v2) 
     {
@@ -75,47 +45,13 @@ func max_s64(v1 : s64, v2 : s64) s64
     return v2;
 }
 
-func max_u64(v1 : u64, v2 : u64) u64
-{
-    if(v1 > v2) 
-    {
-        return v1;
-    }
-
-    return v2;
-}
-
-func max_f64(v1: f64, v2: f64) f64
-{
-    if(v1 > v2)
-    {
-        return v1;
-    }
-
-    return v2;
-}
-
-func min_f64(v1: f64, v2: f64) f64
-{
-    if(v1 < v2)
-    {
-        return v1;
-    }
-
-    return v2;
-}
-
-func in_range_u64(v : u64,lo : u64, hi : u64) bool
+func in_range<T: Real>(v : $T,lo : $T, hi : $T) bool
 {
     return v >= lo && v <= hi;
 }
 
-func in_range_s64(v : s64,lo : s64, hi : s64) bool
-{
-    return v >= lo && v <= hi;
-}
 
-func clamp_s64(v1: s64, min: s64, max: s64) s64
+func clamp<T: Real>(v1: $T, min: $T, max: $T) s64
 {
     if(v1 < min) 
     {
@@ -129,38 +65,6 @@ func clamp_s64(v1: s64, min: s64, max: s64) s64
 
     return v1;
 }
-
-func clamp_u64(v1: u64, min: u64, max: u64) u64
-{
-    if(v1 < min) 
-    {
-        return min;
-    }
-
-    else if(v1 > max)
-    {
-        return max;
-    }
-
-    return v1;
-}
-
-
-func clamp_f64(v1: f64, min: f64, max: f64) f64
-{
-    if(v1 < min) 
-    {
-        return min;
-    }
-
-    else if(v1 > max)
-    {
-        return max;
-    }
-
-    return v1;
-}
-
 
 
 func float_eq(f1: f64, f2: f64, epsilon: f64) bool

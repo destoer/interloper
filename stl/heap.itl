@@ -250,7 +250,7 @@ func alloc_heap(heap : Heap@, count : usize, size : usize) byte?
 
     if !cur
     {
-        req := max_u64(data_block_size,HEAP_DEFAULT_ALLOC_SIZE);
+        req := max(data_block_size,HEAP_DEFAULT_ALLOC_SIZE);
 
         // out of memory try get some more
         if !request_buffer(heap,req)
@@ -308,7 +308,7 @@ func alloc_heap(heap : Heap@, count : usize, size : usize) byte?
     // mark heap usage
     heap.used += cur_reference.blocks;
     heap.total_allocation_bytes += data_block_size;
-    heap.max_allocation = max_u64(heap.max_allocation,cur_reference.blocks);
+    heap.max_allocation = max(heap.max_allocation,cur_reference.blocks);
     
     data_block := &cur_reference[1];
     // Don't bust the new node.
@@ -352,7 +352,7 @@ func realloc_heap(heap : Heap@, ptr: byte@?, count: usize,size: usize) bool
     node := cast(HeapNode@, old) - 1;
 
     // need to make sure we dont trash the buffer if this shrinks
-    copy_size := min_u64((node.blocks - 1) * HEAP_BLOCK_SIZE,count * size);
+    copy_size := min((node.blocks - 1) * HEAP_BLOCK_SIZE,count * size);
 
     memcpy(cast(byte@,new),cast(byte@,old),copy_size);
 

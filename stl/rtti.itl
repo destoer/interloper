@@ -183,7 +183,7 @@ func is_signed(type : const Type@) bool
 
     idx := cast(u32,cast_builtin(type));
 
-    return std::in_range_u64(idx,cast(u32,builtin_type::s8_t),cast(u32,builtin_type::s64_t));
+    return std::in_range(idx,cast(u32,builtin_type::s8_t),cast(u32,builtin_type::s64_t));
 }
 
 func is_array(type : const Type@) bool

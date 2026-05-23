@@ -140,12 +140,12 @@ func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: 
     for @point in tri
     {
         x := cast(s64,point.x);
-        min.x = std::max_s64(0,std::min_s64(min.x,x));
-        max.x = std::min_s64(win.bounds.x,std::max_s64(max.x,x));
+        min.x = std::max(0,std::min(min.x,x));
+        max.x = std::min(win.bounds.x,std::max(max.x,x));
 
         y := cast(s64,point.y);
-        min.y = std::max_s64(0,std::min_s64(min.y,y));
-        max.y = std::min_s64(win.bounds.y,std::max_s64(max.y,y));     
+        min.y = std::max(0,std::min(min.y,y));
+        max.y = std::min(win.bounds.y,std::max(max.y,y));     
     }
 
     stride := win.width;
@@ -166,7 +166,7 @@ func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: 
 
             if in_triangle & win.z_buffer[offset] <= z
             {
-                scaled := std::clamp_f64((z * 0.5) + 0.5,0.0,1.0);
+                scaled := std::clamp((z * 0.5) + 0.5,0.0,1.0);
 
                 colourz := gfx::Colour{scaled,scaled,scaled};
                 colourz_rgba := gfx::colour_to_rgba(&colourz);
