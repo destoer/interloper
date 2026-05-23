@@ -64,17 +64,30 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
 
     NameSpace* name_space = *name_space_res;
 
-    // read out the plain type
-
     auto plain_tok = next_token(parser);
-
     TypeNode* type = (TypeNode*)ast_type_decl(parser,name_space,"",plain_tok);
+
+
+    bool is_template =  false;
+
+    // read out the plain type
+    if(plain_tok.type == token_type::dollar)
+    {
+        plain_tok = next_token(parser);
+        is_template = true;
+    }
 
     type->is_const = is_const;
     type->is_constant = is_constant;
 
+    if(is_template && plain_tok.type == token_type::symbol)
+    {
+        type->kind = type_node_kind::generic;
+        type->name = plain_tok.literal;       
+    }
+
     // plain type
-    if(is_builtin_type_tok(plain_tok))
+    else if(is_builtin_type_tok(plain_tok))
     {
         builtin_type builtin = builtin_type_from_tok(plain_tok);
 

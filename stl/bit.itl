@@ -2,7 +2,7 @@ namespace std;
 
 constant BITS_IN_BYTE : u32 = 8;
 
-func is_set<$T: Integer>(v: $T, bit: u32) bool
+func is_set<T: Integer>(v: $T, bit: u32) bool
 {
     return cast(bool,(v >> bit) & 1);
 }

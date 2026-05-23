@@ -223,6 +223,11 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
     {
         switch(type_decl->kind)
         {
+            case type_node_kind::generic:
+            {
+                
+            }
+
             case type_node_kind::user:
             {
                 // NOTE: here we are doing the heavy lifting on defs by our self

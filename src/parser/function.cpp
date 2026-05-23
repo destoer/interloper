@@ -87,6 +87,71 @@ Option<parse_error> block_ast(Parser &parser, AstBlock* block)
 }
 
 
+Result<constraint_type,parse_error> find_constraint(Parser& parser, const String& name, const Token& token)
+{
+    if(name == "Real")
+    {
+        return constraint_type::real;
+    }
+
+    else if(name == "Integer")
+    {
+        return constraint_type::integer;
+    }
+
+    return parser_error(parser,parse_error::malformed_stmt,token,"%S is not a generic constraint.\n",name);
+}
+
+Option<parse_error> parse_generic(Parser& parser, FuncNode* f)
+{
+    const auto generic_start = next_token(parser);
+
+    while(!match(parser,token_type::logical_gt))
+    {
+        if(!match(parser,token_type::symbol))
+        {
+            return parser_error(parser,parse_error::unexpected_token,generic_start,"expected name for generic type\n");    
+        }
+
+        const auto name = next_token(parser);
+
+        const auto colon_err = consume(parser,token_type::colon);
+        if(colon_err)
+        {
+            return *colon_err;
+        }
+
+        if(!match(parser,token_type::symbol))
+        {
+            return parser_error(parser,parse_error::unexpected_token,generic_start,"expected name for generic type constraint\n");    
+        }
+
+        const auto constraint_tok = next_token(parser);
+        
+        const auto constraint_res = find_constraint(parser,constraint_tok.literal,generic_start);
+        if(!constraint_res)
+        {
+            return constraint_res.error();
+        }
+
+        const Generic generic = {name.literal,*constraint_res};
+        push_var(f->generic,generic);
+
+
+        // if the declaration isn't closed get the next arg
+        if(!match(parser,token_type::logical_gt))
+        {
+            const auto comma_err = consume(parser,token_type::comma);
+            if(comma_err)
+            {
+                return *comma_err;
+            }
+        }
+    }
+
+    return consume(parser,token_type::logical_gt);
+}
+
 // parse just the function signature
 // NOTE: this is used to parse signatures for function pointers
 Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_name, const Token& token)
@@ -94,6 +159,17 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
     FuncNode *f = (FuncNode*)ast_func(parser,func_name,parser.context.cur_file,token);
 
     const auto paren = peek(parser,0);
+
+    // Generic
+    if(paren.type == token_type::logical_lt)
+    {
+        const auto err = parse_generic(parser,f);
+        if(err)
+        {
+            return *err;
+        }
+    }
+
     const auto l_paren_err = consume(parser,token_type::left_paren);
     if(l_paren_err)
     {
