@@ -105,3 +105,14 @@ func cartesian_to_spherical(point: const Point3F@) Spherical3F
         theta
     };
 }
+
+func spherical_to_cartesian(spherical: const Spherical3F@) Point3F
+{
+    r_sine_phi := spherical.r * sin(spherical.phi);
+
+    return Vec3F {
+        r_sine_phi  * cos(spherical.theta),
+        r_sine_phi  * sin(spherical.theta),
+        spherical.r * cos(spherical.phi)
+    };
+}
