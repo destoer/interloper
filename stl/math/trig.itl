@@ -126,20 +126,10 @@ func cos(value: f64) f64
     return v1 + ((v2 - v1) * (value - cast(f64,idx)));
 }
 
-// https://math.stackexchange.com/questions/1098487/atan2-faster-approximation
-// https://stackoverflow.com/questions/42537957/fast-accurate-atan-arctan-approximation-algorithm
-
-// func atan_approx(z: f64) f64
-// {
-//     c0 := 57.2051885728;
-//     c1 := -17.1850102992;
-//     c2 := 4.97982172642;
-
-//     zz := z * z;
-//     return ((((c2 * zz) + c1) * zz) + c0) * z;
-
-// // return z * (45.0 - ((z - 1.0) * (14.0202772 + (3.79871018 * z))));
-// }
+func tan(value: f64) f64
+{
+    return sin(value) / cos(value);
+}
 
 
 // https://developer.nvidia.com/w/cg/atan2.html
