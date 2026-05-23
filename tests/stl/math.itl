@@ -179,11 +179,25 @@ func test_tri()
     std::assert_log(std::float_eq(u,0.68,0.01) && std::float_eq(v,0.21,0.01) && std::float_eq(w,0.11,0.01) ,"Barycentric {} {} {}",u,v,w);
 }
 
+func test_coordinates()
+{
+    point := std::Vec2F {5.0,6.0};
+
+    polar_ans:= std::cartesian_to_polar(&point);
+
+    std::assert_log(std::float_eq(polar_ans.r,7.81,0.01) && std::float_eq(polar_ans.angle,50.194,0.01),"cart_to_polar(5.0,6.0)");
+
+    polar_inverse := std::polar_to_cartesian(&polar_ans);
+
+    std::test_vec2f(polar_inverse,point,"polar_to_cart(7.81,50.194)");
+}
+
 func main() s32 
 {
     test_vec();
     test_tri();
     test_trig();
+    test_coordinates();
     test_mat();
 
     return 0;

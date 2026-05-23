@@ -130,7 +130,8 @@ func cos(value: f64) f64
 
 func atan_approx(z: f64) f64
 {
-    return z * (45.0 - ((z - 1.0) * (14.0 + 3.83 * z)));
+    // TODO: I don't think this approximation is good enough?
+    return z * (45.0 - ((z - 1.0) * (14.0 + (3.83 * z))));
 }
 
 func atan(z: f64) f64
