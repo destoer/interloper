@@ -657,28 +657,6 @@ struct FuncReturnVar
     TypeNode* type = nullptr;
 };
 
-
-const char* CONSTRAINT_NAMES[] =
-{
-    "Integer",
-    "Real"
-};
-
-enum class constraint_type
-{
-    integer,
-    real,
-};
-
-struct Generic
-{
-    String name;
-    constraint_type constraint;
-    // Filled in during deduction
-    Type* type = nullptr;
-};
-
-
 struct FuncNode
 {
     AstNode node;

@@ -214,6 +214,8 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
             return compile_error(itl,itl_error::invalid_statement,"Generic function call %S has no calling context.",func_def.name);
         }
 
+        func.from_generic = true;
+
 
         func.root = (FuncNode*)copy_ast(itl,(AstNode*)func.root);
 
@@ -223,21 +225,30 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
             return *err;
         }
 
+        // Scan and see if overload already exists
+        if(func_def.generic_overload)
+        {
+            assert(false);
+        }
+
         const auto sig_err = parse_func_sig(itl,func_def.name_space,func.sig,*func.root,func_sig_kind::generic);
         if(sig_err)
         {
             return *sig_err;
-        }
+        } 
+
+
+        // Mark this overload as instanced
+        push_var(func_def.generic_overload,func.root->generic);
+
 
         func.root->attr = func.sig.attribute;
 
-        // TODO: Need to rewrite the name name here aswell
+        char overload_name[64] = {0};
+        sprintf(overload_name,"__generic_0x%x",count(func_def.generic_overload));
 
-
-        print(itl,(AstNode*)func.root);
-
-        // TODO: The label handling needs some more involved resolution how did it work before?
-        assert(false);
+        // TODO: Generate a full generic name
+        func.name = cat_string(itl.string_allocator,func.name,overload_name); 
     }
 
     // parse in function signature on demand
@@ -261,15 +272,12 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
         new_basic_block(itl,func);
     }
 
-    // TODO: We need a different scheme for setting up labels for generic functions
-    // We dont need to change this too much, we just need to modify actually assigning the func to the func def :P
-
     // add as a label as it this will be need to referenced by call instrs
     // in the ir to get the name back
     func.label_slot = add_label(itl.symbol_table,func.name);
 
     // write back the slot
-    func_def.func = (Function*)allocate(itl.func_table.arena,sizeof(Function));
+    Function* func_ptr = (Function*)allocate(itl.func_table.arena,sizeof(Function));
 
     // Cache the call information for the func
     func.call_info.label_slot = func.label_slot;
@@ -277,19 +285,24 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
     func.call_info.name = func.name;
     func.call_info.flags = 0;
 
-    // add the actual func
-    *func_def.func = func;
+    *func_ptr = func;
+
+    // If this is an ordinary function mark it as concrete
+    if(!func.from_generic)
+    {
+        func_def.func = func_ptr;
+    }
 
     if(!forced)
     {
         // mark it used
-        push_var(itl.func_table.used,func_def.func);
+        push_var(itl.func_table.used,func_ptr);
     }
 
     // Type checked only delete later after checking done
     else
     {
-        push_var(itl.func_table.unused,func_def.func);
+        push_var(itl.func_table.unused,func_ptr);
     }
 
     if(func.root)
@@ -301,7 +314,7 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
         }
     }
 
-    return func_def.func;   
+    return func_ptr;   
 }
  
 Function* create_dummy_func(Interloper& itl, const String& name)
@@ -455,7 +468,7 @@ Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& 
     u32 arg_offset = 0;
 
     // NOTE: void return's will have a void type
-    if(node.return_type)
+    if(count(node.return_type) == 1)
     {
         itl.ctx.expr = (AstNode*)node.return_type[0].type;
         auto type_res = get_complete_type(itl,node.return_type[0].type);

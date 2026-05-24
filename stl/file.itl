@@ -84,12 +84,12 @@ func open_file(str : const string, mode : file_mode, opt : file_opt) [File,bool]
     if(!is_os_handle_valid(file.handle))
     {
         file.flags = file.flags | file_flag::error;
-        return file,true;
+        return file, true;
     }
 
     file.buffer = make_sized_array(1,FILE_DEFAULT_BUFFER_SIZE);
 
-    return file,false;
+    return file, false;
 }
 
 func open_file_or_panic(str : const string, mode : file_mode, opt : file_opt) File

@@ -120,18 +120,6 @@ struct FuncPointerType
 const u32 FUNC_CALL_FUNC_POINTER_FLAG = (1 << 0);
 const u32 FUNC_CALL_FUNC_POINTER_EXPR_FLAG = (1 << 1);
 
-struct GenericAlias
-{
-    String name;
-    Type* type = nullptr;
-};
-
-
-struct GenericTable
-{
-    Array<GenericAlias> alias;
-};
-
 struct FuncCall
 {
     FuncSig sig = {};
@@ -165,9 +153,32 @@ struct Function
     b32 used = false;
 
     b32 leaf_func = true;
+    b32 from_generic = false;
 
     FuncCall call_info;
 };
+
+const char* CONSTRAINT_NAMES[] =
+{
+    "Integer",
+    "Real"
+};
+
+enum class constraint_type
+{
+    integer,
+    real,
+};
+
+struct Generic
+{
+    String name;
+    constraint_type constraint;
+    // Filled in during deduction
+    Type* type = nullptr;
+};
+
+using OverloadTable = Array<Array<Generic>>;
 
 struct FunctionDef
 {
@@ -180,6 +191,8 @@ struct FunctionDef
     Function* func = nullptr;
     NameSpace* name_space = nullptr;
     String name;
+
+    OverloadTable generic_overload;
 };
 
 struct FunctionTable
