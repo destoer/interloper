@@ -60,10 +60,6 @@ Option<itl_error> type_check_function(Interloper& itl, Function& func)
 {
     auto context_guard = switch_context(itl,func.root->filename,func.name_space,(AstNode*)func.root);
 
-    // put arguments on the symbol table they are marked as args
-    // so we know to access them "above" to stack pointer
-    auto scope_guard = enter_new_anon_scope(itl.symbol_table);
-
     // put each arg into scope and copy it regs into args
     for(u32 a = 0; a < count(func.sig.args); a++)
     {
@@ -75,6 +71,119 @@ Option<itl_error> type_check_function(Interloper& itl, Function& func)
     return type_check_block(itl,func,func.root->block);
 }
 
+Option<itl_error> deduce_generic_types(Interloper& itl, FuncNode& node, FuncCallNode* func_call)
+{
+    assert(func_call);
+
+    // TODO: This ideally needs caching.
+    auto generic_lookup = make_table<String,Generic*>();
+
+    for(u32 i = 0; i < count(node.generic); i++)
+    {
+        const auto& generic = node.generic[i];
+
+        if(contains(generic_lookup,generic.name))
+        {
+            destroy_table(generic_lookup);
+            return compile_error(itl,itl_error::redeclaration,"Generic %S is declared twice",generic.name);
+        }
+
+        add(generic_lookup,generic.name,&node.generic[i]);
+    }
+
+    // Deduce generic types
+    for(u32 a = 0; a < count(node.args); a++)
+    {
+        DeclNode* decl = node.args[a];
+        itl.ctx.expr = (AstNode*)decl;
+
+        TypeNode* type_node = decl->type;
+
+        if(type_node->kind != type_node_kind::generic)
+        {
+            continue;
+        }
+
+        AstNode* expr = func_call->args[a];
+
+        if(!type_node->compound)
+        {
+            const auto generic_opt = lookup(generic_lookup,type_node->name);
+
+            if(!generic_opt)
+            {
+                destroy_table(generic_lookup);
+                return compile_error(itl,itl_error::undeclared,"Generic type %S does not exist",type_node->name);
+            }
+
+            auto& generic = *generic_opt;
+            if(!generic->type)
+            {
+                generic->type = expr->expr_type;
+            }
+
+            if(type_equal(generic->type,expr->expr_type))
+            {
+                continue;
+            }
+
+            // Types are not equal attempt to promote them
+            if(!(is_integer(generic->type) && is_integer(expr->expr_type)))
+            {
+                itl.ctx.expr = expr;
+                destroy_table(generic_lookup);
+                return compile_error(itl,itl_error::generic,"Mismatched generic types %t and %t",generic->type,expr->expr_type);
+            }
+            
+            const auto promotion_res = promote_integer_type(itl,generic->type,expr->expr_type);
+            if(!promotion_res)
+            {
+                destroy_table(generic_lookup);
+                return promotion_res.error();
+            }
+
+            generic->type = *promotion_res;
+            continue;
+        }
+
+        // TODO: This requires removing the compound type from each part
+        unimplemented("Compound generic");
+    }
+
+    destroy_table(generic_lookup);
+
+    // Check constraints are met and add the type aliases for this scope.
+    for(auto& generic : node.generic)
+    {
+        switch(generic.constraint)
+        {
+            case constraint_type::integer:
+            {
+                if(!is_integer(generic.type))
+                {
+                    return compile_error(itl,itl_error::generic,"Generic %S : %t does not meet constraint Integer",generic.name,generic.type);
+                }
+
+                break;
+            }
+
+            case constraint_type::real:
+            {
+                if(!is_integer(generic.type) && !is_float(generic.type))
+                {
+                    return compile_error(itl,itl_error::generic,"Generic %S : %t does not meet constraint Real",generic.name,generic.type);
+                }
+
+                break;
+            }
+        }
+
+        add_internal_alias(itl,generic.type,generic.name);
+    }
+
+    return option::none;
+}
+
 Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def, FuncCallNode* func_call, bool forced)
 {
     // have finalised this func
@@ -83,8 +192,16 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
         return func_def.func;
     }
 
+    // Scope guard for function for any declared types or symbols
+    auto scope_guard = enter_new_anon_scope(itl.symbol_table);
+
+    Function func;
+    func.name = func_def.name;
+    func.root = func_def.root;
+    func.name_space = func_def.name_space;
+
     // Handle generic functions.
-    if(func_def.root && func_def.root->generic)
+    if(func.root && func.root->generic)
     {
         // This is a forced type check as we have no calling context we do actually have an instantiation of the function.
         if(forced)
@@ -97,20 +214,31 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
             return compile_error(itl,itl_error::invalid_statement,"Generic function call %S has no calling context.",func_def.name);
         }
 
-        // Determine the type of generic args and scope them
-        print(itl,(AstNode*)func_call);
 
+        // TODO: At this point we need a copy of the ast but we will ignore this for now.
+
+        const auto err = deduce_generic_types(itl,*func.root,func_call);
+        if(err)
+        {
+            return *err;
+        }
+
+        // const auto sig_err = parse_func_sig(itl,func_def.name_space,func.sig,*func.root,func_sig_kind::generic);
+        // if(sig_err)
+        // {
+        //     return *sig_err;
+        // }
+
+        func.root->attr = func.sig.attribute;
+
+        print(itl,(AstNode*)func.root);
+
+        // TODO: The label handling needs some more involved resolution how did it work before?
         assert(false);
     }
 
-
-    Function func;
-    func.name = func_def.name;
-    func.root = func_def.root;
-    func.name_space = func_def.name_space;
-
     // parse in function signature on demand
-    if(func.root)
+    else if(func.root)
     {
         const auto sig_err = parse_func_sig(itl,func_def.name_space,func.sig,*func.root,func_sig_kind::function);
         if(sig_err)
@@ -129,6 +257,9 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
         // create a dummy basic block
         new_basic_block(itl,func);
     }
+
+    // TODO: We need a different scheme for setting up labels for generic functions
+    // We dont need to change this too much, we just need to modify actually assigning the func to the func def :P
 
     // add as a label as it this will be need to referenced by call instrs
     // in the ir to get the name back
@@ -311,8 +442,6 @@ void add_hidden_return(Interloper& itl, FuncSig& sig, const String& name, Type* 
     add_sig_arg(itl,sig,name,ptr_type,arg_offset);
     sig.hidden_args++;
 }
-
-
 
 Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node, func_sig_kind kind)
 {

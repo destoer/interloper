@@ -658,6 +658,12 @@ struct FuncReturnVar
 };
 
 
+const char* CONSTRAINT_NAMES[] =
+{
+    "Integer",
+    "Real"
+};
+
 enum class constraint_type
 {
     integer,
@@ -667,7 +673,9 @@ enum class constraint_type
 struct Generic
 {
     String name;
-    constraint_type type;
+    constraint_type constraint;
+    // Filled in during deduction
+    Type* type = nullptr;
 };
 
 

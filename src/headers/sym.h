@@ -120,6 +120,18 @@ struct FuncPointerType
 const u32 FUNC_CALL_FUNC_POINTER_FLAG = (1 << 0);
 const u32 FUNC_CALL_FUNC_POINTER_EXPR_FLAG = (1 << 1);
 
+struct GenericAlias
+{
+    String name;
+    Type* type = nullptr;
+};
+
+
+struct GenericTable
+{
+    Array<GenericAlias> alias;
+};
+
 struct FuncCall
 {
     FuncSig sig = {};
@@ -191,6 +203,7 @@ enum class func_sig_kind
 {
     function,
     function_pointer,
+    generic,
 };
 
 Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node, func_sig_kind kind);

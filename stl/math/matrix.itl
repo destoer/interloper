@@ -21,7 +21,8 @@ func mul_mat<M: usize,N: usize,T = Matrix<$M,$N>>(m1: const $T@: const $T@) $T
         {
             v := 0.0;
 
-            // TODO: How tricky is it to make something to unroll this.
+            // TODO: How tricky is it to make something to unroll a single block?
+            // If we unroll the innermost first here will we manage to unroll the entire function?
             for n in 0 < M 
             {
                 v += row[n] * m2.mat[n][c];
