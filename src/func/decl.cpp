@@ -184,6 +184,33 @@ Option<itl_error> deduce_generic_types(Interloper& itl, FuncNode& node, FuncCall
     return option::none;
 }
 
+bool check_overload(const Function* func, const FuncCallNode* func_call)
+{
+    for(u32 a = 0; a < count(func->root->generic); a++)
+    {
+        if(!type_equal(func->root->generic[a].type,func_call->args[a]->expr_type))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+Function* find_overload(const OverloadTable& overload, const FuncCallNode* func_call)
+{
+    for(Function* func : overload)
+    {
+        if(check_overload(func,func_call))
+        {
+            return func;
+        }
+    }
+
+    return nullptr;
+
+}
+
 Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def, FuncCallNode* func_call, bool forced)
 {
     // have finalised this func
@@ -228,7 +255,12 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
         // Scan and see if overload already exists
         if(func_def.generic_overload)
         {
-            assert(false);
+            Function* func = find_overload(func_def.generic_overload,func_call);
+
+            if(func)
+            {
+                return func;
+            }
         }
 
         const auto sig_err = parse_func_sig(itl,func_def.name_space,func.sig,*func.root,func_sig_kind::generic);
@@ -236,11 +268,6 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
         {
             return *sig_err;
         } 
-
-
-        // Mark this overload as instanced
-        push_var(func_def.generic_overload,func.root->generic);
-
 
         func.root->attr = func.sig.attribute;
 
@@ -287,9 +314,15 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
 
     *func_ptr = func;
 
-    // If this is an ordinary function mark it as concrete
-    if(!func.from_generic)
+    if(func.from_generic)
     {
+        // Mark this overload as instanced
+        push_var(func_def.generic_overload,func_ptr);
+    }
+
+    else
+    {
+        // If this is an ordinary function mark it as concrete
         func_def.func = func_ptr;
     }
 

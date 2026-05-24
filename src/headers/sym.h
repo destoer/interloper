@@ -170,6 +170,9 @@ enum class constraint_type
     real,
 };
 
+using OverloadTable = Array<Function*>;
+
+
 struct Generic
 {
     String name;
@@ -177,8 +180,6 @@ struct Generic
     // Filled in during deduction
     Type* type = nullptr;
 };
-
-using OverloadTable = Array<Array<Generic>>;
 
 struct FunctionDef
 {
