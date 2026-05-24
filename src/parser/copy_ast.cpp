@@ -56,6 +56,18 @@ DeclNode* copy_ast_decl(Interloper& itl, DeclNode* decl)
     return copy;
 }
 
+AstBlock copy_ast_block(Interloper& itl, const AstBlock block)
+{
+    AstBlock out;
+
+    for(auto& stmt: block.statement)
+    {
+        push_var(out.statement,copy_ast(itl,stmt));
+    }
+
+    return out;
+}
+
 FuncNode* copy_ast_func(Interloper& itl, FuncNode* function)
 {
     if(!function)
@@ -81,6 +93,8 @@ FuncNode* copy_ast_func(Interloper& itl, FuncNode* function)
     }
 
     copy->generic = copy_array(function->generic);
+
+    copy->block = copy_ast_block(itl,function->block);
 
     add_copy_data_pointer(itl,copy->return_type.data);
     add_copy_data_pointer(itl,copy->args.data);
