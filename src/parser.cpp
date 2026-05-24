@@ -180,7 +180,7 @@ Result<ConstSpan<Token>,parse_error> scan_brace_stmt(Parser& parser, const Strin
 #include "parser/type.cpp"
 #include "parser/control_flow.cpp"
 #include "parser/function.cpp"
-
+#include "parser/copy_ast.cpp"
 
 ParserResult const_assert(Parser& parser,const Token& t)
 {

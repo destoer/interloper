@@ -215,7 +215,7 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
         }
 
 
-        // TODO: At this point we need a copy of the ast but we will ignore this for now.
+        func.root = (FuncNode*)copy_ast(itl,(AstNode*)func.root);
 
         const auto err = deduce_generic_types(itl,*func.root,func_call);
         if(err)
@@ -223,13 +223,16 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
             return *err;
         }
 
-        // const auto sig_err = parse_func_sig(itl,func_def.name_space,func.sig,*func.root,func_sig_kind::generic);
-        // if(sig_err)
-        // {
-        //     return *sig_err;
-        // }
+        const auto sig_err = parse_func_sig(itl,func_def.name_space,func.sig,*func.root,func_sig_kind::generic);
+        if(sig_err)
+        {
+            return *sig_err;
+        }
 
         func.root->attr = func.sig.attribute;
+
+        // TODO: Need to rewrite the name name here aswell
+
 
         print(itl,(AstNode*)func.root);
 
