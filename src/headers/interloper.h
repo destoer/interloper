@@ -196,8 +196,6 @@ inline itl_error compile_error(Interloper &itl,itl_error error,const char *fmt, 
     va_start(args, fmt);
     const auto err = compile_verror(itl,error,fmt,args);
     va_end(args);
-
-    assert(false);
     
     return err;
 }

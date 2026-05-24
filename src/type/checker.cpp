@@ -270,12 +270,9 @@ Option<itl_error> check_const_internal(Interloper&itl, const Type* ltype, const 
 
     // for an rtype a copy is fine, unless it was a reference in which case
     // the ltype must also be const
-    if(is_const(rtype))
+    if(is_const(rtype) && !is_const(ltype) && was_reference)
     {
-        if(!is_const(ltype) && was_reference)
-        {
-            return compile_error(itl,itl_error::const_type_error,"cannot assign const ref rtype to ltype: %t = %t",ltype,rtype);
-        }
+        return compile_error(itl,itl_error::const_type_error,"cannot assign const ref rtype to ltype: %t = %t",ltype,rtype);
     }
 
     // neither is const is fine in any context

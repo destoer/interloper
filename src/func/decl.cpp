@@ -60,6 +60,8 @@ Option<itl_error> type_check_function(Interloper& itl, Function& func)
 {
     auto context_guard = switch_context(itl,func.root->filename,func.name_space,(AstNode*)func.root);
 
+    auto scope_guard = enter_new_anon_scope(itl.symbol_table);
+
     // put each arg into scope and copy it regs into args
     for(u32 a = 0; a < count(func.sig.args); a++)
     {
@@ -95,7 +97,6 @@ Option<itl_error> deduce_generic_types(Interloper& itl, FuncNode& node, FuncCall
     for(u32 a = 0; a < count(node.args); a++)
     {
         DeclNode* decl = node.args[a];
-        itl.ctx.expr = (AstNode*)decl;
 
         TypeNode* type_node = decl->type;
 
@@ -130,7 +131,6 @@ Option<itl_error> deduce_generic_types(Interloper& itl, FuncNode& node, FuncCall
             // Types are not equal attempt to promote them
             if(!(is_integer(generic->type) && is_integer(expr->expr_type)))
             {
-                itl.ctx.expr = expr;
                 destroy_table(generic_lookup);
                 return compile_error(itl,itl_error::generic,"Mismatched generic types %t and %t",generic->type,expr->expr_type);
             }
@@ -192,7 +192,7 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
         return func_def.func;
     }
 
-    // Scope guard for function for any declared types or symbols
+    // Scope guard for function for any declared types by generics
     auto scope_guard = enter_new_anon_scope(itl.symbol_table);
 
     Function func;

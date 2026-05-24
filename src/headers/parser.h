@@ -202,7 +202,7 @@ struct TypeNode
     String name;
 
     b32 is_const = false;
-    b32 is_constant = false ;
+    b32 is_constant = false;
     builtin_type builtin = builtin_type::void_t;
     type_node_kind kind = type_node_kind::builtin;
     

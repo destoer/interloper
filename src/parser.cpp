@@ -1840,33 +1840,42 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
             FuncNode* func = (FuncNode*)root;
 
             printf("Function %s(%x), va_args: %s\n",func->name.buf,func->attr.flags,func->args_name.buf);
-
-            print_itl(itl,"%D Generic",depth + 1);
-            for(const auto& generic : func->generic)
+            
+            if(func->generic)
             {
-                print_itl(itl,"%D %S(%s): %t",depth + 2, generic.name,CONSTRAINT_NAMES[u32(generic.constraint)],generic.type);
+                print_itl(itl,"%D Generic",depth + 1);
+                for(const auto& generic : func->generic)
+                {
+                    print_itl(itl,"%D %S(%s): %t",depth + 2, generic.name,CONSTRAINT_NAMES[u32(generic.constraint)],generic.type);
+                }
             }
 
-            print_itl(itl,"%D Args", depth + 1);
-            for(DeclNode* decl : func->args)
+            if(func->args)
             {
-                print_internal(itl,(AstNode*)decl, depth + 2);
+                print_itl(itl,"%D Args", depth + 1);
+                for(DeclNode* decl : func->args)
+                {
+                    print_internal(itl,(AstNode*)decl, depth + 2);
+                }
             }
 
             print_block(itl,&func->block, depth + 2);
 
-            print_itl(itl,"%D Return type", depth + 1);
-            for(const FuncReturnVar& var : func->return_type)
+            if(func->return_type)
             {
-                if(!var.name)
+                print_itl(itl,"%D Return type", depth + 1);
+                for(const FuncReturnVar& var : func->return_type)
                 {
-                    print_internal(itl,(AstNode*)var.type, depth + 2);
-                }
+                    if(!var.name)
+                    {
+                        print_internal(itl,(AstNode*)var.type, depth + 2);
+                    }
 
-                else
-                {
-                    print_itl(itl,"%D%S",depth,var.name);
-                    print_internal(itl,(AstNode*)var.type, depth + 3);
+                    else
+                    {
+                        print_itl(itl,"%D%S",depth,var.name);
+                        print_internal(itl,(AstNode*)var.type, depth + 3);
+                    }
                 }
             }
 
