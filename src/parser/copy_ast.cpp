@@ -56,7 +56,7 @@ DeclNode* copy_ast_decl(Interloper& itl, DeclNode* decl)
     return copy;
 }
 
-AstBlock copy_ast_block(Interloper& itl, const AstBlock block)
+AstBlock copy_ast_block(Interloper& itl, const AstBlock& block)
 {
     AstBlock out;
 
@@ -65,7 +65,47 @@ AstBlock copy_ast_block(Interloper& itl, const AstBlock block)
         push_var(out.statement,copy_ast(itl,stmt));
     }
 
+    add_copy_data_pointer(itl,out.statement.data);
+
     return out;
+}
+
+IfStmt copy_ast_if_stmt(Interloper& itl, const IfStmt& stmt)
+{
+    IfStmt out;
+    out.expr = copy_ast(itl,stmt.expr);
+
+    out.block = (AstBlock*)allocate(itl.parser_alloc.ast_allocator,sizeof(AstBlock));
+    *out.block = copy_ast_block(itl,*stmt.block);
+
+    out.type = stmt.type;
+
+    return out;
+}
+
+IfNode* copy_ast_if(Interloper& itl, IfNode* if_node)
+{
+    if(!if_node)
+    {
+        return nullptr;
+    }
+
+    IfNode* copy = alloc_node_copy(itl,if_node);
+    *copy = *if_node;
+
+    copy->if_stmt = copy_ast_if_stmt(itl,if_node->if_stmt);
+
+    copy->else_if_stmt = {};
+    for(auto& stmt : if_node->else_if_stmt)
+    {
+        push_var(copy->else_if_stmt,stmt);
+    }
+
+    add_copy_data_pointer(itl,copy->else_if_stmt.data);
+
+    copy->else_stmt = copy_ast_block(itl,if_node->else_stmt);
+
+    return copy;
 }
 
 FuncNode* copy_ast_func(Interloper& itl, FuncNode* function)
@@ -104,6 +144,40 @@ FuncNode* copy_ast_func(Interloper& itl, FuncNode* function)
 }
 
 
+template<typename T>
+T* copy_ast_expr_bin_node(Interloper& itl, T* expr)
+{
+    T* copy = alloc_node_copy(itl,expr);
+    copy->oper = expr->oper;
+    copy->left = copy_ast(itl,expr->left);
+    copy->right = copy_ast(itl,expr->right);
+
+    return copy;
+}
+
+SymbolNode* copy_ast_symbol(Interloper& itl, SymbolNode* sym)
+{
+    SymbolNode* copy = alloc_node_copy(itl,sym);
+    *copy = *sym;
+
+    return copy;
+}
+
+RetNode* copy_ast_ret(Interloper& itl, RetNode* ret)
+{
+    RetNode* copy = alloc_node_copy(itl,ret);
+
+    copy->expr = {};
+    for(AstNode* expr : ret->expr)
+    {
+        push_var(copy->expr,copy_ast(itl,expr));
+    }
+
+    add_copy_data_pointer(itl,copy->expr.data);
+
+    return copy;
+}
+
 AstNode* copy_ast(Interloper& itl, AstNode* node)
 {
     if(!node)
@@ -126,6 +200,26 @@ AstNode* copy_ast(Interloper& itl, AstNode* node)
         case ast_type::decl:
         {
             return (AstNode*)copy_ast_decl(itl,(DeclNode*)node);
+        }
+
+        case ast_type::if_t:
+        {
+            return (AstNode*)copy_ast_if(itl,(IfNode*)node);
+        }
+
+        case ast_type::comparison:
+        {
+            return (AstNode*)copy_ast_expr_bin_node(itl,(CmpNode*)node);
+        }
+
+        case ast_type::symbol:
+        {
+            return (AstNode*)copy_ast_symbol(itl,(SymbolNode*)node);
+        }
+
+        case ast_type::ret:
+        {
+            return (AstNode*)copy_ast_ret(itl,(RetNode*)node);
         }
 
         default: break;
