@@ -14,7 +14,10 @@ T* alloc_node_copy(Interloper& itl, T* src)
 
 void add_copy_data_pointer(Interloper& itl, void* data)
 {
-    push_raw_var(itl.parser_alloc.ast_arrays,data);
+    if(data)
+    {
+        push_raw_var(itl.parser_alloc.ast_arrays,data);
+    }
 }
 
 TypeNode* copy_ast_type(Interloper& itl,TypeNode* type)
@@ -155,14 +158,6 @@ T* copy_ast_expr_bin_node(Interloper& itl, T* expr)
     return copy;
 }
 
-SymbolNode* copy_ast_symbol(Interloper& itl, SymbolNode* sym)
-{
-    SymbolNode* copy = alloc_node_copy(itl,sym);
-    *copy = *sym;
-
-    return copy;
-}
-
 RetNode* copy_ast_ret(Interloper& itl, RetNode* ret)
 {
     RetNode* copy = alloc_node_copy(itl,ret);
@@ -174,6 +169,34 @@ RetNode* copy_ast_ret(Interloper& itl, RetNode* ret)
     }
 
     add_copy_data_pointer(itl,copy->expr.data);
+
+    return copy;
+}
+
+CastNode* copy_ast_cast(Interloper& itl, CastNode* cast)
+{
+    CastNode* copy = alloc_node_copy(itl,cast);
+    copy->type = copy_ast_type(itl,cast->type);
+    copy->expr = copy_ast(itl,cast->expr);
+    cast->oper = cast->oper;
+
+    return copy;
+}
+
+template<typename T>
+T* copy_pod_node(Interloper& itl, T* node)
+{
+    T* copy = alloc_node_copy(itl,node);
+    *copy = *node;
+
+    return copy;
+}
+
+ArithUnaryNode* copy_arith_unary(Interloper& itl, ArithUnaryNode* unary)
+{
+    ArithUnaryNode* copy = alloc_node_copy(itl,unary);
+    copy->oper = unary->oper;
+    copy->expr = copy_ast(itl,unary->expr);
 
     return copy;
 }
@@ -212,9 +235,39 @@ AstNode* copy_ast(Interloper& itl, AstNode* node)
             return (AstNode*)copy_ast_expr_bin_node(itl,(CmpNode*)node);
         }
 
+        case ast_type::boolean_logic:
+        {
+            return (AstNode*)copy_ast_expr_bin_node(itl,(BooleanLogicNode*)node);
+        }
+
+        case ast_type::arith_bin:
+        {
+            return (AstNode*)copy_ast_expr_bin_node(itl,(ArithBinNode*)node);
+        }
+
+        case ast_type::shift:
+        {
+            return (AstNode*)copy_ast_expr_bin_node(itl,(ShiftNode*)node);
+        }
+
+        case ast_type::cast:
+        {
+            return (AstNode*)copy_ast_cast(itl,(CastNode*)node);
+        }
+
         case ast_type::symbol:
         {
-            return (AstNode*)copy_ast_symbol(itl,(SymbolNode*)node);
+            return (AstNode*)copy_pod_node(itl,(SymbolNode*)node);
+        }
+
+        case ast_type::value:
+        {
+            return (AstNode*)copy_pod_node(itl,(ValueNode*)node);
+        }
+
+        case ast_type::arith_unary:
+        {
+            return (AstNode*)copy_arith_unary(itl,(ArithUnaryNode*)node);
         }
 
         case ast_type::ret:

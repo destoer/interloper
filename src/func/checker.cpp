@@ -257,8 +257,6 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
         const auto pass_err = check_assign_arg(itl,sym.type,rtype);
         if(pass_err)
         {
-            print(itl,(AstNode*)func_call);
-            assert(false);
             return *pass_err;
         }
     }

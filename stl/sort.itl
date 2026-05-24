@@ -2,7 +2,7 @@ namespace std;
 
 type_alias SORT_CMP_FUNC = func(v1 : const byte@, v2: const byte@) bool;
 
-func heapify(array: Array@, idx: ssize, len: ssize, cmp_func: SORT_CMP_FUNC)
+func heapify(array: Array@, idx: usize, len: usize, cmp_func: SORT_CMP_FUNC)
 {
     elem_size := array.element_size;
     heap := array.buf;
@@ -44,18 +44,20 @@ func sort(array: Array@,cmp_func: SORT_CMP_FUNC)
     // setup the heap
     for i: ssize = (size / 2) - 1; i >= 0; i -= 1
     {
-        heapify(array,i,size,cmp_func);
+        heapify(array,cast(usize,i),size,cmp_func);
     }
 
     heap := array.buf;
 
     for i: ssize = size - 1; i > 0; i -= 1
     {
+        idx := cast(usize,i);
+
         // extract each item to end of array
         // then "hide" it from the heap
-        swap_mem(&heap[0 * array.element_size],&heap[i * array.element_size],array.element_size);
+        swap_mem(&heap[0 * array.element_size],&heap[idx * array.element_size],array.element_size);
 
         // heap property is now violated fix it
-        heapify(array,0,i,cmp_func);
+        heapify(array,0,idx,cmp_func);
     }
 }

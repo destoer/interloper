@@ -191,11 +191,11 @@ func array_index(array: const Array@, idx: usize) byte@
     return &array.buf[offset];
 }
 
-func read_array_circular(array: const Array@, idx: s64,out: byte@)
+func read_array_circular(array: const Array@, idx: ssize,out: byte@)
 {
     if idx < 0
     {
-        idx = count_array(array) + idx;
+        idx = count_array(array) + cast(usize,idx);
     } 
 
     src := array_index(array,cast(u64,idx));
