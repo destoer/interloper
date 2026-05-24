@@ -225,7 +225,17 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
         {
             case type_node_kind::generic:
             {
-                assert(false);
+                const auto name = type_decl->name;
+                is_alias = true;
+
+                TypeDecl* user_type = lookup_complete_decl(itl,name);
+                if(!user_type)
+                {
+                    return compile_error(itl,itl_error::undeclared,"Generic type %S is not defined",type_decl->name);
+                }
+
+
+                type = make_base_type(itl,user_type->type_idx,user_type->kind,flags); 
                 break;
             }
 
