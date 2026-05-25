@@ -4,7 +4,7 @@ func main() s32
 {
     arr : u32[?] = {1,2,3,4,5};
 
-    sum1 : s64 = 0;
+    sum1 : u64 = 0;
 
     // forward
     for(i in 0 < arr.len)
@@ -35,7 +35,7 @@ func main() s32
 
 
     // array iter with idx
-    sum4 : s64 = 0;
+    sum4 : u64 = 0;
 
     for([v, i] in arr)
     {
@@ -43,7 +43,7 @@ func main() s32
     }
 
     // array iter by pointer, with idx
-    sum5 : s64 = 0;
+    sum5 : u64 = 0;
 
     for([@v, i] in arr)
     {
