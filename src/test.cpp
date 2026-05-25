@@ -280,6 +280,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
     // generic
     {"tests/generic/deduction",1},
+    {"tests/generic/compound",45},
 };
 
 static constexpr u32 PROGRAM_CORRECT_TEST_SIZE = sizeof(PROGRAM_CORRECT_TEST) / sizeof(ProgramCorrectTest);
