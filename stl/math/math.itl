@@ -113,7 +113,7 @@ func rad_to_deg(rad: f64) f64
     return rad * (180.0 / PI);
 }
 
-func sum<T: Real>(array: $T[])
+func sum<T: Real>(array: $T[]) $T
 {
     ans: $T;
 

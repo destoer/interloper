@@ -236,6 +236,19 @@ T* copy_ast_expr_bin_node(Interloper& itl, T* bin)
     return copy;    
 }
 
+ForRangeNode* copy_ast_for_range(Interloper& itl, ForRangeNode* range)
+{
+    ForRangeNode* copy = alloc_node_copy(itl,range);
+    *copy = *range;
+
+    copy->cond = copy_ast(itl,range->cond);
+
+    copy->block = copy_ast_block(itl,range->block);
+    add_copy_data_pointer(itl,&copy->block.statement.data);
+
+    return copy;    
+}
+
 AstNode* copy_ast(Interloper& itl, AstNode* node)
 {
     if(!node)
@@ -323,6 +336,11 @@ AstNode* copy_ast(Interloper& itl, AstNode* node)
         case ast_type::assign:
         {
             return (AstNode*)copy_ast_expr_bin_node(itl,(AssignNode*)node);
+        }
+
+        case ast_type::for_range:
+        {
+            return (AstNode*)copy_ast_for_range(itl,(ForRangeNode*)node);
         }
 
         default: break;

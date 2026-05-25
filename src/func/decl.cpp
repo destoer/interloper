@@ -108,8 +108,6 @@ Option<itl_error> type_check_function(Interloper& itl, Function& func)
 
 TypeResult cut_generic_compound(Interloper& itl, Type* type, TypeNode* decl)
 {
-    UNUSED(itl);
-
     for(const auto& compound : decl->compound)
     {
         switch(compound.type)
@@ -122,6 +120,17 @@ TypeResult cut_generic_compound(Interloper& itl, Type* type, TypeNode* decl)
                 }
 
                 type = deref_pointer(type);
+                break;
+            }
+
+            case compound_type::arr_var_size:
+            {
+                if(!is_array(type))
+                {
+                    return compile_error(itl,itl_error::generic,"Generic type requires variable sized array got %t",type);
+                }
+
+                type = index_arr(type);
                 break;
             }
 
@@ -224,7 +233,7 @@ Result<Array<Generic>,itl_error> deduce_generic_types(Interloper& itl, FuncNode&
 
     destroy_table(generic_lookup);
 
-    // Check constraints are met and add the type aliases for this scope.
+    // Check constraints are met.
     for(auto& generic : generic_overload)
     {
         if(!generic.type)
