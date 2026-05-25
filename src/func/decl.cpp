@@ -198,6 +198,14 @@ Result<Array<Generic>,itl_error> deduce_generic_types(Interloper& itl, FuncNode&
     // Check constraints are met and add the type aliases for this scope.
     for(auto& generic : generic_overload)
     {
+        if(!generic.type)
+        {
+            const auto err = compile_error(itl,itl_error::generic,"Generic %S could not be deduced",generic.name);
+
+            destroy_arr(generic_overload);
+            return err;      
+        }
+
         switch(generic.constraint)
         {
             case constraint_type::integer:
@@ -218,6 +226,19 @@ Result<Array<Generic>,itl_error> deduce_generic_types(Interloper& itl, FuncNode&
                 if(!is_integer(generic.type) && !is_float(generic.type))
                 {
                     const auto err = compile_error(itl,itl_error::generic,"Generic %S : %t does not meet constraint Real",generic.name,generic.type);
+
+                    destroy_arr(generic_overload);
+                    return err;
+                }
+
+                break;
+            }
+
+            case constraint_type::sized:
+            {
+                if(type_size(itl,generic.type) == 0)
+                {
+                    const auto err = compile_error(itl,itl_error::generic,"Generic %S : %t is not sized",generic.name,generic.type);
 
                     destroy_arr(generic_overload);
                     return err;

@@ -113,6 +113,18 @@ func rad_to_deg(rad: f64) f64
     return rad * (180.0 / PI);
 }
 
+func sum<T: Real>(array: $T[])
+{
+    ans: $T;
+
+    for v in array
+    {
+        ans += v;
+    }
+
+    return ans;
+}
+
 
 /*
 func log10(v: f64) u64

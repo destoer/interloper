@@ -165,3 +165,10 @@ func swap_mem(v1: byte@, v2: byte@, size: usize)
         v2[i] = tmp;
     }
 }
+
+func swap<T: Sized>(v1: $T@, v2: $T@)
+{
+    tmp := @v1;
+    @v1 = v2;
+    @v2 = tmp;
+}

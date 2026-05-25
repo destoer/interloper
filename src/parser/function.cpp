@@ -99,6 +99,11 @@ Result<constraint_type,parse_error> find_constraint(Parser& parser, const String
         return constraint_type::integer;
     }
 
+    else if(name == "Sized")
+    {
+        return constraint_type::sized;
+    }
+
     return parser_error(parser,parse_error::malformed_stmt,token,"%S is not a generic constraint.\n",name);
 }
 

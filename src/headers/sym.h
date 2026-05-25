@@ -161,13 +161,15 @@ struct Function
 const char* CONSTRAINT_NAMES[] =
 {
     "Integer",
-    "Real"
+    "Real",
+    "Sized",
 };
 
 enum class constraint_type
 {
     integer,
     real,
+    sized,
 };
 
 
