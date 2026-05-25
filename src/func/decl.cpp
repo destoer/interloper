@@ -15,6 +15,11 @@ FunctionTable make_func_table()
 
 void destroy_func_table(FunctionTable& func_table)
 {
+    for(auto& def : func_table.table)
+    {
+        destroy_arr(def.generic_overload);
+    }
+
     for(auto& func_ptr : func_table.used)
     {
         auto& func = *func_ptr;
@@ -56,13 +61,17 @@ void add_func(Interloper& itl, const String& name, NameSpace* name_space, const 
     add(name_space->table,copy_string(itl.string_allocator,name), info);  
 }
 
+GenericScopeGuard switch_generic_context(Interloper& itl, const GenericOverload& overload)
+{
+    return GenericScopeGuard(itl.generic_overload,overload);
+}
+
 Option<itl_error> type_check_function(Interloper& itl, Function& func)
 {
-    auto context_guard = switch_context(itl,func.root->filename,func.name_space,(AstNode*)func.root);
+    const auto context_guard = switch_context(itl,func.root->filename,func.name_space,(AstNode*)func.root);
+    const auto scope_guard = enter_new_anon_scope(itl.symbol_table);
+    const auto generic_guard = switch_generic_context(itl,func.root->generic);
 
-    // put arguments on the symbol table they are marked as args
-    // so we know to access them "above" to stack pointer
-    auto scope_guard = enter_new_anon_scope(itl.symbol_table);
 
     // put each arg into scope and copy it regs into args
     for(u32 a = 0; a < count(func.sig.args); a++)
@@ -72,10 +81,184 @@ Option<itl_error> type_check_function(Interloper& itl, Function& func)
         add_sym_to_scope(itl.symbol_table,sym);
     }
 
-    return type_check_block(itl,func,func.root->block);
+    const u32 error_count = itl.error_count;
+
+    const auto result = type_check_block(itl,func,func.root->block);
+
+    if(itl.error_count != error_count && func.from_generic)
+    {
+        print_itl(itl,"Error in generic function %S with substitution from:",func.root->name);
+
+        const auto caller_filename = func.root->generic_call_filename;
+
+        // Print line we are setup from
+        const auto [line,col] = get_line_info(caller_filename,func.root->generic_call->node.idx);
+        print_line(caller_filename,line);
+
+        for(const auto& generic : func.root->generic)
+        {
+            print_itl(itl,"%S = %t",generic.name,generic.type);
+        }
+
+        putchar('\n');   
+    }
+
+    return result;
 }
 
-Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def, bool forced)
+Result<Array<Generic>,itl_error> deduce_generic_types(Interloper& itl, FuncNode& node, FuncCallNode* func_call)
+{
+    assert(func_call);
+
+    auto generic_overload = copy_array(node.generic);
+
+    // TODO: This ideally needs caching.
+    auto generic_lookup = make_table<String,Generic*>();
+
+    for(u32 i = 0; i < count(generic_overload); i++)
+    {
+        const auto& generic = generic_overload[i];
+
+        if(contains(generic_lookup,generic.name))
+        {
+            destroy_table(generic_lookup);
+            destroy_arr(generic_overload);
+            return compile_error(itl,itl_error::redeclaration,"Generic %S is declared twice",generic.name);
+        }
+
+        add(generic_lookup,generic.name,&generic_overload[i]);
+    }
+
+    // Deduce generic types
+    for(u32 a = 0; a < count(node.args); a++)
+    {
+        DeclNode* decl = node.args[a];
+
+        TypeNode* type_node = decl->type;
+
+        if(type_node->kind != type_node_kind::generic)
+        {
+            continue;
+        }
+
+        AstNode* expr = func_call->args[a];
+
+        if(!type_node->compound)
+        {
+            const auto generic_opt = lookup(generic_lookup,type_node->name);
+
+            if(!generic_opt)
+            {
+                const auto err = compile_error(itl,itl_error::undeclared,"Generic type %S does not exist",type_node->name);
+
+                destroy_table(generic_lookup);
+                destroy_arr(generic_overload);
+                return err;
+            }
+
+            auto& generic = *generic_opt;
+            if(!generic->type)
+            {
+                generic->type = expr->expr_type;
+            }
+
+            if(type_equal(generic->type,expr->expr_type))
+            {
+                continue;
+            }
+
+            // Types are not equal attempt to promote them
+            if(!(is_integer(generic->type) && is_integer(expr->expr_type)))
+            {
+                const auto err = compile_error(itl,itl_error::generic,"Mismatched generic types %t and %t",generic->type,expr->expr_type);
+
+                destroy_table(generic_lookup);
+                destroy_arr(generic_overload);
+                return err;
+            }
+            
+            const auto promotion_res = promote_integer_type(itl,generic->type,expr->expr_type);
+            if(!promotion_res)
+            {
+                destroy_table(generic_lookup);
+                destroy_arr(generic_overload);
+                return promotion_res.error();
+            }
+
+            generic->type = *promotion_res;
+            continue;
+        }
+
+        // TODO: This requires removing the compound type from each part
+        unimplemented("Compound generic");
+    }
+
+    destroy_table(generic_lookup);
+
+    // Check constraints are met and add the type aliases for this scope.
+    for(auto& generic : generic_overload)
+    {
+        switch(generic.constraint)
+        {
+            case constraint_type::integer:
+            {
+                if(!is_integer(generic.type))
+                {
+                    const auto err = compile_error(itl,itl_error::generic,"Generic %S : %t does not meet constraint Integer",generic.name,generic.type);
+
+                    destroy_arr(generic_overload);
+                    return err;
+                }
+
+                break;
+            }
+
+            case constraint_type::real:
+            {
+                if(!is_integer(generic.type) && !is_float(generic.type))
+                {
+                    const auto err = compile_error(itl,itl_error::generic,"Generic %S : %t does not meet constraint Real",generic.name,generic.type);
+
+                    destroy_arr(generic_overload);
+                    return err;
+                }
+
+                break;
+            }
+        }
+    }
+
+    return generic_overload;
+}
+
+bool check_overload(const Function* func, const Array<Generic>& generic_overload)
+{
+    for(u32 a = 0; a < count(generic_overload); a++)
+    {
+        if(!type_equal(generic_overload[a].type,func->root->generic[a].type))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+Function* find_overload(const OverloadTable& overload, const Array<Generic>& generic_overload)
+{
+    for(Function* func : overload)
+    {
+        if(check_overload(func,generic_overload))
+        {
+            return func;
+        }
+    }
+
+    return nullptr;
+
+}
+
+Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def, FuncCallNode* func_call, bool forced)
 {
     // have finalised this func
     if(func_def.func)
@@ -88,8 +271,69 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
     func.root = func_def.root;
     func.name_space = func_def.name_space;
 
+    // Handle generic functions.
+    if(func.root && func.root->generic)
+    {
+        // This is a forced type check as we have no calling context we do actually have an instantiation of the function.
+        if(forced)
+        {
+            return nullptr;
+        }
+
+        if(!func_call)
+        {
+            return compile_error(itl,itl_error::invalid_statement,"Generic function call %S has no calling context.",func_def.name);
+        }
+
+        func.from_generic = true;
+
+        const auto res = deduce_generic_types(itl,*func.root,func_call);
+        if(!res)
+        {
+            return res.error();
+        }
+
+        Array<Generic> generic_overload = *res;
+
+        // Scan and see if overload already exists
+        if(func_def.generic_overload)
+        {
+            Function* func = find_overload(func_def.generic_overload,generic_overload);
+
+            if(func)
+            {
+                destroy_arr(generic_overload);
+                return func;
+            }
+        }
+
+        func.root = (FuncNode*)copy_ast(itl,(AstNode*)func.root);
+
+        func.root->generic = generic_overload;
+        add_copy_data_pointer(itl,&func.root->generic.data);
+
+        func.root->generic_call = func_call;
+        func.root->generic_call_filename = itl.ctx.filename;
+
+
+        const auto sig_err = parse_func_sig(itl,func_def.name_space,func.sig,*func.root,func_sig_kind::generic);
+        if(sig_err)
+        {
+            destroy_func(func);
+            return *sig_err;
+        } 
+
+        func.root->attr = func.sig.attribute;
+
+        char overload_name[64] = {0};
+        sprintf(overload_name,"__generic_0x%x",count(func_def.generic_overload));
+
+        // TODO: Generate a full generic name
+        func.name = cat_string(itl.string_allocator,func.name,overload_name); 
+    }
+
     // parse in function signature on demand
-    if(func.root)
+    else if(func.root)
     {
         const auto sig_err = parse_func_sig(itl,func_def.name_space,func.sig,*func.root,func_sig_kind::function);
         if(sig_err)
@@ -114,7 +358,7 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
     func.label_slot = add_label(itl.symbol_table,func.name);
 
     // write back the slot
-    func_def.func = (Function*)allocate(itl.func_table.arena,sizeof(Function));
+    Function* func_ptr = (Function*)allocate(itl.func_table.arena,sizeof(Function));
 
     // Cache the call information for the func
     func.call_info.label_slot = func.label_slot;
@@ -122,19 +366,30 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
     func.call_info.name = func.name;
     func.call_info.flags = 0;
 
-    // add the actual func
-    *func_def.func = func;
+    *func_ptr = func;
+
+    if(func.from_generic)
+    {
+        // Mark this overload as instanced
+        push_var(func_def.generic_overload,func_ptr);
+    }
+
+    else
+    {
+        // If this is an ordinary function mark it as concrete
+        func_def.func = func_ptr;
+    }
 
     if(!forced)
     {
         // mark it used
-        push_var(itl.func_table.used,func_def.func);
+        push_var(itl.func_table.used,func_ptr);
     }
 
     // Type checked only delete later after checking done
     else
     {
-        push_var(itl.func_table.unused,func_def.func);
+        push_var(itl.func_table.unused,func_ptr);
     }
 
     if(func.root)
@@ -146,7 +401,7 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
         }
     }
 
-    return func_def.func;   
+    return func_ptr;   
 }
  
 Function* create_dummy_func(Interloper& itl, const String& name)
@@ -291,12 +546,11 @@ void add_hidden_return(Interloper& itl, FuncSig& sig, const String& name, Type* 
     sig.hidden_args++;
 }
 
-
-
 Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node, func_sig_kind kind)
 {
     // about to move to a different context
-    auto context_guard = switch_context(itl,node.filename,name_space,(AstNode*)&node);
+    const auto context_guard = switch_context(itl,node.filename,name_space,(AstNode*)&node);
+    const auto generic_guard = switch_generic_context(itl,node.generic);
     sig.attribute = node.attr;
 
     u32 arg_offset = 0;

@@ -462,7 +462,7 @@ Option<itl_error> type_check_ast(Interloper& itl)
     // Type check every func even if we don't compile it.
     for(auto& func_def : itl.func_table.table)
     {
-        const auto res = finalise_func(itl, func_def, true);
+        const auto res = finalise_func(itl, func_def, nullptr, true);
         if(!res)
         {
             return res.error();

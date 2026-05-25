@@ -1,0 +1,10 @@
+func main() s32
+{
+    res1 := std::min(55,127) == 55;
+    res2 := std::min(-1000,500) == -1000;
+    res3 := std::min(1235.0,9275.0) == 1235.0;
+
+    res4 := std::clamp(2.0,0.0,1.0) == 1.0;
+
+    return cast(s32,res1 && res2 && res3 && res4);
+}

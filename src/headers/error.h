@@ -34,6 +34,7 @@ enum class [[nodiscard]] itl_error
     missing_case,
     unimplemented,
     unused_symbol,
+    generic,
 };
 
 static const char* ERROR_NAME[] = 
@@ -68,7 +69,8 @@ static const char* ERROR_NAME[] =
     "rtti error",
     "missing case",
     "unimplemented",
-    "unused_symbol"
+    "unused_symbol",
+    "generic"
 };
 
 struct Type;

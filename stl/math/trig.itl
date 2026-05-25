@@ -135,10 +135,10 @@ func tan(value: f64) f64
 // https://developer.nvidia.com/w/cg/atan2.html
 func atan2(y: f64, x: f64) f64
 {
-    t2 := fabs(x);
-    t1 := fabs(y);
-    t0 := max_f64(t2, t1);
-    t1 = min_f64(t2, t1);
+    t2 := abs(x);
+    t1 := abs(y);
+    t0 := max(t2, t1);
+    t1 = min(t2, t1);
     t2 = 1.0 / t0;
     t2 = t1 * t2;
 
@@ -152,7 +152,7 @@ func atan2(y: f64, x: f64) f64
     t2 = t0 * t2;
 
     
-    if fabs(y) > fabs(x)
+    if abs(y) > abs(x)
     {
         t2 =  (PI / 2.0) - t2;
     }
@@ -181,7 +181,7 @@ func atan(z: f64) f64
 func acos(x: f64) f64
 {
   negate := cast(f64,x < 0.0);
-  x = fabs(x);
+  x = abs(x);
   ret := -0.0187293;
   ret = ret * x;
   ret = ret + 0.0742610;
@@ -199,7 +199,7 @@ func acos(x: f64) f64
 func asin(x: f64) f64
 {
   negate := cast(f64,x < 0.0);
-  x = fabs(x);
+  x = abs(x);
   ret := -0.0187293;
   ret *= x;
   ret += 0.0742610;

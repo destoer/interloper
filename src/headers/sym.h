@@ -153,9 +153,65 @@ struct Function
     b32 used = false;
 
     b32 leaf_func = true;
+    b32 from_generic = false;
 
     FuncCall call_info;
 };
+
+const char* CONSTRAINT_NAMES[] =
+{
+    "Integer",
+    "Real"
+};
+
+enum class constraint_type
+{
+    integer,
+    real,
+};
+
+
+
+struct Generic
+{
+    String name;
+    constraint_type constraint;
+    // Filled in during deduction
+    Type* type = nullptr;
+};
+
+
+using OverloadTable = Array<Function*>;
+using GenericOverload = Array<Generic>;
+
+
+struct GenericOverloadContext
+{
+    GenericOverload current_overload;
+    Array<GenericOverload> overload;
+};
+
+struct GenericScopeGuard
+{
+    GenericScopeGuard(GenericOverloadContext& ctx, const GenericOverload& overload) : ctx(ctx)  
+    {
+        ctx.current_overload = overload;
+        push_var(ctx.overload,overload);
+    }
+
+    ~GenericScopeGuard() 
+    {
+        pop(ctx.overload);
+
+        if(ctx.overload)
+        {
+            ctx.current_overload = ctx.overload[count(ctx.overload) - 1];
+        }
+    }
+
+    GenericOverloadContext& ctx;
+};
+
 
 struct FunctionDef
 {
@@ -168,6 +224,8 @@ struct FunctionDef
     Function* func = nullptr;
     NameSpace* name_space = nullptr;
     String name;
+
+    OverloadTable generic_overload;
 };
 
 struct FunctionTable
@@ -178,7 +236,7 @@ struct FunctionTable
     ArenaAllocator arena;
 };
 
-Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def, bool forced = false);
+Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def, FuncCallNode* func_call = nullptr, bool forced = false);
 
 b32 func_exists(Interloper& itl, const String& name, const String& name_space);
 
@@ -191,6 +249,7 @@ enum class func_sig_kind
 {
     function,
     function_pointer,
+    generic,
 };
 
 Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node, func_sig_kind kind);

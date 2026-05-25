@@ -192,7 +192,8 @@ enum class type_node_kind
 {
     builtin,
     func_pointer,
-    user
+    user,
+    generic,
 };
 
 struct TypeNode
@@ -200,8 +201,8 @@ struct TypeNode
     AstNode node;
     String name;
 
-    b32 is_const;
-    b32 is_constant;
+    b32 is_const = false;
+    b32 is_constant = false;
     builtin_type builtin = builtin_type::void_t;
     type_node_kind kind = type_node_kind::builtin;
     
@@ -666,6 +667,9 @@ struct FuncNode
     Array<FuncReturnVar> return_type;
     AstBlock block;
     Array<DeclNode*> args;
+    GenericOverload generic;
+    const FuncCallNode* generic_call = nullptr;
+    String generic_call_filename;
 
     b32 va_args = false;
     String args_name;
@@ -1198,6 +1202,7 @@ AstNode *ast_func(Parser& parser,const String &name, const String& filename, con
 
     add_ast_pointer(parser,&func_node->args.data);
     add_ast_pointer(parser,&func_node->return_type.data);
+    add_ast_pointer(parser,&func_node->generic.data);
 
     func_node->name = name;
     func_node->filename = filename;

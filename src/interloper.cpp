@@ -31,11 +31,12 @@ void setup_parser_allocator(Interloper& itl)
     itl.parser_alloc.namespace_allocator = &itl.namespace_allocator;
 }
 
-void destory_parser_allocator(ParserAllocator& alloc)
+void destroy_parser_allocator(ParserAllocator& alloc)
 {
     for(void** array_ptr : alloc.ast_arrays)
     {
        free(*array_ptr);
+       *array_ptr = nullptr;
     }
 
     destroy_arr(alloc.ast_arrays);
@@ -56,7 +57,7 @@ void destroy_file_tokens(Interloper& itl)
 
 void destroy_ast(Interloper& itl)
 {
-    destory_parser_allocator(itl.parser_alloc);
+    destroy_parser_allocator(itl.parser_alloc);
     destroy_file_tokens(itl);
 
     destroy_arr(itl.global_decl);

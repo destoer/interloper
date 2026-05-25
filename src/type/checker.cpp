@@ -55,6 +55,53 @@ builtin_type value_type(const Value& value)
     }    
 }
 
+TypeResult promote_signed_unsigned(Interloper& itl,Type* signed_type, Type* unsigned_type)
+{
+    const auto builtin_signed = cast_builtin(signed_type);
+    const auto builtin_unsigned = cast_builtin(unsigned_type);
+
+    // signed has more capacity it can store the unsigned
+    if(builtin_size(builtin_signed) > builtin_size(builtin_unsigned))
+    {
+        return signed_type;
+    }
+
+    // if unsigned is not u64 we can promote its capacity
+    if(builtin_unsigned == builtin_type::u64_t)
+    {
+        return compile_error(itl,itl_error::int_type_error,"Cannot promote signed type to accommodate u64");
+    }
+
+    switch(builtin_signed)
+    {
+        case builtin_type::s8_t: return make_builtin(itl,builtin_type::s16_t);
+        case builtin_type::s16_t: return make_builtin(itl,builtin_type::s32_t);
+        case builtin_type::s32_t: return make_builtin(itl,builtin_type::s64_t);
+
+        default: break;
+    }
+
+    crash_and_burn("Invalid integer promotion!?");
+}
+
+TypeResult promote_integer_type(Interloper& itl,Type *ltype, Type *rtype)
+{
+    const auto builtin_r = cast_builtin(rtype);
+    const auto builtin_l = cast_builtin(ltype);
+
+    // return the larger size of the type (promotion)
+    if(is_signed(builtin_r) == is_signed(builtin_l))
+    {
+        return (builtin_size(builtin_l) > builtin_size(builtin_r))? ltype : rtype;
+    }
+    
+    if(is_signed(builtin_r))
+    {
+        return promote_signed_unsigned(itl,rtype,ltype);
+    }
+
+    return promote_signed_unsigned(itl,ltype,rtype);
+}
 
 TypeResult effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, arith_bin_type arith)
 {
@@ -64,11 +111,7 @@ TypeResult effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, arith_
         // both integers
         if(is_integer(rtype) && is_integer(ltype))
         {
-            const auto builtin_r = cast_builtin(rtype);
-            const auto builtin_l = cast_builtin(ltype);
-
-            // return the larger size of the type (promotion)
-            return (builtin_size(builtin_l) > builtin_size(builtin_r))? ltype : rtype; 
+            return promote_integer_type(itl,ltype,rtype);
         }
 
         // both floats, just a float
@@ -227,12 +270,9 @@ Option<itl_error> check_const_internal(Interloper&itl, const Type* ltype, const 
 
     // for an rtype a copy is fine, unless it was a reference in which case
     // the ltype must also be const
-    if(is_const(rtype))
+    if(is_const(rtype) && !is_const(ltype) && was_reference)
     {
-        if(!is_const(ltype) && was_reference)
-        {
-            return compile_error(itl,itl_error::const_type_error,"cannot assign const ref rtype to ltype: %t = %t",ltype,rtype);
-        }
+        return compile_error(itl,itl_error::const_type_error,"cannot assign const ref rtype to ltype: %t = %t",ltype,rtype);
     }
 
     // neither is const is fine in any context

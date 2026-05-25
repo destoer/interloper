@@ -379,7 +379,7 @@ void compile_function(Interloper& itl, Function& func)
     if(!func.root)
     {
         // produce a dummy basic block
-        if(count(func.emitter.program) == 0)
+        if(!func.emitter.program)
         {
             new_basic_block(itl,func);
         }

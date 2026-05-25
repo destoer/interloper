@@ -6,6 +6,21 @@ void print_type(Interloper& itl, const Type* type)
 
 Type* copy_type(Interloper& itl, const Type* type);
 
+// TODO: This should probably be a hash table
+TypeResult find_generic_type(Interloper& itl, const String& name)
+{
+    for(auto& generic : itl.generic_overload.current_overload)
+    {
+        if(name == generic.name)
+        {
+            return copy_type(itl,generic.type);
+        }
+    }
+
+    return compile_error(itl,itl_error::undeclared,"Generic type %S is not defined",name);
+}
+
+
 Type* copy_type_internal(Interloper& itl, const Type* type)
 {
     switch(type->kind)
@@ -223,6 +238,22 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
     {
         switch(type_decl->kind)
         {
+            case type_node_kind::generic:
+            {
+                const auto name = type_decl->name;
+                is_alias = true;
+
+
+                const auto res = find_generic_type(itl,name);
+                if(!res)
+                {
+                    return res.error();
+                }
+
+                type = *res;
+                break;
+            }
+
             case type_node_kind::user:
             {
                 // NOTE: here we are doing the heavy lifting on defs by our self

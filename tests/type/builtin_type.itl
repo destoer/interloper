@@ -5,7 +5,7 @@ func main() s32
     v1 : s8 = 3;
 
     // same size, this is fine
-    v2 : u8 = v1 + 7;
+    v2 : u8 = cast(u8,v1 + 7);
 
     // v3 = 0
     v3 : u16 = 65535;

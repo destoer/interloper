@@ -3,5 +3,5 @@ use std;
 
 func main() s32
 {
-    return min_u64(5,100);
+    return min(5,100);
 }

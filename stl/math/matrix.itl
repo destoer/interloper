@@ -1,5 +1,41 @@
 namespace std;
 
+
+/*
+struct Matrix<M: usize, N: usize>
+{
+    mat: f64[M][N];
+}
+
+type_alias Mat2F = Matrix<2,2>;
+type_alias Mat3F = Matrix<3,3>;
+type_alias Mat4F = Matrix<4,4>;
+
+func mul_mat<M: usize,N: usize,T = Matrix<$M,$N>>(m1: const $T@: const $T@) $T
+{   
+    ans: $T = {?};
+
+    for [row, r] in m1.mat
+    {
+        for [@cell, c] in ans.mat[r]
+        {
+            v := 0.0;
+
+            // TODO: How tricky is it to make something to unroll a single block?
+            // If we unroll the innermost first here will we manage to unroll the entire function?
+            for n in 0 < M 
+            {
+                v += row[n] * m2.mat[n][c];
+            }
+
+            @cell = v;
+        }
+    }     
+
+    return ans;
+}
+*/
+
 struct Mat2F
 {
     mat: f64[2][2];

@@ -2,7 +2,7 @@ namespace std;
 
 constant BITS_IN_BYTE : u32 = 8;
 
-func is_set(v: u64, bit: u32) bool
+func is_set<T: Integer>(v: $T, bit: u32) bool
 {
     return cast(bool,(v >> bit) & 1);
 }
@@ -20,12 +20,12 @@ func hamming_weight(set: u64) u32
     return sum;
 }
 
-func set_bit(v: u64, bit: u32) u64
+func set_bit<T: Integer>(v: $T, bit: u32) $T
 {
     return v | (1 << bit);
 }
 
-func deset_bit(v : u64, bit: u32) u64
+func deset_bit<T: Integer>(v : $T, bit: u32) $T
 {
     return v & ~(1 << bit);
 }

@@ -55,6 +55,11 @@ b32 is_float(const Type* type)
     return is_builtin_type(type,builtin_type::f64_t);
 }
 
+b32 is_signed(builtin_type type)
+{
+    return builtin_type_info[u32(type)].is_signed;
+}
+
 b32 is_signed(const Type *type)
 {
     if(!is_builtin(type))
@@ -63,7 +68,7 @@ b32 is_signed(const Type *type)
     }
 
     const BuiltinType* underlying = (BuiltinType*)type;
-    return builtin_type_info[u32(underlying->builtin)].is_signed;
+    return is_signed(underlying->builtin);
 }
 
 b32 is_signed_integer(const Type *type)
