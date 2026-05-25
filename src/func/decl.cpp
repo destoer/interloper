@@ -106,6 +106,32 @@ Option<itl_error> type_check_function(Interloper& itl, Function& func)
     return result;
 }
 
+TypeResult cut_generic_compound(Interloper& itl, Type* type, TypeNode* decl)
+{
+    UNUSED(itl);
+
+    for(const auto& compound : decl->compound)
+    {
+        switch(compound.type)
+        {
+            case compound_type::ptr:
+            {
+                if(!is_pointer(type))
+                {
+                    return compile_error(itl,itl_error::generic,"Generic type requires pointer got %t",type);
+                }
+
+                type = deref_pointer(type);
+                break;
+            }
+
+            default: unimplemented("Deduce generic for compound type: %s",COMPOUND_TYPE_NAMES[u32(compound.type)]);
+        }
+    }
+
+    return type;
+}
+
 Result<Array<Generic>,itl_error> deduce_generic_types(Interloper& itl, FuncNode& node, FuncCallNode* func_call)
 {
     assert(func_call);
@@ -143,54 +169,57 @@ Result<Array<Generic>,itl_error> deduce_generic_types(Interloper& itl, FuncNode&
 
         AstNode* expr = func_call->args[a];
 
-        if(!type_node->compound)
+        const auto generic_opt = lookup(generic_lookup,type_node->name);
+
+        if(!generic_opt)
         {
-            const auto generic_opt = lookup(generic_lookup,type_node->name);
+            const auto err = compile_error(itl,itl_error::undeclared,"Generic type %S does not exist",type_node->name);
 
-            if(!generic_opt)
-            {
-                const auto err = compile_error(itl,itl_error::undeclared,"Generic type %S does not exist",type_node->name);
+            destroy_table(generic_lookup);
+            destroy_arr(generic_overload);
+            return err;
+        }
 
-                destroy_table(generic_lookup);
-                destroy_arr(generic_overload);
-                return err;
-            }
+        auto& generic = *generic_opt;
 
-            auto& generic = *generic_opt;
-            if(!generic->type)
-            {
-                generic->type = expr->expr_type;
-            }
+        auto deduced_type_res = cut_generic_compound(itl,expr->expr_type,decl->type);
+        if(!deduced_type_res)
+        {
+            return deduced_type_res.error();
+        }
 
-            if(type_equal(generic->type,expr->expr_type))
-            {
-                continue;
-            }
+        Type* deduced_type = *deduced_type_res;
 
-            // Types are not equal attempt to promote them
-            if(!(is_integer(generic->type) && is_integer(expr->expr_type)))
-            {
-                const auto err = compile_error(itl,itl_error::generic,"Mismatched generic types %t and %t",generic->type,expr->expr_type);
 
-                destroy_table(generic_lookup);
-                destroy_arr(generic_overload);
-                return err;
-            }
-            
-            const auto promotion_res = promote_integer_type(itl,generic->type,expr->expr_type);
-            if(!promotion_res)
-            {
-                destroy_table(generic_lookup);
-                destroy_arr(generic_overload);
-                return promotion_res.error();
-            }
+        if(!generic->type)
+        {
+            generic->type = deduced_type;
+        }
 
-            generic->type = *promotion_res;
+        if(type_equal(generic->type,deduced_type))
+        {
             continue;
         }
 
-        // TODO: This requires removing the compound type from each part
-        unimplemented("Compound generic");
+        // Types are not equal attempt to promote them
+        if(!(is_integer(generic->type) && is_integer(deduced_type)))
+        {
+            const auto err = compile_error(itl,itl_error::generic,"Mismatched generic types %t and %t",generic->type,deduced_type);
+
+            destroy_table(generic_lookup);
+            destroy_arr(generic_overload);
+            return err;
+        }
+        
+        const auto promotion_res = promote_integer_type(itl,generic->type,deduced_type);
+        if(!promotion_res)
+        {
+            destroy_table(generic_lookup);
+            destroy_arr(generic_overload);
+            return promotion_res.error();
+        }
+
+        generic->type = *promotion_res;
     }
 
     destroy_table(generic_lookup);

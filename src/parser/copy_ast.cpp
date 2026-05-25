@@ -154,7 +154,7 @@ FuncNode* copy_ast_func(Interloper& itl, FuncNode* function)
 
 
 template<typename T>
-T* copy_ast_expr_bin_node(Interloper& itl, T* expr)
+T* copy_ast_expr_bin_oper_node(Interloper& itl, T* expr)
 {
     T* copy = alloc_node_copy(itl,expr);
     copy->oper = expr->oper;
@@ -208,6 +208,34 @@ ArithUnaryNode* copy_arith_unary(Interloper& itl, ArithUnaryNode* unary)
     return copy;
 }
 
+AutoDeclNode* copy_ast_auto_decl(Interloper& itl, AutoDeclNode* decl)
+{
+    AutoDeclNode* copy = alloc_node_copy(itl,decl);
+    copy->sym = decl->sym;
+    copy->expr = copy_ast(itl,decl->expr);
+
+    return copy;    
+}
+
+template<typename T>
+T* copy_ast_unary(Interloper& itl, T* unary)
+{
+    T* copy = alloc_node_copy(itl,unary);
+    copy->expr = copy_ast(itl,unary->expr);
+
+    return copy;       
+}
+
+template<typename T>
+T* copy_ast_expr_bin_node(Interloper& itl, T* bin)
+{
+    T* copy = alloc_node_copy(itl,bin);
+    copy->left = copy_ast(itl,bin->left);
+    copy->right = copy_ast(itl,bin->right);
+
+    return copy;    
+}
+
 AstNode* copy_ast(Interloper& itl, AstNode* node)
 {
     if(!node)
@@ -239,22 +267,22 @@ AstNode* copy_ast(Interloper& itl, AstNode* node)
 
         case ast_type::comparison:
         {
-            return (AstNode*)copy_ast_expr_bin_node(itl,(CmpNode*)node);
+            return (AstNode*)copy_ast_expr_bin_oper_node(itl,(CmpNode*)node);
         }
 
         case ast_type::boolean_logic:
         {
-            return (AstNode*)copy_ast_expr_bin_node(itl,(BooleanLogicNode*)node);
+            return (AstNode*)copy_ast_expr_bin_oper_node(itl,(BooleanLogicNode*)node);
         }
 
         case ast_type::arith_bin:
         {
-            return (AstNode*)copy_ast_expr_bin_node(itl,(ArithBinNode*)node);
+            return (AstNode*)copy_ast_expr_bin_oper_node(itl,(ArithBinNode*)node);
         }
 
         case ast_type::shift:
         {
-            return (AstNode*)copy_ast_expr_bin_node(itl,(ShiftNode*)node);
+            return (AstNode*)copy_ast_expr_bin_oper_node(itl,(ShiftNode*)node);
         }
 
         case ast_type::cast:
@@ -280,6 +308,21 @@ AstNode* copy_ast(Interloper& itl, AstNode* node)
         case ast_type::ret:
         {
             return (AstNode*)copy_ast_ret(itl,(RetNode*)node);
+        }
+
+        case ast_type::auto_decl:
+        {
+            return (AstNode*)copy_ast_auto_decl(itl,(AutoDeclNode*)node);
+        }
+
+        case ast_type::deref:
+        {
+            return (AstNode*)copy_ast_unary(itl,(DerefNode*)node);
+        }
+
+        case ast_type::assign:
+        {
+            return (AstNode*)copy_ast_expr_bin_node(itl,(AssignNode*)node);
         }
 
         default: break;
