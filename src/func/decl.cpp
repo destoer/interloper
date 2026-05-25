@@ -15,6 +15,11 @@ FunctionTable make_func_table()
 
 void destroy_func_table(FunctionTable& func_table)
 {
+    for(auto& def : func_table.table)
+    {
+        destroy_arr(def.generic_overload);
+    }
+
     for(auto& func_ptr : func_table.used)
     {
         auto& func = *func_ptr;

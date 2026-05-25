@@ -7,6 +7,7 @@ template<typename T>
 T* alloc_node_copy(Interloper& itl, T* src)
 {
     T* copy = (T*)allocate(itl.parser_alloc.ast_allocator,sizeof(T));
+    *copy = {};
     copy->node = src->node;
 
     return copy;
@@ -39,7 +40,7 @@ TypeNode* copy_ast_type(Interloper& itl,TypeNode* type)
         push_var(copy->compound,compound_new);
     }
 
-    add_copy_data_pointer(itl,copy->compound.data);
+    add_copy_data_pointer(itl,&copy->compound.data);
     return copy;
 }
 
@@ -68,8 +69,6 @@ AstBlock copy_ast_block(Interloper& itl, const AstBlock& block)
         push_var(out.statement,copy_ast(itl,stmt));
     }
 
-    add_copy_data_pointer(itl,out.statement.data);
-
     return out;
 }
 
@@ -97,6 +96,7 @@ IfNode* copy_ast_if(Interloper& itl, IfNode* if_node)
     *copy = *if_node;
 
     copy->if_stmt = copy_ast_if_stmt(itl,if_node->if_stmt);
+    add_copy_data_pointer(itl,&copy->if_stmt.block->statement.data);    
 
     copy->else_if_stmt = {};
     for(auto& stmt : if_node->else_if_stmt)
@@ -104,9 +104,11 @@ IfNode* copy_ast_if(Interloper& itl, IfNode* if_node)
         push_var(copy->else_if_stmt,stmt);
     }
 
-    add_copy_data_pointer(itl,copy->else_if_stmt.data);
+    add_copy_data_pointer(itl,&copy->else_if_stmt.data);
 
     copy->else_stmt = copy_ast_block(itl,if_node->else_stmt);
+    add_copy_data_pointer(itl,&copy->else_stmt.statement.data);
+
 
     return copy;
 }
@@ -139,9 +141,10 @@ FuncNode* copy_ast_func(Interloper& itl, FuncNode* function)
 
     copy->block = copy_ast_block(itl,function->block);
 
-    add_copy_data_pointer(itl,copy->return_type.data);
-    add_copy_data_pointer(itl,copy->args.data);
-    add_copy_data_pointer(itl,copy->generic.data);
+    add_copy_data_pointer(itl,&copy->block.statement.data);
+    add_copy_data_pointer(itl,&copy->return_type.data);
+    add_copy_data_pointer(itl,&copy->args.data);
+    add_copy_data_pointer(itl,&copy->generic.data);
 
     return copy;
 }
@@ -168,7 +171,8 @@ RetNode* copy_ast_ret(Interloper& itl, RetNode* ret)
         push_var(copy->expr,copy_ast(itl,expr));
     }
 
-    add_copy_data_pointer(itl,copy->expr.data);
+    assert(copy->expr.data != ret->expr.data);
+    add_copy_data_pointer(itl,&copy->expr.data);
 
     return copy;
 }

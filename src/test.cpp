@@ -98,6 +98,9 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     // tuple
     {"tests/tuple/tuple_invalid_assign",itl_error::undefined_type_oper},
     {"tests/tuple/tuple_invalid_return",itl_error::mismatched_args},
+
+    // generic
+    {"tests/generic/constraint_fail",itl_error::generic},
 };
 
 static constexpr u32 PROGRAM_ERROR_TEST_SIZE = sizeof(PROGRAM_ERROR_TEST) / sizeof(ProgramErrorTest);
@@ -274,6 +277,9 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
 
     // namespace
     // {"tests/namespace/same_name",80}
+
+    // generic
+    {"tests/generic/deduction",1},
 };
 
 static constexpr u32 PROGRAM_CORRECT_TEST_SIZE = sizeof(PROGRAM_CORRECT_TEST) / sizeof(ProgramCorrectTest);

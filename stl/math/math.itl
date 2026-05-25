@@ -10,11 +10,6 @@ namespace std;
 
 constant PI: f64 = 3.14159265358979323846;
 
-func is_even(v : u64) bool 
-{
-    return (v & 1) == 0;
-}
-
 func abs<T: Real>(v1: $T) $T
 {
     if v1 < cast($T,0)
@@ -27,7 +22,7 @@ func abs<T: Real>(v1: $T) $T
 
 func min<T: Real>(v1: $T, v2: $T) $T
 {
-    if(v1 < v2)
+    if v1 < v2
     {
         return v1;
     }
@@ -37,7 +32,7 @@ func min<T: Real>(v1: $T, v2: $T) $T
 
 func max<T: Real>(v1: $T, v2: $T) $T
 {
-    if(v1 > v2) 
+    if v1 > v2 
     {
         return v1;
     }
@@ -51,14 +46,14 @@ func in_range<T: Real>(v : $T,lo : $T, hi : $T) bool
 }
 
 
-func clamp<T: Real>(v1: $T, min: $T, max: $T) s64
+func clamp<T: Real>(v1: $T, min: $T, max: $T) $T
 {
-    if(v1 < min) 
+    if v1 < min 
     {
         return min;
     }
 
-    else if(v1 > max)
+    else if v1 > max
     {
         return max;
     }
@@ -75,19 +70,23 @@ func float_eq(f1: f64, f2: f64, epsilon: f64) bool
 
 func pow_s64(v1: s64, pow: s64) s64 
 {
-    if pow == 0 {
+    if pow == 0 
+    {
         return v1;
     }
 
-    for _i in 0 < pow - 1 {
+    for _i in 0 < pow - 1 
+    {
         v1 *= v1;
     }
 
     return v1;
 }
 
-func sqrt(square: f64) f64 {
-    if square < 0.0 {
+func sqrt(square: f64) f64 
+{
+    if square < 0.0 
+    {
         return 0.0;
     }
 
@@ -104,11 +103,13 @@ func sqrt(square: f64) f64 {
     return root;
 }
 
-func deg_to_rad(deg: f64) f64 {
+func deg_to_rad(deg: f64) f64 
+{
     return deg * (PI / 180.0);
 }
 
-func rad_to_deg(rad: f64) f64 {
+func rad_to_deg(rad: f64) f64 
+{
     return rad * (180.0 / PI);
 }
 

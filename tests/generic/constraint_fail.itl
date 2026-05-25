@@ -1,0 +1,10 @@
+
+func mask<T: Integer>(v1: $T, mask: $T) $T
+{
+    return v1 & mask;
+}
+
+func main() s32
+{
+    return mask(1.0,55.0);
+}
