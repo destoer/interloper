@@ -668,6 +668,8 @@ struct FuncNode
     AstBlock block;
     Array<DeclNode*> args;
     Array<Generic> generic;
+    const FuncCallNode* generic_call = nullptr;
+    String generic_call_filename;
 
     b32 va_args = false;
     String args_name;

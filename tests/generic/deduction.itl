@@ -1,20 +1,10 @@
-
-
-func min<T: Real>(v1: $T, v2: $T) $T
-{
-    if v1 < v2
-    {
-        return v1;
-    }
-
-    return v2;
-}
-
 func main() s32
 {
-    res1 := min(55,127) == 55;
-    res2 := min(-1000,500) == -1000;
-    res3 := min(1235.0,9275.0) == 1235.0;
+    res1 := std::min(55,127) == 55;
+    res2 := std::min(-1000,500) == -1000;
+    res3 := std::min(1235.0,9275.0) == 1235.0;
 
-    return cast(s32,res1 && res2 && res3);
+    res4 := std::clamp(2.0,0.0,1.0) == 1.0;
+
+    return cast(s32,res1 && res2 && res3 && res4);
 }

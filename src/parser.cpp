@@ -1848,6 +1848,8 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
                 {
                     print_itl(itl,"%D %S(%s): %t",depth + 2, generic.name,CONSTRAINT_NAMES[u32(generic.constraint)],generic.type);
                 }
+
+                print_internal(itl,(AstNode*)func->generic_call, depth + 2);
             }
 
             if(func->args)

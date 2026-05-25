@@ -137,14 +137,17 @@ FuncNode* copy_ast_func(Interloper& itl, FuncNode* function)
         push_var(copy->args,copy_ast_decl(itl,decl));
     }
 
-    copy->generic = copy_array(function->generic);
-
     copy->block = copy_ast_block(itl,function->block);
+
+    // NOTE: Generic overload intentionally not copied
+
+    // This is const so we can just the pointer
+    // This is only for debugging.
+    copy->generic_call = function->generic_call;
 
     add_copy_data_pointer(itl,&copy->block.statement.data);
     add_copy_data_pointer(itl,&copy->return_type.data);
     add_copy_data_pointer(itl,&copy->args.data);
-    add_copy_data_pointer(itl,&copy->generic.data);
 
     return copy;
 }
