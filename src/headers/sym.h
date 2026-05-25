@@ -170,7 +170,6 @@ enum class constraint_type
     real,
 };
 
-using OverloadTable = Array<Function*>;
 
 
 struct Generic
@@ -180,6 +179,39 @@ struct Generic
     // Filled in during deduction
     Type* type = nullptr;
 };
+
+
+using OverloadTable = Array<Function*>;
+using GenericOverload = Array<Generic>;
+
+
+struct GenericOverloadContext
+{
+    GenericOverload current_overload;
+    Array<GenericOverload> overload;
+};
+
+struct GenericScopeGuard
+{
+    GenericScopeGuard(GenericOverloadContext& ctx, const GenericOverload& overload) : ctx(ctx)  
+    {
+        ctx.current_overload = overload;
+        push_var(ctx.overload,overload);
+    }
+
+    ~GenericScopeGuard() 
+    {
+        pop(ctx.overload);
+
+        if(ctx.overload)
+        {
+            ctx.current_overload = ctx.overload[count(ctx.overload) - 1];
+        }
+    }
+
+    GenericOverloadContext& ctx;
+};
+
 
 struct FunctionDef
 {

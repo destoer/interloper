@@ -88,6 +88,8 @@ struct Interloper
     EnumTable enum_table;
     RttiCache rtti_cache;
 
+    GenericOverloadContext generic_overload;
+
     // targeting info
     arch_target arch = arch_target::x86_64_t;
     os_target os = os_target::linux_t;

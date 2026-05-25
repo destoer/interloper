@@ -667,7 +667,7 @@ struct FuncNode
     Array<FuncReturnVar> return_type;
     AstBlock block;
     Array<DeclNode*> args;
-    Array<Generic> generic;
+    GenericOverload generic;
     const FuncCallNode* generic_call = nullptr;
     String generic_call_filename;
 

@@ -61,11 +61,17 @@ void add_func(Interloper& itl, const String& name, NameSpace* name_space, const 
     add(name_space->table,copy_string(itl.string_allocator,name), info);  
 }
 
+GenericScopeGuard switch_generic_context(Interloper& itl, const GenericOverload& overload)
+{
+    return GenericScopeGuard(itl.generic_overload,overload);
+}
+
 Option<itl_error> type_check_function(Interloper& itl, Function& func)
 {
-    auto context_guard = switch_context(itl,func.root->filename,func.name_space,(AstNode*)func.root);
+    const auto context_guard = switch_context(itl,func.root->filename,func.name_space,(AstNode*)func.root);
+    const auto scope_guard = enter_new_anon_scope(itl.symbol_table);
+    const auto generic_guard = switch_generic_context(itl,func.root->generic);
 
-    auto scope_guard = enter_new_anon_scope(itl.symbol_table);
 
     // put each arg into scope and copy it regs into args
     for(u32 a = 0; a < count(func.sig.args); a++)
@@ -220,8 +226,6 @@ Result<Array<Generic>,itl_error> deduce_generic_types(Interloper& itl, FuncNode&
                 break;
             }
         }
-
-        add_internal_alias(itl,generic.type,generic.name);
     }
 
     return generic_overload;
@@ -261,9 +265,6 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
     {
         return func_def.func;
     }
-
-    // Scope guard for function for any declared types by generics
-    auto scope_guard = enter_new_anon_scope(itl.symbol_table);
 
     Function func;
     func.name = func_def.name;
@@ -548,7 +549,8 @@ void add_hidden_return(Interloper& itl, FuncSig& sig, const String& name, Type* 
 Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node, func_sig_kind kind)
 {
     // about to move to a different context
-    auto context_guard = switch_context(itl,node.filename,name_space,(AstNode*)&node);
+    const auto context_guard = switch_context(itl,node.filename,name_space,(AstNode*)&node);
+    const auto generic_guard = switch_generic_context(itl,node.generic);
     sig.attribute = node.attr;
 
     u32 arg_offset = 0;
