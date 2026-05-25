@@ -101,7 +101,7 @@ IfNode* copy_ast_if(Interloper& itl, IfNode* if_node)
     copy->else_if_stmt = {};
     for(auto& stmt : if_node->else_if_stmt)
     {
-        push_var(copy->else_if_stmt,stmt);
+        push_var(copy->else_if_stmt,copy_ast_if_stmt(itl,stmt));
     }
 
     add_copy_data_pointer(itl,&copy->else_if_stmt.data);
