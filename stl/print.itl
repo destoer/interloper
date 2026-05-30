@@ -111,8 +111,7 @@ func print_float(file: File@, v : f64, spec_dp: u32)
 {
     // bit cast so we can pull apart the components 
     // as we need to check for magic constants
-    raw : u64;
-    memcpy(&raw,&v,sizeof(v));
+    raw := bit_cast<u64>(&v);
 
     sign : bool = cast(bool,raw >> 63);
     exp := (raw >> 52) & 0b1111_1111_111;
