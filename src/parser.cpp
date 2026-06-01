@@ -1465,6 +1465,12 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
             break;
         }
 
+        case ast_type::defer:
+        {
+            print_unary(itl,(DeferNode*)root,"defer",depth);
+            break;
+        }
+
         case ast_type::sizeof_t:
         {
             print_unary(itl,(SizeOfNode*)root,"sizeof",depth);

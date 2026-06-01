@@ -52,6 +52,7 @@ enum class ast_type
     const_assert,
     function,
     ret,
+    defer
 };
 
 struct AstNode
@@ -150,7 +151,7 @@ using ConstAssertNode = UnaryNode<ast_type::const_assert>;
 using DerefNode = UnaryNode<ast_type::deref>;
 using AddrOfNode = UnaryNode<ast_type::addrof>;
 using CastRefNode = UnaryNode<ast_type::cast_ref>;
-
+using DeferNode = UnaryNode<ast_type::defer>;
 
 enum class compound_type
 {

@@ -46,4 +46,5 @@ const AstInfo AST_INFO[] =
     {"const_assert",type_check_expr_unk,type_check_const_assert,compile_expr_unk,compile_stmt_stub},
     {"function",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"ret",type_check_expr_unk,type_check_return,compile_expr_unk,compile_return},
+    {"defer",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_stub},
 };
