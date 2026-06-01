@@ -153,6 +153,8 @@ using AddrOfNode = UnaryNode<ast_type::addrof>;
 using CastRefNode = UnaryNode<ast_type::cast_ref>;
 using DeferNode = UnaryNode<ast_type::defer>;
 
+using DeferListNode = ListNode<DeferNode*>;
+
 enum class compound_type
 {
     nullable_ptr,
@@ -342,7 +344,9 @@ struct StringNode
 
 struct AstBlock
 {
+    DeferListNode* defer_start = nullptr;
     Array<AstNode*> statement;
+    DeferListNode* defer_end = nullptr;
 };
 
 struct BlockNode
@@ -680,6 +684,7 @@ struct FuncNode
 struct RetNode
 {
     AstNode node;
+    DeferListNode* defer_end = nullptr;
     Array<AstNode*> expr;
 };
 

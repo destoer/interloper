@@ -365,6 +365,8 @@ void compile_block(Interloper& itl, Function& func,AstBlock& block)
         const auto& ast_info = AST_INFO[u32(stmt->type)];
         ast_info.compile_stmt(itl,func,stmt);
     }
+
+    compile_defer(itl,func,block.defer_start,block.defer_end);
 }
 
 void compile_block_stmt(Interloper& itl, Function& func, AstNode* stmt)

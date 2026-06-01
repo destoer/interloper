@@ -190,9 +190,9 @@ inline size_t count_list_dist(const ListNode<T>* start, const ListNode<T>* end)
 }
 
 template<typename T>
-inline void append(List<T> &list, const T& value)
+inline ListNode<T>* append(List<T> &list, const T& value)
 {
-    insert_after(list,list.finish,value);
+    return insert_after(list,list.finish,value);
 }
 
 template<typename T>

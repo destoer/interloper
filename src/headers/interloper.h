@@ -90,6 +90,15 @@ struct Interloper
 
     GenericOverloadContext generic_overload;
 
+
+    ArenaAllocator defer_allocator;
+    List<DeferNode*> defer_list;
+    DeferListNode* cur_defer_node = nullptr;
+    Array<DeferListNode*> defer_stack;
+
+
+
+
     // targeting info
     arch_target arch = arch_target::x86_64_t;
     os_target os = os_target::linux_t;
