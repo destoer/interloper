@@ -242,6 +242,25 @@ ParserResult parse_ret(Parser& parser, const Token& t)
     
 }
 
+ParserResult parse_defer(Parser& parser, const Token& t)
+{
+    auto stmt_res = statement(parser);
+
+    if(!stmt_res)
+    {
+        return stmt_res.error();
+    }
+
+    AstNode* stmt = *stmt_res;
+
+    if(stmt->type == ast_type::ret)
+    {
+        return parser_error(parser,parse_error::malformed_stmt,t,"Defer statement cannot contain return");
+    }
+
+    return ast_defer(parser,stmt,t);
+}
+
 ParserResult statement(Parser &parser)
 {
     const auto t = next_token(parser);
@@ -413,6 +432,11 @@ ParserResult statement(Parser &parser)
         {
             prev_token(parser);
             return statement_terminate(parser,"Ignored assign");
+        }
+
+        case token_type::defer:
+        {
+            return parse_defer(parser,t);
         }
 
         default:

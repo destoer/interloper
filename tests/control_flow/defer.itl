@@ -4,15 +4,28 @@
 #attr(flag)
 enum defer_flag : u32
 {
-    none
-}
+    none,
+};
 
 func defer_test(flags: u32, buf: s32[])
 {
-    x = 1;
+    x: s32 = 1;
     index: u32 = 0;
 
-    defer buf[index] = x 
+    defer buf[index] = x;
+
+    // if(flags & defer_flag::ret)
+    // {
+    //     defer 
+    //     { 
+    //         buf[index] = 5
+    //         index += 1
+    //     }
+    //     return;
+    // }
+
+    defer buf[index] = 2;
+
 }
 
 func main() s32
@@ -21,7 +34,9 @@ func main() s32
 
     defer_test(defer_flag::none);
 
-    res1 := buf[0] == 1;
+    res1 := buf[0] == 2 && buf[1] == 1;
+
+
     ans := res1;
 
     return cast(s32,ans);

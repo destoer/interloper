@@ -952,6 +952,16 @@ AstNode* ast_struct_initializer(Parser& parser,const String& literal, AstNode* i
 }
 
 template<ast_type type>
+AstNode* ast_unary(Parser& parser, AstNode* expr, const Token& token)
+{
+    UnaryNode<type>* unary = alloc_node<UnaryNode<type>>(parser,type,token);
+    unary->expr = expr;
+
+    return (AstNode*)unary;
+}
+
+
+template<ast_type type>
 ParserResult ast_unary(Parser& parser,ParserResult expr_res, const Token& token)
 {
     if(!expr_res)
@@ -959,16 +969,19 @@ ParserResult ast_unary(Parser& parser,ParserResult expr_res, const Token& token)
         return expr_res;
     }
 
-    UnaryNode<type>* unary = alloc_node<UnaryNode<type>>(parser,type,token);
-    unary->expr = expr_res.value();
-
-    return (AstNode*)unary;
+    return ast_unary<type>(parser,*expr_res,token);
 }
 
 ParserResult ast_sizeof(Parser& parser,ParserResult expr, const Token& token)
 {
     return ast_unary<ast_type::sizeof_t>(parser,expr,token);
 }
+
+AstNode* ast_defer(Parser& parser,AstNode *stmt, const Token& token)
+{
+    return ast_unary<ast_type::defer>(parser,stmt,token);
+}
+
 
 ParserResult ast_deref(Parser& parser, ParserResult expr, const Token& token)
 {
