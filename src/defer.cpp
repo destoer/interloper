@@ -4,12 +4,6 @@ void compile_stmt(Interloper& itl, Function& func, AstNode* stmt);
 
 void add_defer(Interloper& itl, DeferNode* defer)
 {
-    if(!itl.cur_defer_node)
-    {
-        itl.cur_defer_node = defer;
-        return;
-    }
-
     defer->prev = itl.cur_defer_node;
     itl.cur_defer_node = defer;
 }
@@ -28,7 +22,6 @@ void compile_defer(Interloper& itl, Function& func, DeferNode* start, DeferNode*
     // Compiled in reverse order
     while(end != start)
     {
-        puts("compile defer");
         compile_stmt(itl,func,end->stmt);
         end = end->prev;
     }

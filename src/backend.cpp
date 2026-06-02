@@ -359,10 +359,6 @@ void compile_stmt_unk(Interloper& itl, Function& func, AstNode* node)
 
 void compile_block(Interloper& itl, Function& func,AstBlock& block)
 {
-    if(func.root->name == "defer_test")
-    {
-        puts("enter block");
-    }
     for(AstNode* stmt : block.statement)
     {
         itl.ctx.expr = stmt;
@@ -371,12 +367,6 @@ void compile_block(Interloper& itl, Function& func,AstBlock& block)
     }
 
     compile_defer(itl,func,block.defer_start,block.defer_end);
-
-    if(func.root->name == "defer_test")
-    {
-        puts("exit block");
-    }
-
 }
 
 void compile_block_stmt(Interloper& itl, Function& func, AstNode* stmt)
@@ -387,6 +377,8 @@ void compile_block_stmt(Interloper& itl, Function& func, AstNode* stmt)
 
 void compile_function(Interloper& itl, Function& func)
 {
+    itl.cur_defer_node = NULL;
+
     // Dummy function just output a block and setup the graph
     if(!func.root)
     {

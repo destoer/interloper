@@ -47,6 +47,8 @@ void compile_return(Interloper &itl,Function &func, AstNode* stmt)
 {
     RetNode* ret_node = (RetNode*)stmt;
 
+    compile_defer(itl,func,NULL,ret_node->defer_end);
+
     // No return value just issue a ret
     if(!ret_node->expr)
     {
