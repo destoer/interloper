@@ -1491,7 +1491,10 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
 
         case ast_type::defer:
         {
-            print_unary(itl,(DeferNode*)root,"defer",depth);
+            DeferNode* defer = (DeferNode*)root;
+            puts("Defer ");
+            print_internal(itl,defer->stmt, depth + 1);
+
             break;
         }
 

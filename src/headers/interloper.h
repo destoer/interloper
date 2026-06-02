@@ -91,10 +91,8 @@ struct Interloper
     GenericOverloadContext generic_overload;
 
 
-    ArenaAllocator defer_allocator;
-    List<DeferNode*> defer_list;
-    DeferListNode* cur_defer_node = nullptr;
-    Array<DeferListNode*> defer_stack;
+    DeferNode* cur_defer_node = nullptr;
+    Array<DeferNode*> defer_stack;
 
 
 

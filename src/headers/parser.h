@@ -151,9 +151,6 @@ using ConstAssertNode = UnaryNode<ast_type::const_assert>;
 using DerefNode = UnaryNode<ast_type::deref>;
 using AddrOfNode = UnaryNode<ast_type::addrof>;
 using CastRefNode = UnaryNode<ast_type::cast_ref>;
-using DeferNode = UnaryNode<ast_type::defer>;
-
-using DeferListNode = ListNode<DeferNode*>;
 
 enum class compound_type
 {
@@ -342,11 +339,21 @@ struct StringNode
     String string;
 };
 
+
+struct DeferNode;
+
+struct DeferNode
+{
+    AstNode node;
+    AstNode* stmt = nullptr;
+    DeferNode* prev = nullptr;
+};
+
 struct AstBlock
 {
-    DeferListNode* defer_start = nullptr;
+    DeferNode* defer_start = nullptr;
     Array<AstNode*> statement;
-    DeferListNode* defer_end = nullptr;
+    DeferNode* defer_end = nullptr;
 };
 
 struct BlockNode
@@ -684,7 +691,7 @@ struct FuncNode
 struct RetNode
 {
     AstNode node;
-    DeferListNode* defer_end = nullptr;
+    DeferNode* defer_end = nullptr;
     Array<AstNode*> expr;
 };
 
@@ -984,7 +991,11 @@ ParserResult ast_sizeof(Parser& parser,ParserResult expr, const Token& token)
 
 AstNode* ast_defer(Parser& parser,AstNode *stmt, const Token& token)
 {
-    return ast_unary<ast_type::defer>(parser,stmt,token);
+    DeferNode* defer = alloc_node<DeferNode>(parser,ast_type::defer,token);
+
+    defer->stmt = stmt;
+
+    return (AstNode*)defer;
 }
 
 

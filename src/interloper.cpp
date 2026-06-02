@@ -215,9 +215,6 @@ Option<itl_error> compile(Interloper &itl,const String& initial_filename, const 
     itl.type_allocator = make_allocator(TYPE_INITIAL_SIZE);
     itl.namespace_allocator = make_allocator(2 * 1024);
 
-    itl.defer_allocator = make_allocator(2 * 1024);
-    itl.defer_list = make_list<DeferNode*>(&itl.defer_allocator);
-
     itl.symbol_table.string_allocator = &itl.string_allocator;
     itl.symbol_table.namespace_allocator = &itl.namespace_allocator;
     itl.symbol_table.ctx = &itl.ctx;

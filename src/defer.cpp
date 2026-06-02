@@ -6,11 +6,12 @@ void add_defer(Interloper& itl, DeferNode* defer)
 {
     if(!itl.cur_defer_node)
     {
-        itl.cur_defer_node = append(itl.defer_list,defer);
+        itl.cur_defer_node = defer;
         return;
     }
 
-    itl.cur_defer_node = insert_after(itl.defer_list,itl.cur_defer_node,defer);
+    defer->prev = itl.cur_defer_node;
+    itl.cur_defer_node = defer;
 }
 
 
@@ -19,16 +20,16 @@ Option<itl_error> type_check_defer(Interloper& itl, Function& func, AstNode* stm
     DeferNode* defer = (DeferNode*)stmt;
     add_defer(itl,defer);
 
-    return type_check_stmt(itl,func,defer->expr);
+    return type_check_stmt(itl,func,defer->stmt);
 }
 
-void compile_defer(Interloper& itl, Function& func, DeferListNode* start, DeferListNode* end)
+void compile_defer(Interloper& itl, Function& func, DeferNode* start, DeferNode* end)
 {
     // Compiled in reverse order
     while(end != start)
     {
         puts("compile defer");
-        compile_stmt(itl,func,end->value->expr);
+        compile_stmt(itl,func,end->stmt);
         end = end->prev;
     }
 
