@@ -131,7 +131,7 @@ func pad_x11(E : u32) u32
 
 func send_req(win : OSWindow@, v : const byte@, size: usize) [u32, net_result]
 {
-    log::debug(X11_PREFIX,"Send req seq: {} op: {}",win.seq_count,@v);
+    log::trace(X11_PREFIX,"Send req seq: {} op: {}",win.seq_count,@v);
     res := net::send_raw_all(&win.sock,v,size);
 
     seq := win.seq_count;
