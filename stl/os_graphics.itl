@@ -178,6 +178,8 @@ func send_auth_packet(win: OSWindow@, buf: std::Array@) net_result
             return net_result::err;
         }
 
+        defer std::destroy_arr_heap_byte(&itl_context.heap,&bin);
+
     
         auth_proto := "MIT-MAGIC-COOKIE-1";
         cookie_size := 128 / std::BITS_IN_BYTE;
@@ -237,8 +239,6 @@ func send_auth_packet(win: OSWindow@, buf: std::Array@) net_result
         {
             return res;
         }
-
-        std::destroy_arr_heap_byte(&itl_context.heap,&bin);
     }
 
     else

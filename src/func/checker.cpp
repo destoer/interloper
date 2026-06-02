@@ -289,6 +289,7 @@ TypeResult type_check_function_expr(Interloper& itl, AstNode* expr)
 Option<itl_error> type_check_return(Interloper& itl, Function& func, AstNode* stmt)
 {
     RetNode* ret_node = (RetNode*)stmt;
+    ret_node->defer_end = itl.cur_defer_node;
 
     const u32 return_count = count(ret_node->expr);
 

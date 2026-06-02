@@ -51,6 +51,7 @@ const char* KEYWORD[][2] =
     {tok_name(token_type::sizeof_data_t),"token_type::sizeof_data_t"},
     {tok_name(token_type::func),"token_type::func"},
     {tok_name(token_type::ret),"token_type::ret"},
+    {tok_name(token_type::defer),"token_type::defer"},
     {tok_name(token_type::switch_t),"token_type::switch_t"},
     {tok_name(token_type::case_t),"token_type::case_t"},
     {tok_name(token_type::default_t),"token_type::default_t"},

@@ -311,3 +311,11 @@ func dump_array_bytes(array: const Array@)
 
     linefeed();
 }
+
+func fill<T: Real>(array: $T[], value: $T) 
+{
+    for @x in array
+    {
+        @x = value;
+    }
+}

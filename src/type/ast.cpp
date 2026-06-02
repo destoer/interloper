@@ -363,6 +363,9 @@ Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& blo
     // We now have a new scope.
     auto scope_guard = enter_new_anon_scope(itl.symbol_table);
 
+    push_var(itl.defer_stack,itl.cur_defer_node);
+    block.defer_start = itl.cur_defer_node;
+
     for(AstNode* stmt : block.statement)
     {
         itl.ctx.expr = stmt;
@@ -382,6 +385,9 @@ Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock& blo
             stmt->expr_type = itl.void_type;
         }
     }
+
+    block.defer_end = itl.cur_defer_node;
+    itl.cur_defer_node = pop(itl.defer_stack);
 
     return option::none;
 }

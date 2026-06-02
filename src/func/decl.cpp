@@ -72,6 +72,9 @@ Option<itl_error> type_check_function(Interloper& itl, Function& func)
     const auto scope_guard = enter_new_anon_scope(itl.symbol_table);
     const auto generic_guard = switch_generic_context(itl,func.root->generic);
 
+    push_var(itl.defer_stack,itl.cur_defer_node);
+    itl.cur_defer_node = NULL;
+
 
     // put each arg into scope and copy it regs into args
     for(u32 a = 0; a < count(func.sig.args); a++)
@@ -102,6 +105,8 @@ Option<itl_error> type_check_function(Interloper& itl, Function& func)
 
         putchar('\n');   
     }
+
+    itl.cur_defer_node = pop(itl.defer_stack);
 
     return result;
 }
