@@ -18,6 +18,8 @@ func read_args()
         crash_and_burn("Could not read command line args");
     }
 
+    defer destroy_array(&bin);
+
     str_buffer := cast(string,array_buffer(&bin));
     strings := split_null_str(str_buffer);
     itl_context.args = cast(string[],array_buffer(&strings));
@@ -26,8 +28,6 @@ func read_args()
     {
         crash_and_burn("Command name not passed as arg!?");
     }
-
-    destroy_array(&bin);  
 }
 
 func read_proc_file(name: const string) [std::Array, result]

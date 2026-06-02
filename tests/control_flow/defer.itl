@@ -11,6 +11,8 @@ enum defer_flag : u32
 
 func defer_test(flags: u32, buf: s32[])
 {
+    std::fill(buf,0);
+
     x: s32 = 1;
     index: u32 = 0;
 
@@ -29,15 +31,15 @@ func defer_test(flags: u32, buf: s32[])
         x += 3;
     }
 
-    // if(flags & defer_flag::ret)
-    // {
-    //     defer 
-    //     { 
-    //         buf[index] = 5
-    //         index += 1
-    //     }
-    //     return;
-    // }
+    if(flags & defer_flag::ret)
+    {
+        defer 
+        { 
+            buf[index] = 5;
+            index += 1;
+        }
+        return;
+    }
 
     defer {
         buf[index] = 2;
@@ -52,20 +54,16 @@ func main() s32
     buf: s32[32];
 
     defer_test(defer_flag::none, buf);
-
     res1 := buf[0] == 0 && buf[1] == 2 && buf[2] == 1;
     
-    std::fill(buf,0);
-
-
     defer_test(defer_flag::nest, buf);
     res2 := buf[0] == 4 && buf[1] == 0 && buf[2] == 2 && buf[3] == 4;
 
+    defer_test(defer_flag::ret, buf);
+    res3 := buf[0] == 5 && buf[1] == 1;
 
-    std::println("{}",buf);
 
-
-    ans := res1 && res2;
+    ans := res1 && res2 && res3;
 
     return cast(s32,ans);
 }

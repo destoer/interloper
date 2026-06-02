@@ -1,3 +1,4 @@
+// https://c3.handmade.network/blog/p/7641-implementing_defer
 
 Option<itl_error> type_check_stmt(Interloper& itl, Function& func, AstNode* stmt);
 void compile_stmt(Interloper& itl, Function& func, AstNode* stmt);
@@ -26,10 +27,5 @@ void compile_defer(Interloper& itl, Function& func, DeferNode* start, DeferNode*
         end = end->prev;
     }
 
-}
-
-void destroy_defer(Interloper& itl)
-{
-    UNUSED(itl);
 }
 

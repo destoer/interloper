@@ -97,6 +97,10 @@ func load_model(path: const string) [result, Model]
 
     paramters := std::make_array(sizeof_type(string));
     verticies := std::make_array(sizeof_type(std::Vec3F));
+
+    defer std::destroy_array(&paramters);
+    defer std::destroy_array(&verticies);
+
     model_faces := std::make_array(sizeof_type(Triangle));
 
     while rc == std::file_read_res::success
@@ -143,9 +147,6 @@ func load_model(path: const string) [result, Model]
             }
         }
     }
-
-    std::destroy_array(&paramters);
-    std::destroy_array(&verticies);
 
     model.faces = cast(Triangle[],std::array_buffer(&model_faces));
 

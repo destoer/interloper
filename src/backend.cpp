@@ -377,8 +377,6 @@ void compile_block_stmt(Interloper& itl, Function& func, AstNode* stmt)
 
 void compile_function(Interloper& itl, Function& func)
 {
-    itl.cur_defer_node = NULL;
-
     // Dummy function just output a block and setup the graph
     if(!func.root)
     {
