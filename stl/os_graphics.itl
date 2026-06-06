@@ -1,9 +1,27 @@
 namespace gfx;
 
-// TODO: move this later
 import <socket>
 
 constant X11_PREFIX : const string = "X WINDOW";
+
+
+type_alias REPLY_CALLBACK_FUNC = func(win: OSWindow@, len: u32, raw_data: byte?) win_result;
+
+struct ReplyCallback
+{
+    callback: REPLY_CALLBACK_FUNC;
+    data: byte?;
+};
+
+struct ShmImage
+{
+    shm_seg: u32;
+    shm_id: s32;
+    addr: u32@;
+    locked: bool;
+
+    callback: ReplyCallback; 
+};
 
 // https://www.x.org/releases/X11R7.5/doc/x11proto/proto.pdf
 struct OSWindow
@@ -46,17 +64,15 @@ struct OSWindow
     max_keycode: u8;
     key_code_to_sym: u8[255];
 
+    // shm
     big_req : bool;
+    mit_shm: bool;
+    shm_code: u8;
+
+    shm_image_idx: usize;
+    shm_image: ShmImage[2];
 
     reply_callback : std::HashTable;
-}
-
-type_alias REPLY_CALLBACK_FUNC = func(win: OSWindow@, len: u32, raw_data: byte?) win_result;
-
-struct ReplyCallback
-{
-    callback: REPLY_CALLBACK_FUNC;
-    data: byte?;
 }
 
 constant WINDOW_CLASS_INPUT_OUTPUT : u16 = 1;
@@ -418,10 +434,7 @@ func read_setup_info(win: OSWindow@,reply: const AuthReply@) net_result
             return res;
         }
     
-        log::trace(X11_PREFIX,"format {}",i);
-        log::trace(X11_PREFIX,"depth {}",fmt.depth);
-        log::trace(X11_PREFIX,"bits per pixel {}",fmt.bpp);
-        log::trace(X11_PREFIX,"scanline pad {}\n\n",fmt.scanline_pad);
+        log::trace(X11_PREFIX,"format {}: {}",i,fmt);
     }
 
     for(i in 0 < info.screen_count)
@@ -434,10 +447,7 @@ func read_setup_info(win: OSWindow@,reply: const AuthReply@) net_result
             return res;
         }
 
-        log::debug(X11_PREFIX,"screen {}",i);
-        log::debug(X11_PREFIX,"root {}",screen.root);
-        log::debug(X11_PREFIX,"measurements {}mm : {}mm",screen.width_m,screen.height_m);
-        log::debug(X11_PREFIX,"dimensions {} : {}\n",screen.width, screen.height);
+        log::debug(X11_PREFIX,"screen {}: {}",i,screen);
 
         // default this to first screen
         if(i == 0)
@@ -448,7 +458,7 @@ func read_setup_info(win: OSWindow@,reply: const AuthReply@) net_result
         }
 
         // read out each depth
-        for(_d in 0 < screen.depth_count)
+        for(d in 0 < screen.depth_count)
         {
             depth: XDepth = {?};
             res = net::recv_raw_all(&win.sock,&depth,sizeof_data(XDepth));
@@ -458,7 +468,7 @@ func read_setup_info(win: OSWindow@,reply: const AuthReply@) net_result
                 return res;
             }
 
-            log::trace(X11_PREFIX,"depth {}",depth.depth);
+            log::trace(X11_PREFIX,"depth {}: {}",d,depth);
 
             for(_v in 0 < depth.vis_size)
             {
@@ -470,9 +480,7 @@ func read_setup_info(win: OSWindow@,reply: const AuthReply@) net_result
                     return res;
                 }
                 
-                log::trace(X11_PREFIX,"id {}",visual_type.id);
-                log::trace(X11_PREFIX,"class {}",visual_type.class);
-                log::trace(X11_PREFIX,"bpr {}\n",visual_type.bpr); 
+                log::trace(X11_PREFIX,"visual {}",visual_type);
             }
         }
     }
@@ -654,10 +662,7 @@ func process_error(win : OSWindow@)
     error: XError = {?};
     std::read_buffer(&win.packet,0,&error,sizeof_data(XError));
 
-    log::error(X11_PREFIX,"Error: {}",error.code);
-    log::error(X11_PREFIX,"Seq: {}",error.seq_number);
-    log::error(X11_PREFIX,"Data: {}",error.data);
-    log::error(X11_PREFIX,"Opcode: {} {}\n",error.major_opcode,error.minor_opcode);
+    log::error(X11_PREFIX,"Error: {}",error);
 }
 
 
@@ -695,6 +700,30 @@ struct XPutImageBig
     depth: u8;
     pad2: u16;
 }
+
+#attr(no_reorder)
+struct XPutImageSHM
+{
+    req: u8;	
+    shm_req: u8 = 3;
+    len: u16 = 10;
+    drawable: u32;
+    gc: u32;
+    total_width: u16;
+    total_height: u16;
+    src_x: u16;
+    src_y: u16;
+    width: u16;
+    height: u16;
+    dst_x: s16;
+    dst_y: s16;
+    depth: u8;
+    format: u8 = 2;
+    send_event: bool;
+    pad1: u8;
+    shm_seg: u32;
+    offset: u32;
+};
 
 
 func draw_lines(win: OSWindow@, ptr: const u32@, start_y: u32,lines: u32, stride: u32) net_result
@@ -772,8 +801,43 @@ func draw_lines(win: OSWindow@, ptr: const u32@, start_y: u32,lines: u32, stride
     return net::send_raw_all(&win.sock,ptr,pad);
 }
 
-func os_draw_window(win: OSWindow@, screen: const u32[], width : u32, height : u32) win_result
+func render_shm(win: OSWindow@, width: u32, height: u32) win_result
 {
+    shm_image := &win.shm_image[win.shm_image_idx];
+    win.shm_image_idx = (win.shm_image_idx + 1) % win.shm_image.len;
+
+    shm_image.locked = true;
+
+
+    put_image: XPutImageSHM;
+    put_image.req = win.shm_code;
+ 
+    put_image.gc = win.gfx_ctx;
+    put_image.drawable = win.window_id;
+    put_image.depth = 24;
+
+    put_image.width = cast(u16, width);
+    put_image.height = cast(u16, height);
+    put_image.total_width = cast(u16, width);
+    put_image.total_height = cast(u16, height);        
+
+    put_image.shm_seg = shm_image.shm_seg;
+    put_image.send_event = true;
+
+    [put_image_seq,res] := send_req(win,&put_image,sizeof_data(XPutImageSHM));
+    add_reply_callback(win,put_image_seq,&shm_image.callback);
+
+    return net_res_to_win(res);    
+}
+
+func os_draw_window(window: Window@) win_result
+{
+    if(win.mit_shm)
+    {   
+        return render_shm(win,width,height);
+    }
+
+    // Render lines manaully with several put image calls
     lines := win.max_lines;
     ptr := screen.data;
 
@@ -1376,6 +1440,102 @@ func net_res_to_win(res: net_result) win_result
     return cast(win_result,raw);
 }
 
+#attr(no_reorder)
+struct XSHMReqAttach
+{
+    req: u8;
+    req_type: u8 = 1;
+    length: u16 = 4;
+    shm_seg: u32;
+    shm_id: u32;
+    read_only: bool;
+    pad0: u8;
+    pad1: u16;
+}
+
+func unlock_shm_image(win: OSWindow@, len: u32, raw_data: byte?) win_result
+{
+    shm_image := cast(ShmImage@,raw_data);
+    shm_image.locked = false;
+
+    res := net::recv_ignore(&win.sock,len);
+    return net_res_to_win(res);
+}
+
+func attach_shm(win: OSWindow@) net_result
+{
+    image := &win.shm_image[win.shm_image_idx];
+    win.shm_image_idx += 1;
+
+    image.callback.data = cast(byte?,image);
+    image.callback.callback = &unlock_shm_image;
+
+    image.shm_id = std::shm_get(std::IPC_PRIVATE,win.screen_x * win.screen_y * 4,std::IPC_CREATE | 0777);
+    log::debug(X11_PREFIX,"shm id {}",image.shm_id);
+
+    if(image.shm_id < 0)
+    {
+        win.mit_shm = false;
+        return net_result::err;
+    }
+
+    image.addr = cast(u32@,std::shm_at(image.shm_id,NULL,0));
+    image.shm_seg = alloc_resource(win);
+
+    attach_req: XSHMReqAttach;
+    attach_req.req = win.shm_code;
+    attach_req.shm_id = cast(u32,image.shm_id);
+    attach_req.shm_seg = image.shm_seg;
+
+    [_, res] := send_req(win,&attach_req,sizeof_data(XSHMReqAttach));
+
+    if(res != net_result::ok)
+    {
+        return res;
+    }
+
+
+    log::debug(X11_PREFIX,"Attached SHM Resource {}",image.shm_seg);
+
+    return res;
+}
+
+func enable_mit_shm(std_win: Window@) [bool, net_result]
+{
+    win := &std_win.os_win;
+
+    // send ext query
+    [ext_query, res] := query_extension(std_win,"MIT-SHM");
+
+    if(res != net_result::ok)
+    {
+        return false, res;
+    }
+
+    win.mit_shm = ext_query.enabled;
+    win.shm_code = ext_query.opcode;
+
+    log::debug(X11_PREFIX,"SHM SUPPORTED {} {}",win.mit_shm,ext_query.opcode);
+
+
+    if(!win.mit_shm)
+    {
+        return false, net_result::ok;
+    }
+
+    for(_i in 0 < win.shm_image.len)
+    {
+        res = attach_shm(win);
+    }
+
+    if(res != net_result::ok)
+    {
+        return false, res;
+    }
+
+    return true, net_result::ok;
+}
+
 func os_open_window(std_win: Window@,str : const string, x : u32, y : u32) win_result
 {
     win := &std_win.os_win;
@@ -1445,7 +1605,16 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32) win_r
         return net_res_to_win(res);
     }
 
+    [_, res] = enable_mit_shm(std_win);
+
+    if(res != net_result::ok)
+    {
+        return net_res_to_win(res);
+    }
+
     key_res := get_keyboard_mapping(std_win);
+
+    log::debug(X11_PREFIX,"Acquired keyboard mapping");
 
     if(key_res != win_result::ok)
     {

@@ -124,6 +124,8 @@ func open_window(str : const string, x : u32, y : u32) [Window, win_result]
     win.limit = 1000.0 / 30.0;
     win.target = win.limit;
 
+    log::debug(X11_PREFIX,"Window opened");
+
     return win, win_result::ok;
 }
 
@@ -134,14 +136,14 @@ func close_window(win : Window@) win_result
     return os_destroy_window(&win.os_win);
 }
 
-func draw_window(win : Window@, screen: const u32[]) win_result
+func draw_window(win : Window@) win_result
 {
     if(win.quit)
     {
         return win_result::ok;
     }
 
-    return os_draw_window(&win.os_win,screen,win.width,win.height);
+    return os_draw_window(win);
 }
 
 // NOTE: these are just general helpers we should still be able to

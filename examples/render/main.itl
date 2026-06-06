@@ -338,7 +338,7 @@ func main() s32
         render(&win,&model,angle);
         angle += 1.0;
 
-        if(gfx::draw_window(&win,win.screen) == gfx::win_result::err)
+        if(gfx::draw_window(&win) == gfx::win_result::err)
         {
             log::error(TAG,"Failed to draw window");
             return -1;
