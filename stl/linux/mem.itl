@@ -1,7 +1,15 @@
 namespace std;
 
-// memory
 constant SYSCALL_BRK : u32 = 12;
+constant SYSCALL_SHM_GET: u32 = 0x1d;
+constant SYSCALL_SHM_AT: u32 = 0x1e;
+constant SYSCALL_SHM_CTL: u32 = 0x1f;
+constant SYSCALL_SHM_DT: u32 = 0x43;
+
+constant IPC_PRIVATE: u32 = 0;
+constant IPC_CREATE: u32 = 1000;
+constant IPC_RMID: u32 = 0;
+
 
 // NOTE: we need to declare this first so that any file handles can alloc memory
 // globals are intialized in declaration order
@@ -21,4 +29,26 @@ func os_req_mem(size : usize) byte?
     current_os_brk = brk(current_os_brk);
 
     return old;
+}
+
+
+func shm_get(key: u32, size: u32, flag: u32) s32
+{
+    return cast(s32,intrin_syscall(SYSCALL_SHM_GET,key,size,flag));
+}
+
+func shm_at(shm_id: s32, addr: byte?, flag: u32) byte?
+{
+    return cast(byte?,intrin_syscall(SYSCALL_SHM_AT,shm_id,addr,flag));
+}
+
+
+func shm_ctl(shm_id: s32, cmd: u32, data: byte?) s32
+{
+    return cast(s32,intrin_syscall(SYSCALL_SHM_CTL,shm_id,cmd,data));
+}
+
+func shm_dt(addr: byte?) s32
+{
+    return cast(s32,intrin_syscall(SYSCALL_SHM_DT,addr));
 }

@@ -101,17 +101,20 @@ func recv(sock: Socket@, buf : byte[]) [u64, net_result]
     return bytes, res;
 }
 
-func recv_ignore(sock: Socket@, size : u32) net_result
+func recv_ignore(sock: Socket@, size : usize) net_result
 {
-    for(_i in 0 < size)
+    buffer: byte[32] = {?};
+
+    while size != 0
     {
-        v : byte;
-        [_, res] := recv_raw(sock,&v,1);
+        [received, res] := recv_raw(sock,&buffer[0],std::min(buffer.len,size));
 
         if(res != net_result::ok)
         {
             return res;
         }
+
+        size -= received;
     }
 
     return net_result::ok;

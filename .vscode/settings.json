@@ -1,6 +1,6 @@
 {
     "files.associations": {
-        "*.itl": "rust",
+        "*.itl": "go",
         "optional": "cpp",
         "chrono": "cpp",
         "array": "cpp",
