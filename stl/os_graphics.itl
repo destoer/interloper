@@ -16,11 +16,9 @@ struct ReplyCallback
 struct ShmImage
 {
     shm_seg: u32;
-    shm_id: s32;
+    shm_id: s32 = -1;
     addr: u32@;
     locked: bool;
-
-    callback: ReplyCallback; 
 };
 
 // https://www.x.org/releases/X11R7.5/doc/x11proto/proto.pdf
@@ -619,6 +617,7 @@ enum x_reply_type : u8
     key_release = 3,
     map_notify = 19,
     configure_notify = 22,
+    shm_completion = 65,
 }
 
 func process_reply(win : OSWindow@) win_result
@@ -753,7 +752,6 @@ func draw_lines(win: OSWindow@, ptr: const u32@, start_y: u32,lines: u32, stride
     
         put_image.len += bytes;
         
-        //std::print("len: {}\n",put_image.len);
 
         [_,res] := send_req(win,&put_image,sizeof_data(XPutImageBig));
 
@@ -794,15 +792,16 @@ func draw_lines(win: OSWindow@, ptr: const u32@, start_y: u32,lines: u32, stride
         return res;
     }
 
-    //std::print("sent {}\n",pixel_size + pad);
 
     // send pad 
     // NOTE: uses screen data just because its easy
     return net::send_raw_all(&win.sock,ptr,pad);
 }
 
-func render_shm(win: OSWindow@, width: u32, height: u32) win_result
+func render_shm(std_win: Window@) win_result
 {
+    win := &std_win.os_win;
+
     shm_image := &win.shm_image[win.shm_image_idx];
     win.shm_image_idx = (win.shm_image_idx + 1) % win.shm_image.len;
 
@@ -816,6 +815,9 @@ func render_shm(win: OSWindow@, width: u32, height: u32) win_result
     put_image.drawable = win.window_id;
     put_image.depth = 24;
 
+    width := std_win.width;
+    height := std_win.height;
+
     put_image.width = cast(u16, width);
     put_image.height = cast(u16, height);
     put_image.total_width = cast(u16, width);
@@ -824,30 +826,88 @@ func render_shm(win: OSWindow@, width: u32, height: u32) win_result
     put_image.shm_seg = shm_image.shm_seg;
     put_image.send_event = true;
 
-    [put_image_seq,res] := send_req(win,&put_image,sizeof_data(XPutImageSHM));
-    add_reply_callback(win,put_image_seq,&shm_image.callback);
+    [_,res] := send_req(win,&put_image,sizeof_data(XPutImageSHM));
 
     return net_res_to_win(res);    
 }
 
-func os_draw_window(window: Window@) win_result
+func screen_set_shm(std_win: Window@, index: usize)
 {
+    win := &std_win.os_win;
+
+    win.shm_image_idx = index;
+    image := &win.shm_image[win.shm_image_idx];
+
+    std_win.screen.data = image.addr;
+    std_win.screen.len = std_win.width * std_win.height;
+}
+
+func acquire_shm_image(std_win: Window@) result
+{
+    win := &std_win.os_win;
+
+    for i in 0 < win.shm_image.len
+    {
+        image := &win.shm_image[i];
+
+        if(!image.locked)
+        {
+            screen_set_shm(std_win,i);
+            return result::ok;
+        }
+    }
+
+    return result::err;
+}
+
+func unlock_shm_buffer(std_win: Window@) win_result
+{
+    shm_res := result::err;
+
+    while shm_res != result::ok
+    {
+        shm_res = acquire_shm_image(std_win);
+
+        if shm_res == result::err
+        {
+            res := os_process_events(std_win);
+
+            if res != win_result::ok
+            {
+                return res;
+            }
+        }
+    }
+
+    return win_result::ok;
+}
+
+func os_draw_window(std_win: Window@) win_result
+{
+    win := &std_win.os_win;
+
     if(win.mit_shm)
     {   
-        return render_shm(win,width,height);
+        res := render_shm(std_win);
+        if(res != win_result::ok)
+        {
+            return res;
+        }
+
+        return unlock_shm_buffer(std_win);
     }
 
     // Render lines manaully with several put image calls
     lines := win.max_lines;
-    ptr := screen.data;
+    ptr := std_win.screen.data;
 
-    offset := width * lines;
+    offset := std_win.width * lines;
 
-    for(y : u32 = 0; y < height; y += lines)
+    for(y : u32 = 0; y < std_win.height; y += lines)
     {
-        to_draw := std::min(lines,height - y);
+        to_draw := std::min(lines,std_win.height - y);
 
-        res := draw_lines(win,ptr,y,to_draw,width);
+        res := draw_lines(win,ptr,y,to_draw,std_win.width);
 
         if(res != net_result::ok)
         {
@@ -897,6 +957,21 @@ struct XConfigureNotify
     pad2 : u8[5];
 }
 
+#attr(no_reorder)
+struct XSHMCompletion
+{
+    code: u8;
+    pad0: u8;
+    seq: u16;
+    drawable: u32;
+    minor_event: u16;
+    major_event: u8;
+    pad1: u8;
+    shm_seg: u32;
+    offset: u32;
+    pad2: u32[3];
+};
+
 // todo: can we assume lat1 is the first keyset?
 func x_key_code_to_sym(win: OSWindow@, keycode: u8) u8
 {
@@ -910,6 +985,18 @@ func x_key_event(std_win: Window@, keycode: u8, down: bool)
     input::set_input(&std_win.input,keycode,down);
 }
 
+
+func shm_completion(win: OSWindow@, completion: const XSHMCompletion@)
+{
+    for @image in win.shm_image
+    {
+        if image.shm_seg == completion.shm_seg
+        {
+            image.locked = false;
+            return;
+        }
+    }
+}
 
 func os_process_events(std_win: Window@) win_result
 {
@@ -970,8 +1057,21 @@ func os_process_events(std_win: Window@) win_result
                 config: XConfigureNotify = {?};
                 std::read_buffer(buf,0,&config,sizeof_data(XConfigureNotify));
 
-                os_window_resized(win,config.width,config.height);
+                win_res := os_window_resized(std_win,config.width,config.height);
+
+                if win_res != win_result::ok
+                {
+                    return win_res;
+                }
+
                 window_resized(std_win,win.win_x,win.win_y);
+            }
+
+            case x_reply_type::shm_completion:
+            {
+                completion: XSHMCompletion = {?};
+                std::read_buffer(buf,0,&completion,sizeof_data(XSHMCompletion));
+                shm_completion(win,&completion);
             }
         
             case x_reply_type::map_notify:
@@ -1106,15 +1206,89 @@ func update_max_lines(win: OSWindow@)
     log::debug(X11_PREFIX,"max lines: {}",win.max_lines);
 }
 
-func os_window_resized(win: OSWindow@,x : u32, y: u32)
+#attr(no_reorder)
+struct XSHMDetach
 {
+    req: u8;	/* always ShmReqCode */
+    shm_req: u8 = 2;
+    length: u16 = 2;
+    shm_seg: u32;
+};
+
+func detach_shm(win: OSWindow@, image: ShmImage@) net_result
+{
+    if image.shm_id < 0
+    {
+        return net_result::ok;
+    }
+
+    shm_detatch: XSHMDetach;
+    shm_detatch.req = win.shm_code;
+    shm_detatch.shm_seg = image.shm_seg;
+
+    [_, res] := send_req(win,&shm_detatch,sizeof_data(XSHMDetach));
+
+    log::debug(X11_PREFIX,"Detached shm image: {}",image.shm_seg);
+
+    image.shm_seg = 0;
+    std::shm_ctl(image.shm_id,std::IPC_RMID,NULL);
+
+    image.shm_id = -1;
+
+    return res;
+}
+
+func setup_window_shm(std_win : Window@) win_result
+{
+    win := &std_win.os_win;
+
+    for @image in win.shm_image
+    {
+        res := detach_shm(win,image);
+
+        if(res != net_result::ok)
+        {
+            return net_res_to_win(res);
+        }
+
+        res = attach_shm(win, image);
+
+        if(res != net_result::ok)
+        {
+            return net_res_to_win(res);
+        }
+    }
+
+    screen_set_shm(std_win,0);
+
+    return win_result::ok;
+}
+
+func os_window_resized(std_win: Window@,x : u32, y: u32) win_result
+{
+    win := &std_win.os_win;
+
     win.win_x = x;
     win.win_y = y;
 
     update_max_lines(win);
 
-    // should be able to push atleast one scanline in a go
-    std::assert(win.max_lines >= 1);
+    if win.mit_shm 
+    {
+        return setup_window_shm(std_win);
+    }
+    
+    else
+    {
+        std::arr_realloc_u32(&itl_context.heap,&std_win.screen,x * y);
+
+        // should be able to push atleast one scanline in a go
+        std::assert(win.max_lines >= 1);
+    }
+
+
+
+    return win_result::ok;
 }
 
 
@@ -1453,25 +1627,9 @@ struct XSHMReqAttach
     pad1: u16;
 }
 
-func unlock_shm_image(win: OSWindow@, len: u32, raw_data: byte?) win_result
+func attach_shm(win: OSWindow@, image: ShmImage@) net_result
 {
-    shm_image := cast(ShmImage@,raw_data);
-    shm_image.locked = false;
-
-    res := net::recv_ignore(&win.sock,len);
-    return net_res_to_win(res);
-}
-
-func attach_shm(win: OSWindow@) net_result
-{
-    image := &win.shm_image[win.shm_image_idx];
-    win.shm_image_idx += 1;
-
-    image.callback.data = cast(byte?,image);
-    image.callback.callback = &unlock_shm_image;
-
     image.shm_id = std::shm_get(std::IPC_PRIVATE,win.screen_x * win.screen_y * 4,std::IPC_CREATE | 0777);
-    log::debug(X11_PREFIX,"shm id {}",image.shm_id);
 
     if(image.shm_id < 0)
     {
@@ -1517,23 +1675,7 @@ func enable_mit_shm(std_win: Window@) [bool, net_result]
 
     log::debug(X11_PREFIX,"SHM SUPPORTED {} {}",win.mit_shm,ext_query.opcode);
 
-
-    if(!win.mit_shm)
-    {
-        return false, net_result::ok;
-    }
-
-    for(_i in 0 < win.shm_image.len)
-    {
-        res = attach_shm(win);
-    }
-
-    if(res != net_result::ok)
-    {
-        return false, res;
-    }
-
-    return true, net_result::ok;
+    return win.mit_shm, net_result::ok;
 }
 
 func os_open_window(std_win: Window@,str : const string, x : u32, y : u32) win_result
@@ -1605,7 +1747,18 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32) win_r
         return net_res_to_win(res);
     }
 
-    [_, res] = enable_mit_shm(std_win);
+    [shm_enabled, res] := enable_mit_shm(std_win);
+
+    if(shm_enabled)
+    {
+        std::destroy_arr_heap_u32(&itl_context.heap,&std_win.screen);
+        win_res := setup_window_shm(std_win);
+
+        if(win_res != win_result::ok)
+        {
+            return win_res;
+        }
+    }
 
     if(res != net_result::ok)
     {
@@ -1626,13 +1779,21 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32) win_r
     return net_res_to_win(res);
 }
 
-func os_destroy_window(win : OSWindow@) win_result
+func os_destroy_window(std_win : Window@) win_result
 {
+    win := &std_win.os_win;
+
+    defer std::destroy_array(&win.packet);
+
+    if !win.mit_shm
+    {   
+        std::destroy_arr_heap_u32(&itl_context.heap,&std_win.screen);
+    }
+
     // Socket has allready been cut. 
     // Assume this is shut correctly.
     if(!net::socket_valid(&win.sock))
     {
-        std::destroy_array(&win.packet);
         return win_result::ok;
     }
 
@@ -1643,8 +1804,20 @@ func os_destroy_window(win : OSWindow@) win_result
         return net_res_to_win(res);
     }
 
-    // close down our socket and free our working buffer
-    std::destroy_array(&win.packet);
+
+    if win.mit_shm
+    {
+        for @image in win.shm_image
+        {
+            res = detach_shm(win,image);
+
+            if(res != net_result::ok)
+            {
+                return net_res_to_win(res);
+            }
+        }
+    }
+
     res = net::close_sock(&win.sock);
 
     return net_res_to_win(res);

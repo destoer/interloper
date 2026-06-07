@@ -3,9 +3,11 @@ namespace std;
 constant SYSCALL_BRK : u32 = 12;
 constant SYSCALL_SHM_GET: u32 = 0x1d;
 constant SYSCALL_SHM_AT: u32 = 0x1e;
+constant SYSCALL_SHM_CTL: u32 = 0x1f;
 
 constant IPC_PRIVATE: u32 = 0;
 constant IPC_CREATE: u32 = 1000;
+constant IPC_RMID: u32 = 0;
 
 
 // NOTE: we need to declare this first so that any file handles can alloc memory
@@ -37,4 +39,10 @@ func shm_get(key: u32, size: u32, flag: u32) s32
 func shm_at(shm_id: s32, addr: byte?, flag: u32) byte?
 {
     return cast(byte?,intrin_syscall(SYSCALL_SHM_AT,shm_id,addr,flag));
+}
+
+
+func shm_ctl(shm_id: s32, cmd: u32, data: byte?)
+{
+    intrin_syscall(SYSCALL_SHM_CTL,shm_id,cmd,data);
 }

@@ -100,8 +100,7 @@ func window_resized(win: Window@,x : u32, y : u32)
     win.bounds.x = clip_bound(x);
     win.bounds.y = clip_bound(y);
 
-    // realloc our buffer
-    std::arr_realloc_u32(&itl_context.heap,&win.screen,x * y);
+    // realloc our z buffer
     std::arr_realloc_f64(&itl_context.heap,&win.z_buffer,x * y);
 
     clear_z_buffer(win);
@@ -131,9 +130,8 @@ func open_window(str : const string, x : u32, y : u32) [Window, win_result]
 
 func close_window(win : Window@) win_result
 {
-    std::destroy_arr_heap_u32(&itl_context.heap,&win.screen);
     std::destroy_arr_heap_f64(&itl_context.heap,&win.z_buffer);
-    return os_destroy_window(&win.os_win);
+    return os_destroy_window(win);
 }
 
 func draw_window(win : Window@) win_result
