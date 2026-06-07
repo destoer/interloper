@@ -1057,6 +1057,7 @@ func os_process_events(std_win: Window@) win_result
                 config: XConfigureNotify = {?};
                 std::read_buffer(buf,0,&config,sizeof_data(XConfigureNotify));
 
+
                 win_res := os_window_resized(std_win,config.width,config.height);
 
                 if win_res != win_result::ok
@@ -1228,11 +1229,12 @@ func detach_shm(win: OSWindow@, image: ShmImage@) net_result
 
     [_, res] := send_req(win,&shm_detatch,sizeof_data(XSHMDetach));
 
-    log::debug(X11_PREFIX,"Detached shm image: {}",image.shm_seg);
+    log::debug(X11_PREFIX,"Detached shm resource: {}",image.shm_seg);
 
     image.shm_seg = 0;
     std::shm_ctl(image.shm_id,std::IPC_RMID,NULL);
 
+    image.locked = false;
     image.shm_id = -1;
 
     return res;
@@ -1629,7 +1631,7 @@ struct XSHMReqAttach
 
 func attach_shm(win: OSWindow@, image: ShmImage@) net_result
 {
-    image.shm_id = std::shm_get(std::IPC_PRIVATE,win.screen_x * win.screen_y * 4,std::IPC_CREATE | 0777);
+    image.shm_id = std::shm_get(std::IPC_PRIVATE,win.win_x * win.win_y * 4,std::IPC_CREATE | 0777);
 
     if(image.shm_id < 0)
     {

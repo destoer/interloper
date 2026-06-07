@@ -74,11 +74,8 @@ func clip_bound(bound: u32) u32
 
 func clear_z_buffer(win: Window@)
 {
-    for @v in win.z_buffer
-    {
-        // Set a to a value lower precedence than we can get otherwhise
-        @v = -1000.0;
-    }
+    // Set a to a value lower precedence than we can get otherwhise
+    std::fill(win.z_buffer,-1000.0);
 }
 
 // called when os window is resized
