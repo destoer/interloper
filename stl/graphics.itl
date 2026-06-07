@@ -45,19 +45,12 @@ constant WINDOW_PREFIX : const string = "WINDOW ";
 
 func blank_screen(screen: u32[])
 {
-    for @v in screen
-    {
-        @v = BLACK;
-    }   
+    std::fill(screen,BLACK);
 }
 
 func test_pattern(screen: u32[], x: u32, y: u32)
 {
-    for @v in screen
-    {
-        @v = colour::GREEN;
-    }
-
+    std::fill(screen,GREEN);
     screen[((y / 2) * x) + (x / 2)] = 0x0000_00ff;
 }
 

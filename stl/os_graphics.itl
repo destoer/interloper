@@ -18,6 +18,7 @@ struct ShmImage
     shm_seg: u32;
     shm_id: s32 = -1;
     addr: u32@;
+    size: usize;
     locked: bool;
 };
 
@@ -839,7 +840,7 @@ func screen_set_shm(std_win: Window@, index: usize)
     image := &win.shm_image[win.shm_image_idx];
 
     std_win.screen.data = image.addr;
-    std_win.screen.len = std_win.width * std_win.height;
+    std_win.screen.len = image.size;
 }
 
 func acquire_shm_image(std_win: Window@) result
@@ -1009,7 +1010,7 @@ func os_process_events(std_win: Window@) win_result
     }
 
     // while socket has data or we are waiting for specific notification
-    while(net::socket_has_data(&win.sock))
+    while(net::socket_has_data(&win.sock) && !std_win.quit)
     {
         buf := &win.packet;
 
@@ -1216,8 +1217,10 @@ struct XSHMDetach
     shm_seg: u32;
 };
 
-func detach_shm(win: OSWindow@, image: ShmImage@) net_result
+func detach_shm(std_win: Window@, image: ShmImage@) net_result
 {
+    win := &std_win.os_win;
+
     if image.shm_id < 0
     {
         return net_result::ok;
@@ -1232,7 +1235,19 @@ func detach_shm(win: OSWindow@, image: ShmImage@) net_result
     log::debug(X11_PREFIX,"Detached shm resource: {}",image.shm_seg);
 
     image.shm_seg = 0;
-    std::shm_ctl(image.shm_id,std::IPC_RMID,NULL);
+
+
+    if std::shm_ctl(image.shm_id,std::IPC_RMID,NULL) < 0
+    {
+        log::error(X11_PREFIX,"Failed to destroy shm {}",image.shm_id);
+        return net_result::err;
+    }
+
+    if std::shm_dt(image.addr) < 0
+    {
+        log::error(X11_PREFIX,"Failed to detach shm {}",image.shm_id);
+        return net_result::err;
+    }
 
     image.locked = false;
     image.shm_id = -1;
@@ -1246,14 +1261,7 @@ func setup_window_shm(std_win : Window@) win_result
 
     for @image in win.shm_image
     {
-        res := detach_shm(win,image);
-
-        if(res != net_result::ok)
-        {
-            return net_res_to_win(res);
-        }
-
-        res = attach_shm(win, image);
+        res := attach_shm(std_win, image);
 
         if(res != net_result::ok)
         {
@@ -1277,7 +1285,13 @@ func os_window_resized(std_win: Window@,x : u32, y: u32) win_result
 
     if win.mit_shm 
     {
-        return setup_window_shm(std_win);
+        // This already has the correct allocation just set the size
+        for @image in win.shm_image
+        {
+            image.size = win.win_x * win.win_y;
+        }
+
+        screen_set_shm(std_win,win.shm_image_idx);
     }
     
     else
@@ -1629,9 +1643,12 @@ struct XSHMReqAttach
     pad1: u16;
 }
 
-func attach_shm(win: OSWindow@, image: ShmImage@) net_result
+func attach_shm(std_win: Window@, image: ShmImage@) net_result
 {
-    image.shm_id = std::shm_get(std::IPC_PRIVATE,win.win_x * win.win_y * 4,std::IPC_CREATE | 0777);
+    win := &std_win.os_win;
+
+    // Allocate something screen sized so we dont have to reallocate this
+    image.shm_id = std::shm_get(std::IPC_PRIVATE,cast(u32,win.screen_x * win.screen_y  * sizeof_type(u32)),std::IPC_CREATE | 0777);
 
     if(image.shm_id < 0)
     {
@@ -1640,12 +1657,15 @@ func attach_shm(win: OSWindow@, image: ShmImage@) net_result
     }
 
     image.addr = cast(u32@,std::shm_at(image.shm_id,NULL,0));
+    image.size = win.win_x * win.win_y;
+
     image.shm_seg = alloc_resource(win);
 
     attach_req: XSHMReqAttach;
     attach_req.req = win.shm_code;
     attach_req.shm_id = cast(u32,image.shm_id);
     attach_req.shm_seg = image.shm_seg;
+    attach_req.read_only = true;
 
     [_, res] := send_req(win,&attach_req,sizeof_data(XSHMReqAttach));
 
@@ -1653,7 +1673,6 @@ func attach_shm(win: OSWindow@, image: ShmImage@) net_result
     {
         return res;
     }
-
 
     log::debug(X11_PREFIX,"Attached SHM Resource {}",image.shm_seg);
 
@@ -1751,6 +1770,11 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32) win_r
 
     [shm_enabled, res] := enable_mit_shm(std_win);
 
+    if(res != net_result::ok)
+    {
+        return net_res_to_win(res);
+    }
+
     if(shm_enabled)
     {
         std::destroy_arr_heap_u32(&itl_context.heap,&std_win.screen);
@@ -1762,10 +1786,6 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32) win_r
         }
     }
 
-    if(res != net_result::ok)
-    {
-        return net_res_to_win(res);
-    }
 
     key_res := get_keyboard_mapping(std_win);
 
@@ -1811,7 +1831,7 @@ func os_destroy_window(std_win : Window@) win_result
     {
         for @image in win.shm_image
         {
-            res = detach_shm(win,image);
+            res = detach_shm(std_win,image);
 
             if(res != net_result::ok)
             {

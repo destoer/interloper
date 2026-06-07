@@ -4,6 +4,7 @@ constant SYSCALL_BRK : u32 = 12;
 constant SYSCALL_SHM_GET: u32 = 0x1d;
 constant SYSCALL_SHM_AT: u32 = 0x1e;
 constant SYSCALL_SHM_CTL: u32 = 0x1f;
+constant SYSCALL_SHM_DT: u32 = 0x43;
 
 constant IPC_PRIVATE: u32 = 0;
 constant IPC_CREATE: u32 = 1000;
@@ -42,7 +43,12 @@ func shm_at(shm_id: s32, addr: byte?, flag: u32) byte?
 }
 
 
-func shm_ctl(shm_id: s32, cmd: u32, data: byte?)
+func shm_ctl(shm_id: s32, cmd: u32, data: byte?) s32
 {
-    intrin_syscall(SYSCALL_SHM_CTL,shm_id,cmd,data);
+    return cast(s32,intrin_syscall(SYSCALL_SHM_CTL,shm_id,cmd,data));
+}
+
+func shm_dt(addr: byte?) s32
+{
+    return cast(s32,intrin_syscall(SYSCALL_SHM_DT,addr));
 }
