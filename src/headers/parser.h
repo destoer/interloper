@@ -1259,6 +1259,7 @@ std::pair<u32,u32> get_line_info(const String& filename, u32 idx);
 
 inline parse_error parser_error(Parser &parser,parse_error error ,const Token &token,const char *fmt, ...)
 {
+    assert(false);
     parser.error_count += 1;
 
     // further reporting becomes pointless past a single parser error

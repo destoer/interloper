@@ -146,6 +146,9 @@ void destroy_itl(Interloper &itl)
     destroy_rtti_cache(itl.rtti_cache);
 
     destroy_allocator(itl.type_allocator);
+
+    destroy_arr(itl.defer_stack);
+    destroy_arr(itl.generic_overload.overload);
 }
 
 void print_itl(Interloper& itl)

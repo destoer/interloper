@@ -3,21 +3,21 @@ namespace std;
 func alloc_array_heap<T: Sized>(heap : Heap@, size: usize) $T[]
 {
     buf: $T[] = {?};
-    buf.data = alloc_heap_panic(heap,size,sizeof_type($T));
+    buf.data = cast($T@,alloc_heap_panic(heap,size,sizeof_type($T)));
     buf.len = size;
 
     return buf;
 }
 
-func realloc_array_heap<T: Sized>(heap : Heap@, vla: T@[], size: usize)
+func realloc_array_heap<T: Sized>(heap : Heap@, vla: $T@[], size: usize)
 {
-    realloc_heap_panic(heap,&vla.data,size,sizeof_type($T));
+    realloc_heap_panic(heap,cast(byte@@,&vla.data),size,sizeof_type($T));
     vla.len = size;
 }
 
 func destroy_array_heap<T: Sized>(heap : Heap@, vla: $T@[])
 {
-    free_heap(heap,&vla.data);
+    free_heap(heap,cast(byte@?,&vla.data));
     vla.len = 0;   
 }
 
@@ -179,6 +179,11 @@ func push_mem(arr : Array@, v: const byte@,size: usize)
     arr.buf.len += size;
 }
 
+func push_var<T: Sized>(array: Array@, var: const $T@)
+{
+    push_mem(array,&var,sizeof_type($T));
+}
+
 func push_buffer(arr : Array@, buffer: const byte[])
 {
     push_mem(arr, buffer.data, buffer.len);
@@ -196,43 +201,29 @@ func push_array(arr: Array@, data: const byte@)
 
 func push_u8(arr : Array@, v : u8)
 {
-    push_mem(arr,&v,sizeof(v));
+    push_var(arr,&v);
 }
 
 func push_u16(arr : Array@, v : u16)
 {
-    push_mem(arr,&v,sizeof(v));
+    push_var(arr,&v);
 }
 
 func push_u32(arr : Array@, v : u32)
 {
-    push_mem(arr,&v,sizeof(v));
+    push_var(arr,&v);
 }
 
 func push_u64(arr : Array@, v : u64)
 {
-    push_mem(arr,&v,sizeof(v));
+    push_var(arr,&v);
 }
 
-func read_buffer_u8(arr: const Array@, offset: u64) u8
+func read_var<T: Sized>(arr: const Array@, offset: u64) $T
 {
-    v: u8;
-    read_buffer(arr,offset,&v,sizeof(v));
-    return v;
-}
-
-func read_buffer_u16(arr: const Array@, offset: u64) u16
-{
-    v: u16;
-    read_buffer(arr,offset,&v,sizeof(v));
-    return v;
-}
-
-func read_buffer_u32(arr: const Array@, offset: u64) u32
-{
-    v: u32;
-    read_buffer(arr,offset,&v,sizeof(v));
-    return v;
+    out: $T = {?};
+    read_buffer(arr,offset,&out,sizeof_type($T));
+    return out;
 }
 
 func array_pop(arr: Array@) 

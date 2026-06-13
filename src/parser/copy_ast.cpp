@@ -21,6 +21,19 @@ void add_copy_data_pointer(Interloper& itl, void* data)
     }
 }
 
+template<typename T>
+void copy_ast_array(Interloper& itl, Array<T>& copy, const Array<T>& src)
+{
+    copy = {};
+    for(auto arg : src)
+    {
+        push_var(copy,(T)copy_ast(itl,(AstNode*)arg));
+    }
+
+    add_copy_data_pointer(itl,&copy.data);
+}
+
+
 TypeNode* copy_ast_type(Interloper& itl,TypeNode* type)
 {
     if(!type)
@@ -131,11 +144,7 @@ FuncNode* copy_ast_func(Interloper& itl, FuncNode* function)
         push_var(copy->return_type,return_copy);
     }
 
-    copy->args= {};
-    for(DeclNode* decl : function->args)
-    {
-        push_var(copy->args,copy_ast_decl(itl,decl));
-    }
+    copy_ast_array(itl,copy->args,function->args);
 
     copy->block = copy_ast_block(itl,function->block);
 
@@ -147,7 +156,6 @@ FuncNode* copy_ast_func(Interloper& itl, FuncNode* function)
 
     add_copy_data_pointer(itl,&copy->block.statement.data);
     add_copy_data_pointer(itl,&copy->return_type.data);
-    add_copy_data_pointer(itl,&copy->args.data);
 
     return copy;
 }
@@ -168,14 +176,7 @@ RetNode* copy_ast_ret(Interloper& itl, RetNode* ret)
 {
     RetNode* copy = alloc_node_copy(itl,ret);
 
-    copy->expr = {};
-    for(AstNode* expr : ret->expr)
-    {
-        push_var(copy->expr,copy_ast(itl,expr));
-    }
-
-    assert(copy->expr.data != ret->expr.data);
-    add_copy_data_pointer(itl,&copy->expr.data);
+    copy_ast_array(itl,copy->expr,ret->expr);
 
     return copy;
 }
@@ -249,6 +250,72 @@ ForRangeNode* copy_ast_for_range(Interloper& itl, ForRangeNode* range)
     return copy;    
 }
 
+// struct FuncCallNode
+// {
+//     AstNode node;
+
+//     AstNode* expr = nullptr;
+//     func_call_type type = func_call_type::call;
+
+//     union
+//     {
+//         FuncCall call = {};
+//         size_t intrinsic_idx;
+//     };
+
+//     Array<TypeNode*> generic_args;
+//     Array<AstNode*> args;
+// };
+
+FuncCallNode* copy_ast_function_call(Interloper& itl, FuncCallNode* call)
+{
+    FuncCallNode* copy = alloc_node_copy(itl,call);
+    *copy = *call;
+    
+    copy->expr = copy_ast(itl,call->expr);
+    copy->call = {};
+
+    copy_ast_array(itl,copy->args,call->args);
+    copy_ast_array(itl,copy->generic_args,call->generic_args);
+
+    return copy;
+}
+
+TypeOperatorNode* copy_type_operator(Interloper& itl, TypeOperatorNode* type_operator)
+{
+    TypeOperatorNode* copy = alloc_node_copy(itl,type_operator);
+    copy->oper = type_operator->oper;
+    copy->type = copy_ast_type(itl,type_operator->type);
+
+    return copy;
+}
+
+AstNode* copy_ast_plain(Interloper& itl, AstNode* node)
+{
+    AstNode* copy = (AstNode*)allocate(itl.parser_alloc.ast_allocator,sizeof(AstNode));
+    *copy = *node;
+
+    return copy;
+}
+
+StructAccessNode* copy_ast_struct_access(Interloper& itl, StructAccessNode* access)
+{
+    StructAccessNode* copy = alloc_node_copy(itl,access);
+    copy->expr = copy_ast(itl,access->expr);
+    copy->flags = access->flags;
+    
+    copy->members = {};
+    for(const auto& member : access->members)
+    {
+        push_var(copy->members,member);
+    }
+
+    add_copy_data_pointer(itl,&copy->members.data);
+
+    return copy;
+}
+
+
 AstNode* copy_ast(Interloper& itl, AstNode* node)
 {
     if(!node)
@@ -258,9 +325,24 @@ AstNode* copy_ast(Interloper& itl, AstNode* node)
 
     switch(node->type)
     {
+        case ast_type::no_init:
+        {
+            return copy_ast_plain(itl,node);
+        }
+
         case ast_type::function:
         {
             return (AstNode*)copy_ast_func(itl,(FuncNode*)node);
+        }
+
+        case ast_type::type_operator:
+        {
+            return (AstNode*)copy_type_operator(itl,(TypeOperatorNode*)node);
+        }
+
+        case ast_type::function_call:
+        {
+            return (AstNode*)copy_ast_function_call(itl,(FuncCallNode*)node);
         }
 
         case ast_type::type:
@@ -331,6 +413,26 @@ AstNode* copy_ast(Interloper& itl, AstNode* node)
         case ast_type::deref:
         {
             return (AstNode*)copy_ast_unary(itl,(DerefNode*)node);
+        }
+
+        case ast_type::addrof:
+        {
+            return (AstNode*)copy_ast_unary(itl,(AddrOfNode*)node);
+        }
+
+        case ast_type::sizeof_t:
+        {
+            return (AstNode*)copy_ast_unary(itl,(SizeOfNode*)node);
+        }
+
+        case ast_type::const_assert:
+        {
+            return (AstNode*)copy_ast_unary(itl,(ConstAssertNode*)node);
+        }
+
+        case ast_type::struct_access:
+        {
+            return (AstNode*)copy_ast_struct_access(itl,(StructAccessNode*)node);
         }
 
         case ast_type::assign:

@@ -336,42 +336,14 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
     // look ahead extra tokens that would change the meaning of this
     switch(ctx.expr_tok.type)
     {
-        // generic?
-        case token_type::logical_lt:
+        // Generic function
+        case token_type::dollar:
         {
-            DefInfo* definition = parser_lookup_definition(parser,name_space,cur.literal);
+            const auto res = parse_template_call(parser,name_space,cur);
 
-            if(!definition)
-            {
-                return parse_sym_in_expr(parser,ctx,name_space,cur);
-            }
+            next_expr_token(parser,ctx);
 
-            switch(definition->type)
-            {
-                case definition_type::variable:
-                {
-                    return parse_sym_in_expr(parser,ctx,name_space,cur);
-                }
-
-                case definition_type::type:
-                {
-                    assert(false);
-                    return nullptr;
-                }
-
-                case definition_type::function:
-                {   
-                    prev_token(parser);
-                    const auto res = parse_template_call(parser,name_space,cur);
-
-                    next_expr_token(parser,ctx);
-
-                    return res;
-                }
-            }
-            
-            assert(false);
-            break;
+            return res;
         }
 
         // function call

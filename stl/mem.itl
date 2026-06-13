@@ -175,7 +175,7 @@ func swap<T: Sized>(v1: $T@, v2: $T@)
 
 
 func bit_cast<T: Sized, Y: Sized>(data: const $Y@) $T {
-    static_assert(sizeof_type($T) <= sizeof_type($Y));
+    const_assert(sizeof_type($T) <= sizeof_type($Y));
     out: $T = {?};
 
     memcpy(&out,data,sizeof(out));

@@ -485,7 +485,7 @@ func file_size(file: File@) s64
     return size;
 }
 
-func read_bin(name : const string) [byte[],bool]
+func read_bin(name : const string) [buffer: byte[],ok: bool]
 {
     buf : byte[];
 
@@ -496,20 +496,19 @@ func read_bin(name : const string) [byte[],bool]
         return buf,true;
     }
 
+    // Make sure file is closed
+    defer close_file(&file);
+
     size := file_size(&file);
 
     if(size == -1)
     {
-        close_file(&file);
         return buf,true;
     }
 
-    buf = alloc_array_heap<byte>(&itl_context.heap,cast(u64,size));
+    buf = alloc_array_heap$<byte>(&itl_context.heap,cast(u64,size));
 
     [_read,file_res] := read_file_mem(&file,buf);
-
-    // done with file remember to close it
-    close_file(&file);
 
     // error reading file
     if(file_res == file_read_res::error)
