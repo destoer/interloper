@@ -1,6 +1,6 @@
 namespace std;
 
-func alloc_array_heap<$T: Sized>(heap : Heap@, size: usize) $T[]
+func alloc_array_heap<T: Sized>(heap : Heap@, size: usize) $T[]
 {
     buf: $T[] = {?};
     buf.data = alloc_heap_panic(heap,size,sizeof_type($T));
@@ -9,19 +9,19 @@ func alloc_array_heap<$T: Sized>(heap : Heap@, size: usize) $T[]
     return buf;
 }
 
-func realloc_array_heap<$T: Sized>(heap : Heap@, vla: $T@[], size: usize)
+func realloc_array_heap<T: Sized>(heap : Heap@, vla: T@[], size: usize)
 {
     realloc_heap_panic(heap,&vla.data,size,sizeof_type($T));
     vla.len = size;
 }
 
-func destroy_array_heap<$T: Sized>(heap : Heap@, vla: $T@[])
+func destroy_array_heap<T: Sized>(heap : Heap@, vla: $T@[])
 {
     free_heap(heap,&vla.data);
     vla.len = 0;   
 }
 
-func alloc_array_arena<$T: Sized>(arena : Arena@, size: usize) $T[]
+func alloc_array_arena<T: Sized>(arena : Arena@, size: usize) $T[]
 {
     buf: $T[] = {?};
     buf.data = alloc_arena_panic(arena,size * sizeof_type($T)); 

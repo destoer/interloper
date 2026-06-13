@@ -120,7 +120,7 @@ func open_window(str : const string, x : u32, y : u32) [Window, win_result]
 
 func close_window(win : Window@) win_result
 {
-    std::destroy_arr_heap_f64(&itl_context.heap,&win.z_buffer);
+    std::destroy_arr_heap(&itl_context.heap,&win.z_buffer);
     return os_destroy_window(win);
 }
 

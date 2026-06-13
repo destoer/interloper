@@ -502,6 +502,7 @@ struct FuncCallNode
         size_t intrinsic_idx;
     };
 
+    Array<TypeNode*> generic_args;
     Array<AstNode*> args;
 };
 

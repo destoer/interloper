@@ -66,7 +66,7 @@ Option<parse_error> block_ast(Parser &parser, AstBlock* block)
     }
 
     // parse out all our statements
-    while(!match(parser,token_type::right_c_brace))
+    while(!consume_match(parser,token_type::right_c_brace))
     {
         if(match(parser,token_type::eof))
         {
@@ -83,7 +83,7 @@ Option<parse_error> block_ast(Parser &parser, AstBlock* block)
         push_var(block->statement,*stmt_res);
     }
     
-    return consume(parser,token_type::right_c_brace);
+    return option::none;
 }
 
 
@@ -111,7 +111,7 @@ Option<parse_error> parse_generic(Parser& parser, FuncNode* f)
 {
     const auto generic_start = next_token(parser);
 
-    while(!match(parser,token_type::logical_gt))
+    while(!consume_match(parser,token_type::logical_gt))
     {
         if(!match(parser,token_type::symbol))
         {
@@ -154,7 +154,7 @@ Option<parse_error> parse_generic(Parser& parser, FuncNode* f)
         }
     }
 
-    return consume(parser,token_type::logical_gt);
+    return option::none;
 }
 
 // parse just the function signature
@@ -183,7 +183,7 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
 
     // parse out the function args
     // if  token is eof then we have a problem 
-    while(!match(parser,token_type::right_paren))
+    while(!consume_match(parser,token_type::right_paren))
     {
         if(match(parser,token_type::eof))
         {
@@ -248,11 +248,6 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
         }
     }
 
-    const auto right_paren_err = consume(parser,token_type::right_paren);
-    if(right_paren_err)
-    {
-        return *right_paren_err;
-    }
 
     b32 named_return = false;
 
@@ -261,7 +256,7 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
     {
         (void)consume(parser,token_type::sl_brace);
 
-        while(!match(parser,token_type::sr_brace))
+        while(!consume_match(parser,token_type::sr_brace))
         {
             if(match(parser,token_type::eof))
             {
@@ -313,12 +308,6 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
                     return *sr_brace_err;
                 }
             }
-        }
-
-        const auto sr_brace_err = consume(parser,token_type::sr_brace);
-        if(sr_brace_err)
-        {
-            return *sr_brace_err;
         }
     }
 

@@ -131,7 +131,7 @@ Result<StructNode*, parse_error> parse_struct_decl(Parser& parser, const ParsedA
         return *left_c_brace_err;
     }
 
-    while(!match(parser,token_type::right_c_brace))
+    while(!consume_match(parser,token_type::right_c_brace))
     {
         auto decl_res = declaration(parser,token_type::semi_colon);
 
@@ -144,8 +144,6 @@ Result<StructNode*, parse_error> parse_struct_decl(Parser& parser, const ParsedA
 
         push_var(struct_node->members,decl);
     }
-
-    (void)consume(parser,token_type::right_c_brace);
 
     // semi colon after decl is optional
     if(match(parser,token_type::semi_colon))
@@ -220,7 +218,7 @@ Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser,const ParsedAttr &a
     enum_node->attr_flags = attr.flags;
 
     // push each member till we hit the terminating brace
-    while(!match(parser,token_type::right_c_brace))
+    while(!consume_match(parser,token_type::right_c_brace))
     {
         const auto member_tok = next_token(parser);
 
@@ -260,8 +258,6 @@ Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser,const ParsedAttr &a
 
         push_var(enum_node->member,member);        
     }
-
-    (void)consume(parser,token_type::right_c_brace);
 
     // semi colon after decl is optional
     if(match(parser,token_type::semi_colon))

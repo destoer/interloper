@@ -504,7 +504,7 @@ func read_bin(name : const string) [byte[],bool]
         return buf,true;
     }
 
-    buf = byte_arr_heap(&itl_context.heap,cast(u64,size));
+    buf = alloc_array_heap<byte>(&itl_context.heap,cast(u64,size));
 
     [_read,file_res] := read_file_mem(&file,buf);
 

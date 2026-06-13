@@ -193,7 +193,7 @@ func send_auth_packet(win: OSWindow@, buf: std::Array@) net_result
             return net_result::err;
         }
 
-        defer std::destroy_arr_heap_byte(&itl_context.heap,&bin);
+        defer std::destroy_arr_heap(&itl_context.heap,&bin);
 
     
         auth_proto := "MIT-MAGIC-COOKIE-1";
@@ -1777,7 +1777,7 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32) win_r
 
     if(shm_enabled)
     {
-        std::destroy_arr_heap_u32(&itl_context.heap,&std_win.screen);
+        std::destroy_arr_heap(&itl_context.heap,&std_win.screen);
         win_res := setup_window_shm(std_win);
 
         if(win_res != win_result::ok)
@@ -1809,7 +1809,7 @@ func os_destroy_window(std_win : Window@) win_result
 
     if !win.mit_shm
     {   
-        std::destroy_arr_heap_u32(&itl_context.heap,&std_win.screen);
+        std::destroy_arr_heap(&itl_context.heap,&std_win.screen);
     }
 
     // Socket has allready been cut. 

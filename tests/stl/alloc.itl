@@ -23,7 +23,7 @@ func test_heap() bool
     std::heap_usage(&itl_context.heap);
 
 
-    vla := std::byte_arr_heap(&itl_context.heap,25);
+    vla := std::alloc_arr_heap<byte>(&itl_context.heap,25);
 
     std::print("after alloc:\n");
     std::heap_usage(&itl_context.heap);
@@ -35,7 +35,7 @@ func test_heap() bool
 
     res := vla.len * vla[3];
 
-    std::destroy_arr_heap_byte(&itl_context.heap,&vla);
+    std::arr_heap_byte(&itl_context.heap,&vla);
     
     std::print("after free:\n");
     std::heap_usage(&itl_context.heap);
@@ -64,7 +64,7 @@ func test_realloc() bool
 
     res := vla.len;
 
-    std::destroy_arr_heap_byte(&itl_context.heap,&vla);
+    std::destroy_arr_heap(&itl_context.heap,&vla);
 
     return res == 3200;
 }
