@@ -290,7 +290,7 @@ ParserResult parse_switch(Parser& parser, const Token& t)
     SwitchNode* switch_node = ast_switch(parser,*expr_res,t);
 
     // while we haven't exhausted every case
-    while(!match(parser,token_type::right_c_brace))
+    while(!consume_match(parser,token_type::right_c_brace))
     {
         const auto case_tok = peek(parser,0);
 
@@ -345,11 +345,6 @@ ParserResult parse_switch(Parser& parser, const Token& t)
         }
     }
 
-    const auto c_brace_err = consume(parser,token_type::right_c_brace);
-    if(c_brace_err)
-    {
-        return *c_brace_err;
-    }
     return (AstNode*)switch_node;
 }
 

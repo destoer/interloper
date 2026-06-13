@@ -275,11 +275,77 @@ EnumMemberNode* parse_enum_member(Parser& parser, const Token& member_name, cons
     return ast_enum_member(parser,name_space,enum_name,member_name.literal,member_name);
 }
 
+ParserResult parse_sym_in_expr(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const Token& cur)
+{
+    prev_token(parser);
+    auto var_res = var(parser,name_space,cur,true);
+
+    next_expr_token(parser,ctx);
+    return var_res;
+}
+
+Result<Array<TypeNode*>,parse_error> parse_generic_args(Parser& parser)
+{
+    const auto err = consume(parser,token_type::logical_lt);
+    if(err)
+    {
+        return *err;
+    }
+
+    Array<TypeNode*> types; 
+
+    while(!consume_match(parser,token_type::logical_gt))
+    {
+        const auto type_res = parse_type(parser);
+
+        if(!type_res)
+        {
+            destroy_arr(types);
+            return type_res.error();
+        }
+
+        push_var(types,*type_res);
+    }
+
+    return types;
+}
+
+ParserResult parse_template_call(Parser& parser, NameSpace* name_space, const Token& cur)
+{
+    const auto generic_args_res = parse_generic_args(parser);
+    if(!generic_args_res)
+    {
+        return generic_args_res.error();
+    }
+
+    auto func_call_res = func_call(parser,ast_symbol(parser,name_space,cur.literal,cur),cur);
+    if(!func_call_res)
+    {
+        return func_call_res;
+    }
+
+    FuncCallNode* func_call = (FuncCallNode*)func_call_res.value();
+    func_call->generic_args = *generic_args_res;
+    add_ast_pointer(parser,&func_call->generic_args);
+
+    return (AstNode*)func_call;
+}
+
 ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const Token& cur)
 {
     // look ahead extra tokens that would change the meaning of this
     switch(ctx.expr_tok.type)
     {
+        // Generic function
+        case token_type::dollar:
+        {
+            const auto res = parse_template_call(parser,name_space,cur);
+
+            next_expr_token(parser,ctx);
+
+            return res;
+        }
+
         // function call
         case token_type::left_paren:
         {
@@ -341,11 +407,7 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
             }
 
 
-            prev_token(parser);
-            auto var_res = var(parser,name_space,cur,true);
-
-            next_expr_token(parser,ctx);
-            return var_res;
+            return parse_sym_in_expr(parser,ctx,name_space,cur);
         }
         break;
     }   

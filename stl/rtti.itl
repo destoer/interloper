@@ -229,14 +229,11 @@ func float_from_any(any : const Any) f64
 {
     if !any.stored_extern
     {
-        v := cast(u64,any.data);
-        out: f64;
-        std::memcpy(&out,&v,sizeof(out));
-        return out;
+        return std::bit_cast$<f64>(&any.data);
     }
 
     // Memcpy it out from the memory
-    out: f64;
+    out: f64 = {?};
     std::memcpy(&out,any.data,sizeof(out));
 
     return out;

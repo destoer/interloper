@@ -24,9 +24,9 @@ func main() s32
 
     ans : s32 = 0;
 
-    for([v , i] in x)
+    for([is_prime , i] in x)
     {
-        if(v)
+        if(is_prime)
         {
             ans += cast(s32,i);
         }

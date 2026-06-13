@@ -75,6 +75,7 @@ Option<parse_error> consume(Parser &parser,token_type type)
     return option::none;
 }
 
+
 bool match(Parser &parser,token_type type, u32 offset)
 {
     const u32 idx = parser.tok_idx + offset;
@@ -82,6 +83,19 @@ bool match(Parser &parser,token_type type, u32 offset)
 
     return t == type;
 }
+
+
+bool consume_match(Parser &parser,token_type type)
+{
+    if(match(parser,type))
+    {
+        parser.tok_idx += 1;
+        return true;
+    }
+
+    return false;
+}
+
 
 bool is_builtin_type_tok(const Token &tok)
 {

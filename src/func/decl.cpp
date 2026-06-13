@@ -148,8 +148,6 @@ TypeResult cut_generic_compound(Interloper& itl, Type* type, TypeNode* decl)
 
 Result<Array<Generic>,itl_error> deduce_generic_types(Interloper& itl, FuncNode& node, FuncCallNode* func_call)
 {
-    assert(func_call);
-
     auto generic_overload = copy_array(node.generic);
 
     // TODO: This ideally needs caching.
@@ -167,6 +165,22 @@ Result<Array<Generic>,itl_error> deduce_generic_types(Interloper& itl, FuncNode&
         }
 
         add(generic_lookup,generic.name,&generic_overload[i]);
+    }
+
+    for(u32 i = 0; i < count(func_call->generic_args); i++)
+    {
+        TypeNode* type = func_call->generic_args[i];
+
+        const auto type_res = get_type(itl,type);
+        if(!type_res)
+        {
+            destroy_table(generic_lookup);
+            destroy_arr(generic_overload);
+
+            return type_res.error();
+        }
+
+        generic_overload[i].type = *type_res;
     }
 
     // Deduce generic types

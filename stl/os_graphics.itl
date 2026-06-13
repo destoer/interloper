@@ -193,7 +193,7 @@ func send_auth_packet(win: OSWindow@, buf: std::Array@) net_result
             return net_result::err;
         }
 
-        defer std::destroy_arr_heap_byte(&itl_context.heap,&bin);
+        defer std::destroy_array_heap(&itl_context.heap,&bin);
 
     
         auth_proto := "MIT-MAGIC-COOKIE-1";
@@ -625,8 +625,8 @@ func process_reply(win : OSWindow@) win_result
 {
     buf := &win.packet;
 
-    seq: u32 = std::read_buffer_u16(buf,2);
-    len := std::read_buffer_u32(buf,4) * 4;
+    seq: u32 = std::read_var$<u16>(buf,2);
+    len := std::read_var$<u32>(buf,4) * 4;
 
     callback_opt := std::hash_table_lookup(&win.reply_callback,&seq);
 
@@ -1040,7 +1040,7 @@ func os_process_events(std_win: Window@) win_result
 
             case x_reply_type::key_press:
             {
-                key := std::read_buffer_u8(buf,1);
+                key := std::read_var$<u8>(buf,1);
 
                 x_key_event(std_win,key,true);
             }
@@ -1048,7 +1048,7 @@ func os_process_events(std_win: Window@) win_result
             // TODO: why are the key release events not always firing?
             case x_reply_type::key_release:
             {
-                key := std::read_buffer_u8(buf,1);
+                key := std::read_var$<u8>(buf,1);
 
                 x_key_event(std_win,key,false);         
             }
@@ -1296,7 +1296,7 @@ func os_window_resized(std_win: Window@,x : u32, y: u32) win_result
     
     else
     {
-        std::arr_realloc_u32(&itl_context.heap,&std_win.screen,x * y);
+        std::realloc_array_heap(&itl_context.heap,&std_win.screen,x * y);
 
         // should be able to push atleast one scanline in a go
         std::assert(win.max_lines >= 1);
@@ -1411,8 +1411,8 @@ func ext_query_callback(win: OSWindow@, _len: u32, data: byte?) win_result
 {
     ext_query := cast(ExtensionQuery@,data);
     ext_query.replied = true;
-    ext_query.enabled = cast(bool,std::read_buffer_u8(&win.packet,8));
-    ext_query.opcode = std::read_buffer_u8(&win.packet,9);
+    ext_query.enabled = cast(bool,std::read_var$<u8>(&win.packet,8));
+    ext_query.opcode = std::read_var$<u8>(&win.packet,9);
 
     return win_result::ok;
 }
@@ -1483,7 +1483,7 @@ func enable_big_req_callback(win: OSWindow@, _len: u32, data: byte?) win_result
     reply := cast(XBigReqReply@,data);
 
     reply.replied = true;
-    reply.max_req = std::read_buffer_u32(&win.packet,8) * 4;
+    reply.max_req = std::read_var$<u32>(&win.packet,8) * 4;
 
     return win_result::ok;
 }
@@ -1580,7 +1580,7 @@ func keyboard_mapping_callback(win: OSWindow@, len: u32, data: byte?) win_result
     @replied = true;
 
     log::debug(X11_PREFIX,"Key mapping setup");
-    n := std::read_buffer_u8(&win.packet,1);
+    n := std::read_var$<u8>(&win.packet,1);
 
     res := read_x11_reply(win,len);
     if(res != net_result::err)
@@ -1593,7 +1593,7 @@ func keyboard_mapping_callback(win: OSWindow@, len: u32, data: byte?) win_result
 
     for(i in win.min_keycode < win.max_keycode)
     {
-        win.key_code_to_sym[i] = std::read_buffer_u8(&win.packet,cur);
+        win.key_code_to_sym[i] = std::read_var$<u8>(&win.packet,cur);
         cur += offset;
     }
     
@@ -1777,7 +1777,7 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32) win_r
 
     if(shm_enabled)
     {
-        std::destroy_arr_heap_u32(&itl_context.heap,&std_win.screen);
+        std::destroy_array_heap(&itl_context.heap,&std_win.screen);
         win_res := setup_window_shm(std_win);
 
         if(win_res != win_result::ok)
@@ -1809,7 +1809,7 @@ func os_destroy_window(std_win : Window@) win_result
 
     if !win.mit_shm
     {   
-        std::destroy_arr_heap_u32(&itl_context.heap,&std_win.screen);
+        std::destroy_array_heap(&itl_context.heap,&std_win.screen);
     }
 
     // Socket has allready been cut. 
