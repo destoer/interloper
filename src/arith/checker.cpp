@@ -144,6 +144,19 @@ Result<b32,itl_error> check_static_cmp(Interloper& itl, const Type* value, const
 
 TypeResult check_known_cmp(Interloper& itl, CmpNode* cmp)
 {
+    // freely promote integer types
+    if(is_integer(cmp->left->expr_type) && is_integer(cmp->right->expr_type))
+    {
+        const auto type_res = promote_integer_type(itl,cmp->left->expr_type,cmp->right->expr_type);
+        if(!type_res)
+        {
+            return type_res;
+        }
+
+        cmp->left->expr_type = *type_res;
+        cmp->right->expr_type = *type_res;
+    }
+
     const auto res = check_comparison_operation(itl,cmp->left->expr_type,cmp->right->expr_type,cmp->oper);
     if(!res)
     {

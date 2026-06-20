@@ -1,36 +1,11 @@
 
+Type* copy_type(Interloper& itl, const Type* type);
+TypeResult find_generic_type(Interloper& itl, const String& name);
+
+
 void print_type(Interloper& itl, const Type* type)
 {
     printf("type: %s\n",type_name(itl,type).buf);
-}
-
-Type* copy_type(Interloper& itl, const Type* type);
-
-// TODO: This should probably be a hash table
-Result<Generic,itl_error> find_generic_param(Interloper& itl, const String& name)
-{
-    for(auto generic : itl.generic_overload.current_overload)
-    {
-        if(generic.name == name)
-        {
-            return generic;
-        }
-    }
-
-    return compile_error(itl,itl_error::undeclared,"Generic %S is not defined",name);
-}
-
-TypeResult find_generic_type(Interloper& itl, const String& name)
-{
-    const auto generic_res = find_generic_param(itl,name);
-    if(!generic_res)
-    {
-        return generic_res.error();
-    }
-
-    const auto& generic = *generic_res; 
-
-    return copy_type(itl,generic.type);
 }
 
 

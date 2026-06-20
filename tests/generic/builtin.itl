@@ -1,8 +1,8 @@
-func divide<DIVISOR: u32>(v: u32) u32 {
-	static_assert($DIVISOR >= 0);
+func divide<DIVISOR: s32>(v: s32) s32 {
+	const_assert($DIVISOR != 0);
 	return v / $DIVISOR;
 }
 
-func main() {
+func main() s32 {
 	return divide$<5>(10);
 }

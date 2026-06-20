@@ -1,3 +1,33 @@
+
+// TODO: This should probably be a hash table
+Result<Generic,itl_error> find_generic_param(Interloper& itl, const String& name)
+{
+    for(auto generic : itl.generic_overload.current_overload)
+    {
+        if(generic.name == name)
+        {
+            return generic;
+        }
+    }
+
+    return compile_error(itl,itl_error::undeclared,"Generic %S is not defined",name);
+}
+
+TypeResult find_generic_type(Interloper& itl, const String& name)
+{
+    const auto generic_res = find_generic_param(itl,name);
+    if(!generic_res)
+    {
+        return generic_res.error();
+    }
+
+    const auto& generic = *generic_res; 
+
+    return copy_type(itl,generic.type);
+}
+
+
+
 Result<Array<AstNode*>,parse_error> parse_generic_args(Parser& parser, const GenericOverload& overload, const Token& tok)
 {
     const auto err = consume(parser,token_type::logical_lt);
@@ -371,4 +401,32 @@ Function* find_overload(const OverloadTable& overload, const Array<Generic>& gen
 
     return nullptr;
 
+}
+
+
+TypeResult type_check_generic_var(Interloper& itl, AstNode* expr)
+{
+    GenericVarNode* var = (GenericVarNode*)expr;
+
+    const auto res = find_generic_param(itl,var->name);
+    if(!res)
+    {
+        return res.error();
+    }
+
+    const auto& generic = *res;
+
+    if(generic.builtin.type == builtin_type::f64_t)
+    {
+        var->node.known_value.type = known_value_type::fpr_t;
+        var->node.known_value.fpr = generic.builtin.decimal;
+    }
+
+    else
+    {
+        var->node.known_value.type = known_value_type::gpr_t;
+        var->node.known_value.gpr = generic.builtin.integer;
+    }
+
+    return make_builtin(itl,generic.builtin.type);
 }

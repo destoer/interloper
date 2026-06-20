@@ -47,5 +47,5 @@ const AstInfo AST_INFO[] =
     {"function",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
     {"ret",type_check_expr_unk,type_check_return,compile_expr_unk,compile_return},
     {"defer",type_check_expr_unk,type_check_defer,compile_expr_unk,compile_stmt_stub},
-    {"generic_var",type_check_expr_unk,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
+    {"generic_var",type_check_generic_var,type_check_stmt_unk,compile_expr_unk,compile_stmt_unk},
 };

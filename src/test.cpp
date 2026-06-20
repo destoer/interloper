@@ -281,6 +281,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     // generic
     {"tests/generic/deduction",1},
     {"tests/generic/compound",45},
+    {"tests/generic/builtin",2},
 
     // defer
     {"tests/control_flow/defer",1},

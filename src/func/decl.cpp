@@ -78,12 +78,12 @@ void print_generic_overload(Interloper& itl, const ConstSpan<Generic>& generic_o
         {
             if(generic.builtin.type != builtin_type::f64_t)
             {
-                print_itl(itl,"%S = %f",generic.builtin.decimal);
+                print_itl(itl,"%S = %d",generic.name,generic.builtin.integer);
             }
 
             else
             {
-                print_itl(itl,"%S = %d",generic.builtin.integer);
+                print_itl(itl,"%S = %f",generic.name,generic.builtin.decimal);
             }
         }
     }
