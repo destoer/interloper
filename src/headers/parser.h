@@ -52,7 +52,8 @@ enum class ast_type
     const_assert,
     function,
     ret,
-    defer
+    defer,
+    generic_var
 };
 
 struct AstNode
@@ -333,6 +334,12 @@ struct FloatNode
     f64 value = 0.0;
 };
 
+struct GenericVarNode
+{
+    AstNode node;
+    String name;
+};
+
 struct StringNode
 {
     AstNode node;
@@ -502,7 +509,7 @@ struct FuncCallNode
         size_t intrinsic_idx;
     };
 
-    Array<TypeNode*> generic_args;
+    Array<AstNode*> generic_args;
     Array<AstNode*> args;
 };
 
@@ -743,6 +750,9 @@ struct Parser
     u32 tok_idx = 0;
     ConstSpan<Token> tokens;
 
+    // itl.func_table.table
+    FunctionTable* func_table;
+
     // error handling
     u32 error_count = 0;
     u32 idx = 0;
@@ -876,6 +886,15 @@ ParserResult ast_expr_bin(Parser& parser, ParserResult left_res, ParserResult ri
 ParserResult ast_equal(Parser& parser, ParserResult left_res, ParserResult right_res, const Token& token)
 {
     return ast_expr_bin<ast_type::assign>(parser,left_res,right_res,token);
+}
+
+
+AstNode* ast_generic_var(Parser& parser, const String& name, const Token &token)
+{
+    GenericVarNode* var_node  = alloc_node<GenericVarNode>(parser,ast_type::generic_var,token);
+    var_node->name = name;
+
+    return (AstNode*)var_node;        
 }
 
 AstNode* ast_symbol(Parser& parser, NameSpace* name_space, const String& name, const Token &token)
@@ -1259,7 +1278,6 @@ std::pair<u32,u32> get_line_info(const String& filename, u32 idx);
 
 inline parse_error parser_error(Parser &parser,parse_error error ,const Token &token,const char *fmt, ...)
 {
-    assert(false);
     parser.error_count += 1;
 
     // further reporting becomes pointless past a single parser error

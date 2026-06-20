@@ -15,6 +15,7 @@ Option<itl_error> type_check_init_expr(Interloper& itl, Type* ltype, AstNode* ex
 #include "array.cpp"
 #include "parser.cpp"
 #include "func/decl.cpp"
+#include "generic.cpp"
 #include "struct.cpp"
 #include "enum.cpp"
 #include "rtti.cpp"
@@ -231,7 +232,7 @@ Option<itl_error> compile(Interloper &itl,const String& initial_filename, const 
     setup_type_table(itl);
     declare_compiler_type_aliases(itl);
 
-    itl.parser = make_parser(itl.global_namespace,&itl.parser_alloc);
+    itl.parser = make_parser(&itl.func_table,itl.global_namespace,&itl.parser_alloc);
 
     const auto parse_err = parsing(itl,initial_filename);
     if(parse_err)

@@ -390,6 +390,11 @@ AstNode* copy_ast(Interloper& itl, AstNode* node)
             return (AstNode*)copy_pod_node(itl,(SymbolNode*)node);
         }
 
+        case ast_type::generic_var:
+        {
+            return (AstNode*)copy_pod_node(itl,(GenericVarNode*)node);
+        }
+
         case ast_type::value:
         {
             return (AstNode*)copy_pod_node(itl,(ValueNode*)node);

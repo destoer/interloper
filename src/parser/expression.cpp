@@ -7,8 +7,10 @@ ParserResult parse_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t
 
 Token next_token(Parser &parser);
 Value read_value(const Token &t);
-Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail = false);
+Result<TypeNode*,parse_error> parse_type(Parser &parser);
 Result<Array<String>,parse_error> split_namespace(Parser& parser, const Token& start);
+
+ParserResult parse_template_call(Parser& parser, NameSpace* name_space, const Token& cur);
 
 void next_expr_token(Parser& parser,ExprCtx& ctx)
 {
@@ -282,53 +284,6 @@ ParserResult parse_sym_in_expr(Parser& parser,ExprCtx& ctx, NameSpace* name_spac
 
     next_expr_token(parser,ctx);
     return var_res;
-}
-
-Result<Array<TypeNode*>,parse_error> parse_generic_args(Parser& parser)
-{
-    const auto err = consume(parser,token_type::logical_lt);
-    if(err)
-    {
-        return *err;
-    }
-
-    Array<TypeNode*> types; 
-
-    while(!consume_match(parser,token_type::logical_gt))
-    {
-        const auto type_res = parse_type(parser);
-
-        if(!type_res)
-        {
-            destroy_arr(types);
-            return type_res.error();
-        }
-
-        push_var(types,*type_res);
-    }
-
-    return types;
-}
-
-ParserResult parse_template_call(Parser& parser, NameSpace* name_space, const Token& cur)
-{
-    const auto generic_args_res = parse_generic_args(parser);
-    if(!generic_args_res)
-    {
-        return generic_args_res.error();
-    }
-
-    auto func_call_res = func_call(parser,ast_symbol(parser,name_space,cur.literal,cur),cur);
-    if(!func_call_res)
-    {
-        return func_call_res;
-    }
-
-    FuncCallNode* func_call = (FuncCallNode*)func_call_res.value();
-    func_call->generic_args = *generic_args_res;
-    add_ast_pointer(parser,&func_call->generic_args);
-
-    return (AstNode*)func_call;
 }
 
 ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const Token& cur)
@@ -784,6 +739,21 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
         {
             return ast_plain(parser,ast_type::null_t,t);
         }
+
+        case token_type::dollar:
+        {
+            if(ctx.expr_tok.type != token_type::symbol)
+            {
+                return parser_error(parser,parse_error::unexpected_token,t,
+                    "Expected symbol after $ for generic var got %s",tok_name(ctx.expr_tok.type));
+            }
+
+            const auto sym = ctx.expr_tok;
+
+            next_expr_token(parser,ctx);
+            
+            return ast_generic_var(parser,sym.literal,sym); 
+        }   
 
         case token_type::symbol:
         {

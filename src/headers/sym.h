@@ -120,6 +120,53 @@ struct FuncPointerType
 const u32 FUNC_CALL_FUNC_POINTER_FLAG = (1 << 0);
 const u32 FUNC_CALL_FUNC_POINTER_EXPR_FLAG = (1 << 1);
 
+
+static constexpr u32 CONSTRAINT_SIZE = 4;
+
+const char* CONSTRAINT_NAMES[CONSTRAINT_SIZE] =
+{
+    "Integer",
+    "Real",
+    "Sized",
+    "builtin"
+};
+
+enum class constraint_type
+{
+    integer,
+    real,
+    sized,
+    // builtin type
+    builtin,
+};
+
+struct GenericBuiltin
+{
+    union
+    {
+        u64 integer;
+        f64 decimal = 0.0;
+    };
+
+    builtin_type type = builtin_type::void_t;
+};
+
+struct Generic
+{
+    String name;
+    constraint_type constraint;
+
+    union
+    {
+        // Filled in during deduction
+        Type* type = nullptr;
+
+        // constraint_type::builtin
+        GenericBuiltin builtin;
+    };
+};
+
+
 struct FuncCall
 {
     FuncSig sig = {};
@@ -132,6 +179,7 @@ struct FuncCall
     };
 
     u32 flags = 0;
+    ConstSpan<Generic> generic;
 };
 
 struct Function
@@ -157,31 +205,6 @@ struct Function
 
     FuncCall call_info;
 };
-
-const char* CONSTRAINT_NAMES[] =
-{
-    "Integer",
-    "Real",
-    "Sized",
-};
-
-enum class constraint_type
-{
-    integer,
-    real,
-    sized,
-};
-
-
-
-struct Generic
-{
-    String name;
-    constraint_type constraint;
-    // Filled in during deduction
-    Type* type = nullptr;
-};
-
 
 using OverloadTable = Array<Function*>;
 using GenericOverload = Array<Generic>;
@@ -227,6 +250,7 @@ struct FunctionDef
     NameSpace* name_space = nullptr;
     String name;
 
+    GenericOverload generic_base;
     OverloadTable generic_overload;
 };
 

@@ -23,7 +23,7 @@ Result<NameSpace*,parse_error> parse_name_space(Parser& parser)
     return name_space;
 }
 
-Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
+Result<TypeNode*,parse_error> parse_type(Parser &parser)
 {
     // parse out any specifiers
     auto specifier = peek(parser,0);
@@ -90,11 +90,6 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser, b32 allow_fail)
     else if(is_builtin_type_tok(plain_tok))
     {
         builtin_type builtin = builtin_type_from_tok(plain_tok);
-
-        if(!allow_fail && builtin == builtin_type::null_t)
-        {
-            return parser_error(parser,parse_error::unexpected_token,plain_tok,"expected plain type got : '%s'\n",tok_name(plain_tok.type));
-        }
 
         type->name = TYPE_NAMES[u32(builtin)];
         type->kind = type_node_kind::builtin;
