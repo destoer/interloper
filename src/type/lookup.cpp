@@ -1,23 +1,11 @@
 
+Type* copy_type(Interloper& itl, const Type* type);
+TypeResult find_generic_type(Interloper& itl, const String& name);
+
+
 void print_type(Interloper& itl, const Type* type)
 {
     printf("type: %s\n",type_name(itl,type).buf);
-}
-
-Type* copy_type(Interloper& itl, const Type* type);
-
-// TODO: This should probably be a hash table
-TypeResult find_generic_type(Interloper& itl, const String& name)
-{
-    for(auto& generic : itl.generic_overload.current_overload)
-    {
-        if(name == generic.name)
-        {
-            return copy_type(itl,generic.type);
-        }
-    }
-
-    return compile_error(itl,itl_error::undeclared,"Generic type %S is not defined",name);
 }
 
 
@@ -157,6 +145,22 @@ DefInfo* parser_lookup_definition(Parser& parser, NameSpace* name_space, const S
     }
 
     return lookup_definition(name_space,name);
+}
+
+FunctionDef* parser_lookup_func(Parser& parser, NameSpace* name_space, const String& name)
+{
+    DefInfo* info = parser_lookup_definition(parser,name_space,name);
+    if(!info)
+    {
+        return nullptr;
+    }
+
+    if(info->type != definition_type::function)
+    {
+        return nullptr;
+    }
+
+    return &parser.func_table->table[info->handle];
 }
 
 bool parser_type_kind_exists(Parser& parser, NameSpace* name_space, const String& name, type_kind kind)

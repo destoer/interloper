@@ -126,22 +126,35 @@ Option<parse_error> parse_generic(Parser& parser, FuncNode* f)
             return *colon_err;
         }
 
-        if(!match(parser,token_type::symbol))
+        Generic generic;
+        generic.name = name.literal;
+
+        if(match_builtin_type(parser))
         {
-            return parser_error(parser,parse_error::unexpected_token,generic_start,"expected name for generic type constraint\n");    
+            generic.constraint = constraint_type::builtin;
+            generic.builtin.type = builtin_type_from_tok(next_token(parser));
         }
 
-        const auto constraint_tok = next_token(parser);
+        else if(match(parser,token_type::symbol))
+        {
+            const auto constraint_tok = next_token(parser);
         
-        const auto constraint_res = find_constraint(parser,constraint_tok.literal,generic_start);
-        if(!constraint_res)
-        {
-            return constraint_res.error();
+            const auto constraint_res = find_constraint(parser,constraint_tok.literal,generic_start);
+            if(!constraint_res)
+            {
+                return constraint_res.error();
+            }
+
+            generic.constraint = *constraint_res;
         }
 
-        const Generic generic = {name.literal,*constraint_res};
-        push_var(f->generic,generic);
+        else
+        {
+            return parser_error(parser,parse_error::unexpected_token,generic_start,
+                "Expected name for generic type constraint or builtin type\n");
+        }
 
+        push_var(f->generic,generic);
 
         // if the declaration isn't closed get the next arg
         if(!match(parser,token_type::logical_gt))
@@ -354,12 +367,18 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
     return f;
 }
 
-Result<FuncNode*,parse_error> parse_func_decl(Parser &parser, const ParsedAttr& attr)
+// NOTE: This may return complete with only the signature parsed.
+Option<parse_error> parse_func_decl(Parser &parser, FunctionDef& func_def)
 {
+    if(func_def.root)
+    {
+        return option::none;
+    }
+
     // what is the name of our function?
     const auto func_name = next_token(parser);
 
-    // func_dec = func ident(arg...) return_type 
+    // func_dec = func ident<T: constraint...>(arg...) return_type 
     // arg = ident : type,
     auto func_res = parse_func_sig(parser,func_name.literal,func_name);
 
@@ -369,16 +388,17 @@ Result<FuncNode*,parse_error> parse_func_decl(Parser &parser, const ParsedAttr& 
     }
 
     FuncNode* func = *func_res;
-    func->attr = attr;
+    func->attr = func_def.parser_def.attr;
+    func_def.root = func;
 
     auto block_err = block_ast(parser,&func->block);
     if(block_err)
     {
-        return *block_err;
+        return block_err;
     }
 
     // finally add the function def
-    return func;
+    return option::none;
 }
 
 Option<parse_error> func_decl(Interloper& itl, Parser &parser, const ParsedAttr &attr)

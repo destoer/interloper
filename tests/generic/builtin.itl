@@ -1,0 +1,8 @@
+func divide<DIVISOR: s32>(v: s32) s32 {
+	const_assert($DIVISOR != 0);
+	return v / $DIVISOR;
+}
+
+func main() s32 {
+	return divide$<5>(10);
+}

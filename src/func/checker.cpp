@@ -1,4 +1,5 @@
 void print_func_sig(Interloper& itl, const FuncSig& sig);
+void print_generic_overload(Interloper& itl, const ConstSpan<Generic>& generic_overload);
 
 FuncCall call_info_from_type(FuncPointerType* func_type, u32 flags)
 {
@@ -257,6 +258,12 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
         const auto pass_err = check_assign_arg(itl,sym.type,rtype);
         if(pass_err)
         {
+            if(func_call->call.generic)
+            {
+                puts("Generic function call failed with parameters: ");
+                print_generic_overload(itl,func_call->call.generic);
+            }
+
             return *pass_err;
         }
     }

@@ -165,7 +165,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
     {token_type::colon,":",-1,1},
 
     {token_type::hash,"#",-1},
-    {token_type::dollar,"$",-1},
+    {token_type::dollar,"$",0},
 
     {token_type::left_c_brace,"{",-1},
     {token_type::right_c_brace,"}",-1},

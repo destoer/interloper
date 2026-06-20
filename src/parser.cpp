@@ -12,7 +12,7 @@ ParserResult statement(Parser &parser);
 constexpr u32 AST_ALLOC_DEFAULT_SIZE = 8 * 1024;
 constexpr u32 AST_STRING_INITIAL_SIZE = 4 * 1024;
 
-Parser make_parser(NameSpace* root, ParserAllocator* alloc)
+Parser make_parser(FunctionTable* func_table,NameSpace* root, ParserAllocator* alloc)
 {
     Parser parser;
     parser.alloc = alloc;
@@ -20,6 +20,7 @@ Parser make_parser(NameSpace* root, ParserAllocator* alloc)
     // NOTE: this relies on get_program_name to allocate the string correctly
     parser.context.global_namespace = root;
     parser.context.cur_namespace = parser.context.global_namespace;
+    parser.func_table = func_table;
 
     return parser;
 }
@@ -96,10 +97,15 @@ bool consume_match(Parser &parser,token_type type)
     return false;
 }
 
-
 bool is_builtin_type_tok(const Token &tok)
 {
    return tok.type >= token_type::u8 && tok.type <= token_type::f64_t; 
+}
+
+bool match_builtin_type(Parser& parser)
+{
+    const auto tok = peek(parser,0);
+    return is_builtin_type_tok(tok);
 }
 
 builtin_type builtin_type_from_tok(const Token& tok)
@@ -1105,13 +1111,11 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
     for(auto& func_def : itl.func_table.table)
     {
         switch_parse_def(itl.parser,func_def.parser_def);
-        const auto parse_res = parse_func_decl(itl.parser,func_def.parser_def.attr);
-        if(!parse_res)
+        const auto parse_err = parse_func_decl(itl.parser,func_def);
+        if(parse_err)
         {
-            return parse_res.error();
+            return parse_err;
         }
-
-        func_def.root = *parse_res;
     }
 
     // Parse in all types
@@ -1429,6 +1433,13 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
             }
 
             print_itl(itl,"Symbol: %n%S %t",sym_node->name_space,name,sym_node->node.expr_type);
+            break;
+        }
+
+        case ast_type::generic_var:
+        {
+            GenericVarNode* generic_var = (GenericVarNode*)root;
+            print_itl(itl,"Generic var: %S",generic_var->name);
             break;
         }
 
@@ -1893,7 +1904,15 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
                 print_itl(itl,"%D Generic",depth + 1);
                 for(const auto& generic : func->generic)
                 {
-                    print_itl(itl,"%D %S(%s): %t",depth + 2, generic.name,CONSTRAINT_NAMES[u32(generic.constraint)],generic.type);
+                    if(generic.constraint != constraint_type::builtin)
+                    {
+                        print_itl(itl,"%D %S(%s): %t",depth + 2, generic.name,CONSTRAINT_NAMES[u32(generic.constraint)],generic.type);
+                    }
+
+                    else
+                    {
+                        print_itl(itl,"%D %S(%s)",depth + 2, generic.name,CONSTRAINT_NAMES[u32(generic.constraint)]);
+                    }
                 }
 
                 print_internal(itl,(AstNode*)func->generic_call, depth + 2);
