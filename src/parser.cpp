@@ -18,8 +18,8 @@ Parser make_parser(FunctionTable* func_table,NameSpace* root, ParserAllocator* a
     parser.alloc = alloc;
 
     // NOTE: this relies on get_program_name to allocate the string correctly
-    parser.context.global_namespace = root;
-    parser.context.cur_namespace = parser.context.global_namespace;
+    parser.ctx.global_namespace = root;
+    parser.ctx.cur_namespace = parser.ctx.global_namespace;
     parser.func_table = func_table;
 
     return parser;
@@ -32,55 +32,61 @@ void add_ast_pointer(Parser& parser, void* pointer)
 
 Token next_token(Parser &parser)
 {
-    if(parser.tok_idx >= parser.tokens.size)
+    if(parser.ctx.tok_idx >= parser.ctx.tokens.size)
     {
         // TODO: make this return the actual file end
         // for row and col
         return token_plain(token_type::eof,0);
     }
 
-    return parser.tokens[parser.tok_idx++];  
+    return parser.ctx.tokens[parser.ctx.tok_idx++];  
 }
 
 void prev_token(Parser &parser)
 {
-    if(parser.tok_idx != 0)
+    if(parser.ctx.tok_idx != 0)
     {
-        parser.tok_idx -= 1;
+        parser.ctx.tok_idx -= 1;
     }
 }
 
 
 Token peek(Parser &parser,u32 v)
 {
-    const auto idx = parser.tok_idx + v;
-    if(idx >= parser.tokens.size)
+    const auto idx = parser.ctx.tok_idx + v;
+    if(idx >= parser.ctx.tokens.size)
     {
         return token_plain(token_type::eof,0);
     }
 
-    return parser.tokens[idx];
+    return parser.ctx.tokens[idx];
 }
 
 
 Option<parse_error> consume(Parser &parser,token_type type)
 {
-    const auto t = parser.tok_idx >= parser.tokens.size? token_type::eof : parser.tokens[parser.tok_idx].type;
+    token_type cur = token_type::eof;
 
-    if(t != type)
+    if(parser.ctx.tok_idx < parser.ctx.tokens.size)
+    {
+        cur = parser.ctx.tokens[parser.ctx.tok_idx].type;
+    }
+
+    if(cur != type)
     {
         const auto tok = next_token(parser);
-        return parser_error(parser,parse_error::unexpected_token,tok,"expected '%s' got %s", tok_name(type),tok_name(t));
+        return parser_error(parser,parse_error::unexpected_token,tok,"expected '%s' got %s", tok_name(type),tok_name(cur));
     }
-    parser.tok_idx += 1;
+
+    parser.ctx.tok_idx += 1;
     return option::none;
 }
 
 
 bool match(Parser &parser,token_type type, u32 offset)
 {
-    const u32 idx = parser.tok_idx + offset;
-    const auto t = idx >= parser.tokens.size? token_type::eof : parser.tokens[idx].type;
+    const u32 idx = parser.ctx.tok_idx + offset;
+    const auto t = idx >= parser.ctx.tokens.size? token_type::eof : parser.ctx.tokens[idx].type;
 
     return t == type;
 }
@@ -90,7 +96,7 @@ bool consume_match(Parser &parser,token_type type)
 {
     if(match(parser,type))
     {
-        parser.tok_idx += 1;
+        parser.ctx.tok_idx += 1;
         return true;
     }
 
@@ -119,8 +125,9 @@ TopLevelDefinition make_top_level_def(Parser& parser, const ConstSpan<Token>& to
 {
     TopLevelDefinition def;
     def.parsed = false;
-    def.tokens = tokens;
-    def.context = parser.context;
+    def.context = parser.ctx;
+    def.context.tokens = tokens;
+    def.context.tok_idx = 0;
     def.attr = attr;
 
     return def;
@@ -136,7 +143,7 @@ Result<ConstSpan<Token>,parse_error> scan_colon_stmt(Parser& parser, const Strin
         {
             case token_type::semi_colon:
             {
-                parser.tok_idx += t;
+                parser.ctx.tok_idx += t;
                 return make_const_span(start_span,0, t + 1);
             }
 
@@ -179,7 +186,7 @@ Result<ConstSpan<Token>,parse_error> scan_brace_stmt(Parser& parser, const Strin
                         t += 1;
                     }
 
-                    parser.tok_idx += t;
+                    parser.ctx.tok_idx += t;
                     return make_const_span(start_span,0, t + 1);
                 }
                 break;
@@ -512,8 +519,8 @@ String get_program_name(ArenaAllocator& allocator,const String& filename)
 
 
 void destroy_parser(Parser& parser)
-{
-    UNUSED(parser);
+{   
+    destroy_arr(parser.saved_ctx);
 }
 
 
@@ -820,7 +827,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
             {
                 const auto name_tok = next_token(parser);
 
-                const auto full_path = cat_string(itl.string_allocator,parser.context.cur_path,get_program_name(itl.string_allocator,name_tok.literal));
+                const auto full_path = cat_string(itl.string_allocator,parser.ctx.cur_path,get_program_name(itl.string_allocator,name_tok.literal));
 
                 add_file(queue,full_path);
             }
@@ -886,7 +893,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
 
             DeclNode* decl = (DeclNode*)decl_res.value();
 
-            GlobalDeclNode* const_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.context.cur_file,parser.context.cur_namespace,t);
+            GlobalDeclNode* const_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.ctx.cur_file,parser.ctx.cur_namespace,t);
 
             push_var(itl.constant_decl,const_decl);
             break; 
@@ -903,7 +910,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
 
             DeclNode* decl = (DeclNode*)decl_res.value();
 
-            GlobalDeclNode* global_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.context.cur_file,parser.context.cur_namespace,t);
+            GlobalDeclNode* global_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.ctx.cur_file,parser.ctx.cur_namespace,t);
 
             push_var(itl.global_decl,global_decl);
             break; 
@@ -919,7 +926,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
 
             auto name_space = *name_space_res;
 
-            parser.context.cur_namespace = scan_namespace(parser,name_space);
+            parser.ctx.cur_namespace = scan_namespace(parser,name_space);
 
             destroy_arr(name_space);
 
@@ -949,28 +956,24 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
 
 void reset_parser(Parser& parser, const String& filename)
 {
-    parser.context.cur_file = filename;
-    parser.context.cur_path = extract_path(parser.context.cur_file);
+    parser.ctx.cur_file = filename;
+    parser.ctx.cur_path = extract_path(parser.ctx.cur_file);
 
-    parser.context.cur_namespace = parser.context.global_namespace;
+    parser.ctx.cur_namespace = parser.ctx.global_namespace;
 
-    parser.tok_idx = 0;
-    parser.error_count = 0;
-    parser.idx = 0;
-    parser.line = 0;
-    parser.col = 0;
+    parser.ctx.tok_idx = 0;
+    parser.ctx.error_count = 0;
+    parser.ctx.idx = 0;
+    parser.ctx.line = 0;
+    parser.ctx.col = 0;
 }
 
-void switch_parse_def(Parser& parser, TopLevelDefinition& def)
-{
-    parser.tokens = def.tokens;
-    parser.context = def.context;
+ParserContextScopeGuard switch_parse_def(Parser& parser, TopLevelDefinition& def)
+{   
+    const auto guard = ParserContextScopeGuard(parser); 
+    parser.ctx = def.context;
 
-    parser.tok_idx = 0;
-    parser.error_count = 0;
-    parser.idx = 0;
-    parser.line = 0;
-    parser.col = 0;    
+    return guard;
 }
 
 Option<parse_error> parse_file(Interloper& itl,const String& file, const String& filename,FileQueue& queue)
@@ -988,18 +991,18 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
     }
     
     // Give it a complete file span
-    parser.tokens = make_const_span(itl.file_tokens[cur],0 , count(itl.file_tokens[cur]));
+    parser.ctx.tokens = make_const_span(itl.file_tokens[cur],0 , count(itl.file_tokens[cur]));
 
 
     if(itl.print_tokens)
     {
         printf("tokens for file: %s\n",filename.buf);
-        print_tokens(parser.tokens);
+        print_tokens(parser.ctx.tokens);
     }
     
-    const auto size = parser.tokens.size;
+    const auto size = parser.ctx.tokens.size;
 
-    while(parser.tok_idx < size)
+    while(parser.ctx.tok_idx < size)
     {
         // check for a directive
         if(consume_match(parser,token_type::hash))
@@ -1026,6 +1029,50 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
 }
 
 void destroy_file_tokens(Interloper& itl);
+
+Option<parse_error> parse_type_def(Parser& parser, TypeDef* type_def)
+{
+    if(type_def->decl.root)
+    {
+        return option::none;
+    }
+
+    const auto ctx_scope = switch_parse_def(parser,type_def->type_def);
+
+    switch(type_def->kind)
+    {
+        case type_def_kind::enum_t:
+        {
+            const auto parse_res = parse_enum_decl(parser,type_def->type_def.attr);
+            if(!parse_res)
+            {
+                return parse_res.error();
+            }
+
+            type_def->decl.root = (AstNode*)parse_res.value();
+            break;
+        }
+        
+        case type_def_kind::struct_t:
+        {
+            return parse_struct_decl(parser,*type_def);
+        }
+
+        case type_def_kind::alias_t:
+        {
+            const auto parse_res = parse_alias_decl(parser);
+            if(!parse_res)
+            {
+                return parse_res.error();
+            }
+
+            type_def->decl.root = (AstNode*)parse_res.value();
+            break;
+        }
+    }
+
+    return option::none;
+}
 
 Option<parse_error> parse(Interloper& itl, const String& initial_filename)
 {
@@ -1105,7 +1152,7 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
     // Now parse in all the functions
     for(auto& func_def : itl.func_table.table)
     {
-        switch_parse_def(itl.parser,func_def.parser_def);
+        const auto ctx = switch_parse_def(itl.parser,func_def.parser_def);
         const auto parse_err = parse_func_decl(itl.parser,func_def);
         if(parse_err)
         {
@@ -1116,45 +1163,10 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
     // Parse in all types
     for(TypeDef* type_def : itl.type_decl)
     {
-        switch_parse_def(itl.parser,type_def->type_def);
-
-        switch(type_def->kind)
+        const auto err = parse_type_def(itl.parser,type_def);
+        if(err)
         {
-            case type_def_kind::enum_t:
-            {
-                const auto parse_res = parse_enum_decl(itl.parser,type_def->type_def.attr);
-                if(!parse_res)
-                {
-                    return parse_res.error();
-                }
-
-                type_def->decl.root = (AstNode*)parse_res.value();
-                break;
-            }
-            
-            case type_def_kind::struct_t:
-            {
-                const auto parse_res = parse_struct_decl(itl.parser,type_def->type_def.attr);
-                if(!parse_res)
-                {
-                    return parse_res.error();
-                }
-
-                type_def->decl.root = (AstNode*)parse_res.value();
-                break;
-            }
-
-            case type_def_kind::alias_t:
-            {
-                const auto parse_res = parse_alias_decl(itl.parser);
-                if(!parse_res)
-                {
-                    return parse_res.error();
-                }
-
-                type_def->decl.root = (AstNode*)parse_res.value();
-                break;
-            }
+            return err;
         }
     }
 

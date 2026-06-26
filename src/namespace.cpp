@@ -81,7 +81,7 @@ NameSpace* new_named_scope(ArenaAllocator& arena,ArenaAllocator& string_allocato
 
 NameSpace* scan_namespace(Parser& parser, const Array<String>& name_space)
 {
-    NameSpace* root = parser.context.global_namespace;
+    NameSpace* root = parser.ctx.global_namespace;
 
     u32 name_idx = 0;
 

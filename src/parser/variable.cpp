@@ -1,4 +1,6 @@
 Option<parse_error> parse_generic(Parser& parser, Array<Generic>& generic_overload);
+Result<Array<AstNode*>,parse_error> parse_generic_args(Parser& parser, const GenericOverload& overload, const Token& tok);
+Option<parse_error> parse_type_def(Parser& parser, TypeDef* type_def);
 
 Result<NameSpace*,parse_error> parse_name_space(Parser& parser)
 {
@@ -128,21 +130,30 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser)
 
     if(match(parser,token_type::logical_lt))
     {
-        assert(false);
-        // // Find our function def and parse it so we know what the generics expect.
-        // TypeDef* def = parser_lookup_type(parser,name_space,name);
-        // if(!def)
-        // {
-        //     return parser_error(parser,parse_error::itl_error,cur,"Type %S does not exist for generic instantiation",name);
-        // }
+        // Find our function def and parse it so we know what the generics expect.
+        TypeDecl* decl = parser_lookup_type(parser,name_space,type->name);
+        if(!decl)
+        {
+            return parser_error(parser,parse_error::itl_error,plain_tok,"Type %S does not exist for generic instantiation",type->name);
+        }
 
-        // const auto generic_args_res = parse_generic_args(parser,def->root->generic,cur);
-        // if(!generic_args_res)
-        // {
-        //     return generic_args_res.error();
-        // }
+        // This is only legal on decl obtained directly from a lookup
+        TypeDef* def = (TypeDef*)decl;
 
-        // type->generic_args = *generic_Args_res;
+        // Ensure this is parsed so we can actually get the generic args
+        const auto parse_err = parse_type_def(parser,def);
+        if(parse_err)
+        {
+            return *parse_err;
+        }
+
+        const auto generic_args_res = parse_generic_args(parser,def->generic_base,plain_tok);
+        if(!generic_args_res)
+        {
+            return generic_args_res.error();
+        }
+
+        type->generic_args = *generic_args_res;
     }
 
     b32 quit = false;
@@ -155,12 +166,7 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser)
             // pointer decl
             case token_type::deref:
             {
-                const auto err = consume(parser,token_type::deref);
-                if(err)
-                {
-                    return *err;
-                }
-
+                (void)consume(parser,token_type::deref);
                 push_var(type->compound,make_compound_type(compound_type::ptr));
                 break;
             }
@@ -168,12 +174,7 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser)
             // Nullable pointer decl
             case token_type::qmark:
             {
-                const auto err = consume(parser,token_type::qmark);
-                if(err)
-                {
-                    return *err;
-                }
-
+                (void)consume(parser,token_type::qmark);
                 push_var(type->compound,make_compound_type(compound_type::nullable_ptr));
                 break;
             }
@@ -182,56 +183,36 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser)
             // array decl
             case token_type::sl_brace:
             {
-                while(match(parser,token_type::sl_brace))
+                while(consume_match(parser,token_type::sl_brace))
                 {
-                    const auto err = consume(parser,token_type::sl_brace);
-                    if(err)
-                    {
-                        return *err;
-                    }
-
                     // var size
-                    if(match(parser,token_type::sr_brace))
+                    if(consume_match(parser,token_type::sr_brace))
                     {
                         push_var(type->compound,make_compound_type(compound_type::arr_var_size));
-                        const auto err = consume(parser,token_type::sr_brace);
-                        if(err)
+                    }
+
+                    // figure out this size later
+                    else if(consume_match(parser,token_type::qmark))
+                    {
+                        push_var(type->compound,make_compound_type(compound_type::arr_deduce_size));
+                    
+                        const auto sr_err = consume(parser,token_type::sr_brace);
+                        if(sr_err)
                         {
-                            return *err;
+                            return *sr_err;
                         }
                     }
 
-                    else 
+                    else
                     {
-                        // figure out this size later
-                        if(match(parser,token_type::qmark))
-                        {
-                            const auto qmark_err = consume(parser,token_type::qmark);
-                            if(qmark_err)
-                            {
-                                return *qmark_err;
-                            }
+                        auto e_res = expr_terminate(parser,"array declaration",token_type::sr_brace);
 
-                            push_var(type->compound,make_compound_type(compound_type::arr_deduce_size));
-                        
-                            const auto sr_err = consume(parser,token_type::sr_brace);
-                            if(sr_err)
-                            {
-                                return *sr_err;
-                            }
+                        if(!e_res)
+                        {
+                            return e_res.error();
                         }
 
-                        else
-                        {
-                            auto e_res = expr_terminate(parser,"array declaration",token_type::sr_brace);
-
-                            if(!e_res)
-                            {
-                                return e_res.error();
-                            }
-
-                            push_var(type->compound,make_compound_type_fixed(*e_res));
-                        }
+                        push_var(type->compound,make_compound_type_fixed(*e_res));
                     }
                 }
 
@@ -279,7 +260,7 @@ ParserResult declaration(Parser &parser, token_type terminator, b32 is_const_dec
 
     if(s.type != token_type::symbol)
     {
-        return parser_error(parser,parse_error::unexpected_token,s,"declaration expected symbol got: '%s'  (%zd)",tok_name(s.type),parser.tok_idx);
+        return parser_error(parser,parse_error::unexpected_token,s,"declaration expected symbol got: '%s'  (%zd)",tok_name(s.type),parser.ctx.tok_idx);
     }
 
     const auto colon_err = consume(parser,token_type::colon);
@@ -368,7 +349,8 @@ ParserResult auto_decl(Parser &parser)
 
     if(sym.type != token_type::symbol)
     {
-        return parser_error(parser,parse_error::unexpected_token,sym,"declaration expected symbol got: %s:%zd",tok_name(sym.type),parser.tok_idx);
+        return parser_error(parser,parse_error::unexpected_token,sym,"declaration expected symbol got: %s:%zd",
+            tok_name(sym.type),parser.ctx.tok_idx);
     }
 
     const auto err = consume(parser,token_type::decl);

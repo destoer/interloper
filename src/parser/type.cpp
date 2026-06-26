@@ -120,7 +120,7 @@ Option<itl_error> check_redeclaration(Interloper& itl, NameSpace* root, const St
 Option<parse_error> type_alias(Interloper& itl, Parser &parser)
 {
     // type_alias literal '=' type ';'
-    const auto start_span = make_const_span(parser.tokens,parser.tok_idx, parser.tokens.size - parser.tok_idx);
+    const auto start_span = make_const_span(parser.ctx.tokens,parser.ctx.tok_idx, parser.ctx.tokens.size - parser.ctx.tok_idx);
     const auto token = next_token(parser);
 
     const String& name = token.literal;
@@ -130,7 +130,7 @@ Option<parse_error> type_alias(Interloper& itl, Parser &parser)
         return parser_error(parser,parse_error::unexpected_token,token,"expected symbol for type alias name got %s",tok_name(token.type));
     }
 
-    if(check_redeclaration(itl,parser.context.cur_namespace,name,"type alias"))
+    if(check_redeclaration(itl,parser.ctx.cur_namespace,name,"type alias"))
     {
         return parse_error::itl_error;
     }
@@ -142,7 +142,7 @@ Option<parse_error> type_alias(Interloper& itl, Parser &parser)
     }
 
     const auto alias_def = make_top_level_def(parser,*span_res,{});
-    add_type_definition(itl, type_def_kind::alias_t, alias_def, name, parser.context.cur_file,parser.context.cur_namespace);
+    add_type_definition(itl, type_def_kind::alias_t, alias_def, name, parser.ctx.cur_file,parser.ctx.cur_namespace);
     return option::none;
 }
 
@@ -168,7 +168,7 @@ Result<AliasNode*, parse_error> parse_alias_decl(Parser &parser)
     TypeNode* rtype = *rtype_res;
 
 
-    AliasNode* alias_node = (AliasNode*)ast_alias(parser,rtype,name,parser.context.cur_file,token);
+    AliasNode* alias_node = (AliasNode*)ast_alias(parser,rtype,name,parser.ctx.cur_file,token);
 
     const auto term_err = consume(parser,token_type::semi_colon);
     if(term_err)
@@ -181,7 +181,7 @@ Result<AliasNode*, parse_error> parse_alias_decl(Parser &parser)
 
 Option<parse_error> struct_decl(Interloper& itl,Parser& parser, const ParsedAttr& attr)
 {
-    const auto start_span = make_const_span(parser.tokens,parser.tok_idx, parser.tokens.size - parser.tok_idx);
+    const auto start_span = make_const_span(parser.ctx.tokens,parser.ctx.tok_idx, parser.ctx.tokens.size - parser.ctx.tok_idx);
     const auto name = next_token(parser);
 
     if(name.type != token_type::symbol)
@@ -189,7 +189,7 @@ Option<parse_error> struct_decl(Interloper& itl,Parser& parser, const ParsedAttr
         return parser_error(parser,parse_error::unexpected_token,name,"expected name after struct decl got %s\n",tok_name(name.type));
     }
 
-    if(check_redeclaration(itl,parser.context.cur_namespace,name.literal,"struct"))
+    if(check_redeclaration(itl,parser.ctx.cur_namespace,name.literal,"struct"))
     {
         return parse_error::itl_error;
     }
@@ -203,17 +203,18 @@ Option<parse_error> struct_decl(Interloper& itl,Parser& parser, const ParsedAttr
     const auto struct_def = *res;
 
     const auto def = make_top_level_def(parser,struct_def,attr);
-    add_type_definition(itl, type_def_kind::struct_t,def, name.literal, parser.context.cur_file,parser.context.cur_namespace);
+    add_type_definition(itl, type_def_kind::struct_t,def, name.literal, parser.ctx.cur_file,parser.ctx.cur_namespace);
 
     return option::none;
 }
 
-Result<StructNode*, parse_error> parse_struct_decl(Parser& parser, const ParsedAttr& attr)
+Option<parse_error> parse_struct_decl(Parser& parser, TypeDef& def)
 {
     const auto name = next_token(parser);
-    StructNode* struct_node = (StructNode*)ast_struct(parser,name.literal,parser.context.cur_file,name);
+    StructNode* struct_node = (StructNode*)ast_struct(parser,name.literal,parser.ctx.cur_file,name);
+    struct_node->attr_flags = def.type_def.attr.flags;
 
-    struct_node->attr_flags = attr.flags;
+    def.decl.root = (AstNode*)struct_node;
 
     if(match(parser,token_type::logical_lt))
     {
@@ -223,6 +224,9 @@ Result<StructNode*, parse_error> parse_struct_decl(Parser& parser, const ParsedA
             return *err;
         }
     }
+
+    // Mark the generic overload early so it can be used in a sub parsing.
+    def.generic_base = struct_node->generic;
 
     // Does this struct have a forced first member?
     if(consume_match(parser,token_type::left_paren))
@@ -258,12 +262,12 @@ Result<StructNode*, parse_error> parse_struct_decl(Parser& parser, const ParsedA
     // semi colon after decl is optional
     consume_match(parser,token_type::semi_colon);
 
-    return struct_node;
+    return option::none;
 }
 
 Option<parse_error> enum_decl(Interloper& itl,Parser& parser, const ParsedAttr &attr)
 {
-    const auto start_span = make_const_span(parser.tokens,parser.tok_idx, parser.tokens.size - parser.tok_idx);
+    const auto start_span = make_const_span(parser.ctx.tokens,parser.ctx.tok_idx, parser.ctx.tokens.size - parser.ctx.tok_idx);
 
     const auto name_tok = next_token(parser);
 
@@ -273,7 +277,7 @@ Option<parse_error> enum_decl(Interloper& itl,Parser& parser, const ParsedAttr &
         return parse_error::itl_error;
     }
 
-    const auto redecl_err = check_redeclaration(itl,parser.context.cur_namespace,name_tok.literal,"enum");
+    const auto redecl_err = check_redeclaration(itl,parser.ctx.cur_namespace,name_tok.literal,"enum");
     if(redecl_err)
     {
         return parse_error::itl_error;
@@ -288,7 +292,7 @@ Option<parse_error> enum_decl(Interloper& itl,Parser& parser, const ParsedAttr &
     const auto enum_def = *res;
 
     const auto def = make_top_level_def(parser,enum_def,attr);
-    add_type_definition(itl, type_def_kind::enum_t,def, name_tok.literal, parser.context.cur_file,parser.context.cur_namespace);
+    add_type_definition(itl, type_def_kind::enum_t,def, name_tok.literal, parser.ctx.cur_file,parser.ctx.cur_namespace);
 
     return option::none;
 }
@@ -297,7 +301,7 @@ Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser,const ParsedAttr &a
 {
     const auto name_tok = next_token(parser);
 
-    EnumNode* enum_node = (EnumNode*)ast_enum(parser,name_tok.literal,parser.context.cur_file,name_tok);
+    EnumNode* enum_node = (EnumNode*)ast_enum(parser,name_tok.literal,parser.ctx.cur_file,name_tok);
 
     if(consume_match(parser,token_type::colon))
     {

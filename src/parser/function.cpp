@@ -84,7 +84,7 @@ Option<parse_error> block_ast(Parser &parser, AstBlock* block)
 // NOTE: this is used to parse signatures for function pointers
 Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_name, const Token& token)
 {
-    FuncNode *f = (FuncNode*)ast_func(parser,func_name,parser.context.cur_file,token);
+    FuncNode *f = (FuncNode*)ast_func(parser,func_name,parser.ctx.cur_file,token);
 
     const auto paren = peek(parser,0);
 
@@ -309,7 +309,7 @@ Option<parse_error> parse_func_decl(Parser &parser, FunctionDef& func_def)
 
 Option<parse_error> func_decl(Interloper& itl, Parser &parser, const ParsedAttr &attr)
 {
-    const auto start_span = make_const_span(parser.tokens,parser.tok_idx, parser.tokens.size - parser.tok_idx);
+    const auto start_span = make_const_span(parser.ctx.tokens,parser.ctx.tok_idx, parser.ctx.tokens.size - parser.ctx.tok_idx);
 
     // what is the name of our function?
     const auto func_name = next_token(parser);
@@ -319,7 +319,7 @@ Option<parse_error> func_decl(Interloper& itl, Parser &parser, const ParsedAttr 
         return parser_error(parser,parse_error::unexpected_token,func_name,"Expected function name got: %s!",tok_name(func_name.type));  
     }
 
-    if(check_redeclaration(itl,parser.context.cur_namespace,func_name.literal,"function"))
+    if(check_redeclaration(itl,parser.ctx.cur_namespace,func_name.literal,"function"))
     {
         return parse_error::itl_error;
     }
@@ -333,7 +333,7 @@ Option<parse_error> func_decl(Interloper& itl, Parser &parser, const ParsedAttr 
     const auto func_def = *res;
 
     const auto def = make_top_level_def(parser,func_def,attr);
-    add_func(itl,func_name.literal,parser.context.cur_namespace,def);
+    add_func(itl,func_name.literal,parser.ctx.cur_namespace,def);
 
     return option::none;
 }

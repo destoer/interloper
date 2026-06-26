@@ -20,7 +20,17 @@ struct ParserContext
     String cur_file = "";
     NameSpace* cur_namespace = nullptr;
     NameSpace* global_namespace = nullptr;
-    String cur_path = "";    
+    String cur_path = "";
+    
+    // what is our current token?
+    u32 tok_idx = 0;
+    ConstSpan<Token> tokens;
+
+    // error handling
+    u32 error_count = 0;
+    u32 idx = 0;
+    u32 line = 0;
+    u32 col = 0;
 };
 
 static constexpr u32 ATTR_NO_REORDER = (1 << 0);
@@ -54,7 +64,6 @@ struct TopLevelDefinition
 {
     // Have the tokens been read out into the relevant structure?
     bool parsed = false;
-    ConstSpan<Token> tokens;
     ParserContext context;
     ParsedAttr attr;
 };

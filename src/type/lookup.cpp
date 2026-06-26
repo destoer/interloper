@@ -139,7 +139,7 @@ DefInfo* parser_lookup_definition(Parser& parser, NameSpace* name_space, const S
 {
     if(!name_space)
     {
-        name_space = parser.context.cur_namespace;
+        name_space = parser.ctx.cur_namespace;
     }
 
     return lookup_definition(name_space,name);
@@ -161,11 +161,28 @@ FunctionDef* parser_lookup_func(Parser& parser, NameSpace* name_space, const Str
     return &parser.func_table->table[info->handle];
 }
 
+TypeDecl* parser_lookup_type(Parser& parser, NameSpace* name_space, const String& name)
+{
+    DefInfo* info = parser_lookup_definition(parser,name_space,name);
+    if(!info)
+    {
+        return nullptr;
+    }
+
+    if(info->type != definition_type::type)
+    {
+        return nullptr;
+    }
+
+    return info->type_decl;
+}
+
+
 bool parser_type_kind_exists(Parser& parser, NameSpace* name_space, const String& name, type_kind kind)
 { 
     if(!name_space)
     {
-        name_space = parser.context.cur_namespace;
+        name_space = parser.ctx.cur_namespace;
     }
 
     const DefInfo* def = lookup_typed_definition(name_space,name,definition_type::type);
@@ -181,7 +198,7 @@ bool parser_type_exists(Parser& parser, NameSpace* name_space, const String& nam
 { 
     if(!name_space)
     {
-        name_space = parser.context.cur_namespace;
+        name_space = parser.ctx.cur_namespace;
     }
 
     return lookup_typed_definition(name_space,name,definition_type::type) != nullptr;

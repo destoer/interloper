@@ -741,25 +741,33 @@ enum class parser_mode
     parse,
 };
 
+
 struct Parser
 {
     ParserAllocator* alloc;
-    ParserContext context;
+    ParserContext ctx;
 
     parser_mode mode;
-
-    // what is our current token?
-    u32 tok_idx = 0;
-    ConstSpan<Token> tokens;
 
     // itl.func_table.table
     FunctionTable* func_table;
 
-    // error handling
-    u32 error_count = 0;
-    u32 idx = 0;
-    u32 line = 0;
-    u32 col = 0;
+    Array<ParserContext> saved_ctx;
+};
+
+struct ParserContextScopeGuard
+{
+    ParserContextScopeGuard(Parser& parser) : parser(parser)
+    {
+        push_var(parser.saved_ctx,parser.ctx);
+    }
+
+    ~ParserContextScopeGuard() 
+    {
+        parser.ctx = pop(parser.saved_ctx);
+    }
+
+    Parser& parser;
 };
 
 const u32 EXPR_TERMINATED_FLAG_BIT = 0;
@@ -1282,10 +1290,10 @@ std::pair<u32,u32> get_line_info(const String& filename, u32 idx);
 
 inline parse_error parser_error(Parser &parser,parse_error error ,const Token &token,const char *fmt, ...)
 {
-    parser.error_count += 1;
+    parser.ctx.error_count += 1;
 
     // further reporting becomes pointless past a single parser error
-    if(parser.error_count > 1)
+    if(parser.ctx.error_count > 1)
     {
         return error;
     }
@@ -1296,12 +1304,12 @@ inline parse_error parser_error(Parser &parser,parse_error error ,const Token &t
     va_end(args);
     putchar('\n');
 
-    const auto [line,col] = get_line_info(parser.context.cur_file,token.idx);
-    printf("At: %s line %d col %d\n\n",parser.context.cur_file.buf,line,col);
+    const auto [line,col] = get_line_info(parser.ctx.cur_file,token.idx);
+    printf("At: %s line %d col %d\n\n",parser.ctx.cur_file.buf,line,col);
 
-    parser.line = line;
-    parser.col = col;
-    parser.idx = token.idx;
+    parser.ctx.line = line;
+    parser.ctx.col = col;
+    parser.ctx.idx = token.idx;
     return error;
 }
 
