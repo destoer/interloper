@@ -210,6 +210,7 @@ struct TypeNode
     FuncNode* func_type = nullptr;
     NameSpace* name_space = nullptr;
 
+    Array<AstNode*> generic_args;
     Array<CompoundType> compound;
 };
 
@@ -420,6 +421,7 @@ struct StructNode
     // is there a member forced to be first in the memory layout?
     DeclNode* forced_first = nullptr;
 
+    Array<Generic> generic;
     u32 attr_flags = 0;
 };
 
@@ -1078,6 +1080,7 @@ TypeNode* ast_type_decl(Parser& parser, NameSpace* name_space, const String& nam
     type_node->name_space = name_space;
 
     add_ast_pointer(parser,&type_node->compound.data);
+    add_ast_pointer(parser,&type_node->generic_args.data);
 
     return type_node;   
 }
@@ -1099,6 +1102,7 @@ AstNode *ast_struct(Parser& parser,const String &name, const String& filename, c
     StructNode* struct_node = alloc_node<StructNode>(parser,ast_type::struct_t,token);
 
     add_ast_pointer(parser,&struct_node->members.data);
+    add_ast_pointer(parser,&struct_node->generic.data);
 
     struct_node->name = name;
     struct_node->filename = filename;
@@ -1290,6 +1294,8 @@ inline parse_error parser_error(Parser &parser,parse_error error ,const Token &t
     va_start(args, fmt);
     vprintf(fmt,args);
     va_end(args);
+    putchar('\n');
+
     const auto [line,col] = get_line_info(parser.context.cur_file,token.idx);
     printf("At: %s line %d col %d\n\n",parser.context.cur_file.buf,line,col);
 

@@ -124,17 +124,14 @@ Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_nam
         return option::none;
     }
 
-
-    TypeDef& def = *((TypeDef*)decl_ptr);
-
     // if we attempt to check a partial definition twice that the definition is recursive
-    if(def.decl.state == type_def_state::checking)
+    if(decl_ptr->state == type_def_state::checking)
     {
         // if its a pointer we dont need the complete information yet as they are all alike
         // so just override the type idx from the one reserved inside the def
         if(def_has_indirection(type_decl))
         {
-            *type_idx_override = def.decl.type_idx;
+            *type_idx_override = decl_ptr->type_idx;
         }
 
         else
@@ -146,7 +143,7 @@ Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_nam
 
     else
     {
-        return parse_def(itl,def);
+        return parse_def(itl,*decl_ptr);
     }
 
     return option::none;    
@@ -320,23 +317,23 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
     }
 }
 
-Option<itl_error> parse_struct_def(Interloper& itl, TypeDef& def)
+Option<itl_error> parse_struct_def(Interloper& itl, TypeDecl& decl)
 {
-    StructNode* node = (StructNode*)def.root;
+    StructNode* node = (StructNode*)decl.root;
 
     // NOTE: we expect the caller to save this
-    trash_context(itl,node->filename,def.decl.name_space,def.root);
+    trash_context(itl,node->filename,decl.name_space,decl.root);
 
     Struct structure;
     
     // allocate a reserved slot for the struct
-    def.decl.type_idx = count(itl.struct_table);
+    decl.type_idx = count(itl.struct_table);
     resize(itl.struct_table,count(itl.struct_table) + 1);
 
 
     structure.name = node->name;
     structure.filename = node->filename;
-    structure.name_space = def.decl.name_space;
+    structure.name_space = decl.name_space;
     structure.member_map = make_table<String,u32>();
 
     // we want to get how many sizes of each we have
@@ -377,7 +374,7 @@ Option<itl_error> parse_struct_def(Interloper& itl, TypeDef& def)
         print_struct(itl,structure);
     }
 
-    add_struct(itl,structure,def.decl);
+    add_struct(itl,structure,decl);
     return option::none;
 }
 

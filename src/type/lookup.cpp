@@ -102,7 +102,7 @@ Option<TypeDecl*> lookup_type_internal(Interloper& itl,NameSpace* name_space,con
     // attempt to parse the def
     if(user_type->state != type_def_state::checked)
     {
-        // no such definiton exists
+        // no such definition exists
         // NOTE: this is allowed to not panic the 
         // caller is expected to check the pointer and not just
         // compiler error state
@@ -112,13 +112,11 @@ Option<TypeDecl*> lookup_type_internal(Interloper& itl,NameSpace* name_space,con
         }
 
         // okay attempt to parse the def
-        TypeDef& type_def = *((TypeDef*)user_type);
-
-        // def parsing failed in some fashion just bail out
-        // there are no options left
-        const auto def_err = parse_def(itl,type_def);
+        const auto def_err = parse_def(itl,*user_type);
         if(def_err)
         {
+            // def parsing failed in some fashion just bail out
+            // there are no options left
             return option::none;
         }
     }
@@ -295,9 +293,7 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
                     // parse it
                     if(user_type->state == type_def_state::not_checked)
                     {
-                        TypeDef& type_def = *((TypeDef*)user_type);
-
-                        const auto type_err = parse_def(itl,type_def);
+                        const auto type_err = parse_def(itl,*user_type);
                         if(type_err)
                         {
                             return *type_err;

@@ -1,3 +1,106 @@
+Option<constraint_type> find_constraint(Parser& parser, const String& name)
+{
+    UNUSED(parser);
+
+
+    if(name == "Real")
+    {
+        return constraint_type::real;
+    }
+
+    else if(name == "Integer")
+    {
+        return constraint_type::integer;
+    }
+
+    else if(name == "Sized")
+    {
+        return constraint_type::sized;
+    }
+
+    return option::none;
+}
+
+Option<parse_error> parse_generic(Parser& parser, Array<Generic>& generic_overload)
+{
+    const auto generic_start = next_token(parser);
+
+    while(!consume_match(parser,token_type::logical_gt))
+    {
+        if(!match(parser,token_type::symbol))
+        {
+            return parser_error(parser,parse_error::unexpected_token,generic_start,"expected name for generic type");    
+        }
+
+        const auto name = next_token(parser);
+
+        const auto colon_err = consume(parser,token_type::colon);
+        if(colon_err)
+        {
+            return *colon_err;
+        }
+
+        Generic generic;
+        generic.name = name.literal;
+
+
+        if(match(parser,token_type::symbol))
+        {
+            const auto constraint_tok = next_token(parser);
+
+            const auto constraint_opt = find_constraint(parser,constraint_tok.literal);
+            if(constraint_opt)
+            {
+                generic.constraint = *constraint_opt;
+            }
+
+            else
+            {
+                prev_token(parser);
+                const auto type_res = parse_type(parser);
+                if(!type_res)
+                {
+                    return type_res.error();
+                }
+
+                generic.known.type_decl = *type_res;
+                generic.constraint = constraint_type::type;
+            }
+        }
+
+        else if(match_builtin_type(parser))
+        {
+            const auto type_res = parse_type(parser);
+            if(!type_res)
+            {
+                return type_res.error();
+            }
+
+            generic.known.type_decl = *type_res;
+            generic.constraint = constraint_type::type;
+        }
+
+        else
+        {
+            return parser_error(parser,parse_error::unexpected_token,generic_start,
+                "Expected name for generic type constraint or builtin type");
+        }
+
+        push_var(generic_overload,generic);
+
+        // if the declaration isn't closed get the next arg
+        if(!match(parser,token_type::logical_gt))
+        {
+            const auto comma_err = consume(parser,token_type::comma);
+            if(comma_err)
+            {
+                return *comma_err;
+            }
+        }
+    }
+
+    return option::none;
+}
 
 
 Option<itl_error> check_redeclaration(Interloper& itl, NameSpace* root, const String& name, const String& checked_def_type)
@@ -24,7 +127,7 @@ Option<parse_error> type_alias(Interloper& itl, Parser &parser)
 
     if(token.type != token_type::symbol)
     {
-        return parser_error(parser,parse_error::unexpected_token,token,"expected symbol for type alias name got %s\n",tok_name(token.type));
+        return parser_error(parser,parse_error::unexpected_token,token,"expected symbol for type alias name got %s",tok_name(token.type));
     }
 
     if(check_redeclaration(itl,parser.context.cur_namespace,name,"type alias"))
@@ -112,11 +215,18 @@ Result<StructNode*, parse_error> parse_struct_decl(Parser& parser, const ParsedA
 
     struct_node->attr_flags = attr.flags;
 
-    // Does this struct have a forced first member?
-    if(match(parser,token_type::left_paren))
+    if(match(parser,token_type::logical_lt))
     {
-        (void)consume(parser,token_type::left_paren);
+        const auto err = parse_generic(parser,struct_node->generic);
+        if(err)
+        {
+            return *err;
+        }
+    }
 
+    // Does this struct have a forced first member?
+    if(consume_match(parser,token_type::left_paren))
+    {
         auto decl_res = declaration(parser,token_type::right_paren);
         if(!decl_res)
         {
@@ -146,10 +256,7 @@ Result<StructNode*, parse_error> parse_struct_decl(Parser& parser, const ParsedA
     }
 
     // semi colon after decl is optional
-    if(match(parser,token_type::semi_colon))
-    {
-        (void)consume(parser,token_type::semi_colon);
-    }
+    consume_match(parser,token_type::semi_colon);
 
     return struct_node;
 }
@@ -192,9 +299,8 @@ Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser,const ParsedAttr &a
 
     EnumNode* enum_node = (EnumNode*)ast_enum(parser,name_tok.literal,parser.context.cur_file,name_tok);
 
-    if(match(parser,token_type::colon))
+    if(consume_match(parser,token_type::colon))
     {
-        (void)consume(parser,token_type::colon);
         auto type_res = parse_type(parser);
         if(!type_res)
         {
@@ -224,7 +330,7 @@ Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser,const ParsedAttr &a
 
         if(member_tok.type != token_type::symbol)
         {
-            return parser_error(parser,parse_error::unexpected_token,member_tok,"Expected symbol for enum %s member got %s\n",
+            return parser_error(parser,parse_error::unexpected_token,member_tok,"Expected symbol for enum %s member got %s",
                 name_tok.literal.buf,tok_name(member_tok.type));
         }
 
@@ -260,10 +366,6 @@ Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser,const ParsedAttr &a
     }
 
     // semi colon after decl is optional
-    if(match(parser,token_type::semi_colon))
-    {
-        (void)consume(parser,token_type::semi_colon);
-    }
-
+    consume_match(parser,token_type::semi_colon);
     return enum_node;
 }

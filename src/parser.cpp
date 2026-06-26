@@ -70,7 +70,7 @@ Option<parse_error> consume(Parser &parser,token_type type)
     if(t != type)
     {
         const auto tok = next_token(parser);
-        return parser_error(parser,parse_error::unexpected_token,tok,"expected '%s' got %s\n", tok_name(type),tok_name(t));
+        return parser_error(parser,parse_error::unexpected_token,tok,"expected '%s' got %s", tok_name(type),tok_name(t));
     }
     parser.tok_idx += 1;
     return option::none;
@@ -147,7 +147,7 @@ Result<ConstSpan<Token>,parse_error> scan_colon_stmt(Parser& parser, const Strin
         }
     }
 
-    return parser_error(parser,parse_error::malformed_stmt,start_span[0],"%s %s is not terminated by a ;\n",type.buf, name.buf);     
+    return parser_error(parser,parse_error::malformed_stmt,start_span[0],"%s %s is not terminated by a ;",type.buf, name.buf);     
 }
 
 Result<ConstSpan<Token>,parse_error> scan_brace_stmt(Parser& parser, const String& type, const String& name, const ConstSpan<Token>& start_span)
@@ -192,7 +192,7 @@ Result<ConstSpan<Token>,parse_error> scan_brace_stmt(Parser& parser, const Strin
         }
     }
 
-    return parser_error(parser,parse_error::malformed_stmt,start,"%s %s is not closed by a }\n",type.buf, name.buf);    
+    return parser_error(parser,parse_error::malformed_stmt,start,"%s %s is not closed by a }",type.buf, name.buf);    
 }
 
 #include "parser/expression.cpp"
@@ -398,7 +398,7 @@ ParserResult statement(Parser &parser)
 
                 default:
                 {
-                    return parser_error(parser,parse_error::unexpected_token,t2,"statement: unhandled symbol expr: %s\n",tok_name(t2.type));
+                    return parser_error(parser,parse_error::unexpected_token,t2,"statement: unhandled symbol expr: %s",tok_name(t2.type));
                 }
             }
             break;
@@ -461,7 +461,7 @@ ParserResult statement(Parser &parser)
 
         default:
         {
-            return parser_error(parser,parse_error::unexpected_token,t,"statement: unexpected token '%s' : %d\n",tok_name(t.type),u32(t.type));
+            return parser_error(parser,parse_error::unexpected_token,t,"statement: unexpected token '%s' : %d",tok_name(t.type),u32(t.type));
         }
     }
 
@@ -542,7 +542,7 @@ Option<parse_error> parse_attr_internal(Parser& parser, const Token& tok, Parsed
 
     if(attr_name_tok.type != token_type::symbol)
     {
-        return parser_error(parser,parse_error::unexpected_token,tok,"Expected name for attr got %s\n",tok_name(attr_name_tok.type));
+        return parser_error(parser,parse_error::unexpected_token,tok,"Expected name for attr got %s",tok_name(attr_name_tok.type));
     }
 
     const auto attr_name = attr_name_tok.literal;
@@ -586,7 +586,7 @@ Option<parse_error> parse_attr_internal(Parser& parser, const Token& tok, Parsed
 
     else
     {
-        return parser_error(parser,parse_error::malformed_stmt,tok,"Unknown attr %s\n",attr_name.buf);
+        return parser_error(parser,parse_error::malformed_stmt,tok,"Unknown attr %s",attr_name.buf);
     }
 
     return consume(parser,token_type::right_paren);
@@ -618,7 +618,7 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
 
     if(next.type != token_type::symbol)
     {
-        return parser_error(parser,parse_error::missing_expr,next,"Expected name for directive got %s\n",tok_name(next.type));
+        return parser_error(parser,parse_error::missing_expr,next,"Expected name for directive got %s",tok_name(next.type));
     }
 
     // TODO: move this lookup to a hashtable if it starts getting large
@@ -682,14 +682,14 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
             default:
             {
                 destroy_attribute(attr);
-                return parser_error(parser,parse_error::malformed_stmt,stmt,"Attribute is not legal on stmt: %s\n",tok_name(stmt.type));
+                return parser_error(parser,parse_error::malformed_stmt,stmt,"Attribute is not legal on stmt: %s",tok_name(stmt.type));
             }
         }
     }
 
     else
     {
-        return parser_error(parser,parse_error::unexpected_token,next,"Unknown directive %s\n",name.buf);
+        return parser_error(parser,parse_error::unexpected_token,next,"Unknown directive %s",name.buf);
     }
 
     return option::none;
@@ -705,7 +705,7 @@ Result<Array<String>,parse_error> split_namespace_internal(Parser& parser, const
 
         if(name.type != token_type::symbol)
         {
-            const auto res = parser_error(parser,parse_error::unexpected_token,name,"Expected name for namespace got: %s\n",tok_name(name.type));
+            const auto res = parser_error(parser,parse_error::unexpected_token,name,"Expected name for namespace got: %s",tok_name(name.type));
             destroy_arr(name_space);
             return res;
         }   
@@ -828,7 +828,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
             // unk
             else
             {
-                return parser_error(parser,parse_error::missing_expr,next_token(parser),"expected string for import got %s : %s\n",
+                return parser_error(parser,parse_error::missing_expr,next_token(parser),"expected string for import got %s : %s",
                     tok_name(t.type),t.literal.buf);
             }
             break;
@@ -923,10 +923,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
 
             destroy_arr(name_space);
 
-            if(match(parser,token_type::semi_colon))
-            {
-                (void)consume(parser,token_type::semi_colon);
-            }
+            consume_match(parser,token_type::semi_colon);
             break;
         }
 
@@ -935,12 +932,12 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
         {
             if(t.type == token_type::symbol)
             {
-                return parser_error(parser,parse_error::unexpected_token,t,"unexpected top level symbol '%s'\n",t.literal.buf);
+                return parser_error(parser,parse_error::unexpected_token,t,"unexpected top level symbol '%s'",t.literal.buf);
             }
 
             else
             {
-                return parser_error(parser,parse_error::unexpected_token,t,"unexpected top level token '%s' : (%d)\n",tok_name(t.type),u32(t.type));
+                return parser_error(parser,parse_error::unexpected_token,t,"unexpected top level token '%s' : (%d)",tok_name(t.type),u32(t.type));
             }
 
             break;
@@ -1005,10 +1002,8 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
     while(parser.tok_idx < size)
     {
         // check for a directive
-        if(match(parser,token_type::hash))
+        if(consume_match(parser,token_type::hash))
         {
-            (void)consume(parser,token_type::hash);
-
             const auto directive_err = parse_directive(itl,parser);
             if(directive_err)
             {
@@ -1133,7 +1128,7 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
                     return parse_res.error();
                 }
 
-                type_def->root = (AstNode*)parse_res.value();
+                type_def->decl.root = (AstNode*)parse_res.value();
                 break;
             }
             
@@ -1145,7 +1140,7 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
                     return parse_res.error();
                 }
 
-                type_def->root = (AstNode*)parse_res.value();
+                type_def->decl.root = (AstNode*)parse_res.value();
                 break;
             }
 
@@ -1157,7 +1152,7 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
                     return parse_res.error();
                 }
 
-                type_def->root = (AstNode*)parse_res.value();
+                type_def->decl.root = (AstNode*)parse_res.value();
                 break;
             }
         }
@@ -1904,7 +1899,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
                 print_itl(itl,"%D Generic",depth + 1);
                 for(const auto& generic : func->generic)
                 {
-                    if(generic.constraint != constraint_type::builtin)
+                    if(generic.constraint != constraint_type::type)
                     {
                         print_itl(itl,"%D %S(%s): %t",depth + 2, generic.name,CONSTRAINT_NAMES[u32(generic.constraint)],generic.type);
                     }

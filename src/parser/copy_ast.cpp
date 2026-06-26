@@ -250,23 +250,6 @@ ForRangeNode* copy_ast_for_range(Interloper& itl, ForRangeNode* range)
     return copy;    
 }
 
-// struct FuncCallNode
-// {
-//     AstNode node;
-
-//     AstNode* expr = nullptr;
-//     func_call_type type = func_call_type::call;
-
-//     union
-//     {
-//         FuncCall call = {};
-//         size_t intrinsic_idx;
-//     };
-
-//     Array<TypeNode*> generic_args;
-//     Array<AstNode*> args;
-// };
-
 FuncCallNode* copy_ast_function_call(Interloper& itl, FuncCallNode* call)
 {
     FuncCallNode* copy = alloc_node_copy(itl,call);

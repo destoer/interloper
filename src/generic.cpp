@@ -1,4 +1,37 @@
 
+bool is_known_generic_int(const GenericKnown& known)
+{
+    return is_integer(known.type_decl->node.expr_type);
+}
+
+
+
+void print_generic_overload(Interloper& itl, const ConstSpan<Generic>& generic_overload)
+{
+    for(const auto& generic : generic_overload)
+    {   
+        if(generic.constraint != constraint_type::type)
+        {
+            print_itl(itl,"%S = %t",generic.name,generic.type);
+        }
+
+        else
+        {
+            if(is_known_generic_int(generic.known))
+            {
+                print_itl(itl,"%S = %d",generic.name,generic.known.integer);
+            }
+
+            else
+            {
+                print_itl(itl,"%S = %f",generic.name,generic.known.decimal);
+            }
+        }
+    }
+
+    putchar('\n');
+}
+
 // TODO: This should probably be a hash table
 Result<Generic,itl_error> find_generic_param(Interloper& itl, const String& name)
 {
@@ -46,13 +79,13 @@ Result<Array<AstNode*>,parse_error> parse_generic_args(Parser& parser, const Gen
         if(generic_arg >= count(overload))
         {
             return parser_error(parser,parse_error::itl_error,tok,
-                "Generic has too many args got %d expected: %d\n",count(overload),generic_arg);
+                "Generic has too many args got %d expected: %d",count(overload),generic_arg);
         }
 
         const auto& generic = overload[generic_arg];
         AstNode* arg = nullptr;
 
-        if(generic.constraint != constraint_type::builtin)
+        if(generic.constraint != constraint_type::type)
         {
             const auto res = parse_type(parser);
 
@@ -162,25 +195,43 @@ TypeResult cut_generic_compound(Interloper& itl, Type* type, TypeNode* decl)
     return type;
 }
 
-Option<itl_error> type_check_generic_builtin(Interloper& itl, Generic* generic, AstNode* arg)
+Option<itl_error> type_check_generic_known(Interloper& itl, Generic* generic, AstNode* arg)
 {
-    // Handle builtin type
+    const auto expected_type_res = get_type(itl,generic->known.type_decl);
+    if(!expected_type_res)
+    {
+        return expected_type_res.error();
+    }
+
+    Type* expected_type = *expected_type_res;
+
+    if(!is_builtin(expected_type))
+    {
+        return compile_error(itl,itl_error::generic,"Generic known values only support builtin types");
+    }
+
     const auto res = type_check_expr(itl,arg);
     if(!res)
     {
         return res.error();
     }
 
+    const auto err = check_assign_arg(itl,expected_type,*res);
+    if(err)
+    {
+        return err;
+    }
+
     switch(arg->known_value.type)
     {
         case known_value_type::gpr_t:
         {
-            generic->builtin.integer = arg->known_value.gpr;
+            generic->known.integer = arg->known_value.gpr;
             break;
         }
 
         case known_value_type::fpr_t:
-            generic->builtin.decimal = arg->known_value.fpr;
+            generic->known.decimal = arg->known_value.fpr;
             break;
 
         case known_value_type::none_t:
@@ -234,7 +285,7 @@ Option<itl_error> check_generic_constraints(Interloper& itl, const GenericOverlo
                 break;
             }
 
-            case constraint_type::builtin: break;
+            case constraint_type::type: break;
         }
     }
 
@@ -328,7 +379,7 @@ Result<Array<Generic>,itl_error> deduce_generic_args(Interloper& itl, FuncNode& 
     {
         AstNode* arg = func_call->generic_args[i];
 
-        if(generic_overload[i].constraint != constraint_type::builtin)
+        if(generic_overload[i].constraint != constraint_type::type)
         {
             const auto type_res = get_type(itl,(TypeNode*)arg);
             if(!type_res)
@@ -344,7 +395,7 @@ Result<Array<Generic>,itl_error> deduce_generic_args(Interloper& itl, FuncNode& 
 
         else
         {
-            const auto err = type_check_generic_builtin(itl,&generic_overload[i],arg);
+            const auto err = type_check_generic_known(itl,&generic_overload[i],arg);
             if(err)
             {
                 destroy_table(generic_lookup);
@@ -389,7 +440,7 @@ bool check_overload(const Function* func, const Array<Generic>& generic_overload
     return true;
 }
 
-Function* find_overload(const OverloadTable& overload, const Array<Generic>& generic_overload)
+Function* find_func_overload(const FuncOverloadTable& overload, const Array<Generic>& generic_overload)
 {
     for(Function* func : overload)
     {
@@ -416,17 +467,18 @@ TypeResult type_check_generic_var(Interloper& itl, AstNode* expr)
 
     const auto& generic = *res;
 
-    if(generic.builtin.type == builtin_type::f64_t)
+
+    if(is_known_generic_int(generic.known))
     {
-        var->node.known_value.type = known_value_type::fpr_t;
-        var->node.known_value.fpr = generic.builtin.decimal;
+        var->node.known_value.type = known_value_type::gpr_t;
+        var->node.known_value.gpr = generic.known.integer;
     }
 
     else
     {
-        var->node.known_value.type = known_value_type::gpr_t;
-        var->node.known_value.gpr = generic.builtin.integer;
+        var->node.known_value.type = known_value_type::fpr_t;
+        var->node.known_value.fpr = generic.known.decimal;
     }
 
-    return make_builtin(itl,generic.builtin.type);
+    return generic.known.type_decl->node.expr_type;
 }

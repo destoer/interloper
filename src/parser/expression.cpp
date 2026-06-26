@@ -39,7 +39,7 @@ Option<parse_error> consume_expr(Parser &parser,ExprCtx& ctx,token_type type)
 {
     if(type != ctx.expr_tok.type)
     {
-        return parser_error(parser,parse_error::invalid_consume,ctx.expr_tok,"expected: %s got %s\n",tok_name(type),tok_name(ctx.expr_tok.type));
+        return parser_error(parser,parse_error::invalid_consume,ctx.expr_tok,"expected: %s got %s",tok_name(type),tok_name(ctx.expr_tok.type));
     }
 
     next_expr_token(parser,ctx);
@@ -58,17 +58,17 @@ Result<s32,parse_error> lbp(Parser &parser,const ExprCtx& ctx,const Token &t)
         {
             case token_type::increment:
             {
-                return parser_error(parser,parse_error::invalid_lbp,t,"increment operator not supported\n");
+                return parser_error(parser,parse_error::invalid_lbp,t,"increment operator not supported");
             }
 
             case token_type::decrement:
             {
-                return parser_error(parser,parse_error::invalid_lbp,t,"decrement operator not supported\n");
+                return parser_error(parser,parse_error::invalid_lbp,t,"decrement operator not supported");
             }
 
             default:
             {
-                return parser_error(parser,parse_error::invalid_lbp,t,"unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
+                return parser_error(parser,parse_error::invalid_lbp,t,"unexpected token '%s' in %s",tok_name(t.type),ctx.expression_name.buf);
             }
         }
     }
@@ -246,7 +246,7 @@ ParserResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
 
         default:
         {
-            return parser_error(parser,parse_error::unexpected_token,t,"led: unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
+            return parser_error(parser,parse_error::unexpected_token,t,"led: unexpected token '%s' in %s",tok_name(t.type),ctx.expression_name.buf);
         }        
     }
 
@@ -385,7 +385,7 @@ ParserResult builtin_type_info_access(Parser& parser,ExprCtx& ctx,builtin_type t
         }
     }
 
-    return parser_error(parser,parse_error::unexpected_token,ctx.expr_tok,"expected member access after builtin type, got %s\n",
+    return parser_error(parser,parse_error::unexpected_token,ctx.expr_tok,"expected member access after builtin type, got %s",
         tok_name(ctx.expr_tok.type)); 
 }
 
@@ -513,7 +513,7 @@ ParserResult parse_designated_initializers(Parser& parser, ExprCtx& ctx, const T
 
         if(!designated)
         {
-            return parser_error(parser,parse_error::malformed_stmt,ctx.expr_tok,"Designator: Hit unexpected token %s\n",tok_name(ctx.expr_tok.type));
+            return parser_error(parser,parse_error::malformed_stmt,ctx.expr_tok,"Designator: Hit unexpected token %s",tok_name(ctx.expr_tok.type));
         }
 
         const auto name = ctx.expr_tok.literal;
@@ -805,7 +805,7 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 
         default:
         {
-            return parser_error(parser,parse_error::unexpected_token,t,"unary: unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
+            return parser_error(parser,parse_error::unexpected_token,t,"unary: unexpected token '%s' in %s",tok_name(t.type),ctx.expression_name.buf);
         }
     }
 
@@ -875,7 +875,7 @@ ParserResult expr_terminate_internal(Parser &parser,ExprCtx& ctx)
     // expression must terminate on this token
     if(!(ctx.expr_flags & EXPR_TERMINATED_FLAG) && (ctx.expr_flags & EXPR_MUST_TERMINATE_FLAG))
     {
-        return parser_error(parser,parse_error::invalid_terminator,ctx.expr_tok,"%s should terminate with '%s' terminated with '%s'\n",
+        return parser_error(parser,parse_error::invalid_terminator,ctx.expr_tok,"%s should terminate with '%s' terminated with '%s'",
             ctx.expression_name.buf,tok_name(ctx.term),tok_name(ctx.expr_tok.type));
     }
 

@@ -168,6 +168,11 @@ enum class type_def_state
 struct AstNode;
 struct NameSpace;
 
+// TODO: THE Internal state inside this needs to be an array for generics with a union for ordinary ones
+// The actual generic struct should be held by the node
+// Array<TypeDeclState>
+
+
 struct TypeDecl
 {
     String name;
@@ -180,10 +185,63 @@ struct TypeDecl
     type_def_state state = type_def_state::not_checked;
     NameSpace* name_space = nullptr;
 
+    // the definition root -> depends on the type!
+    AstNode* root = nullptr;
+
     u32 flags = 0;
 };
 
 static constexpr u32 TYPE_DECL_DEF_FLAG = (1 << 0);
+
+static constexpr u32 CONSTRAINT_SIZE = 4;
+
+const char* CONSTRAINT_NAMES[CONSTRAINT_SIZE] =
+{
+    "Integer",
+    "Real",
+    "Sized",
+    "builtin"
+};
+
+enum class constraint_type
+{
+    integer,
+    real,
+    sized,
+    type,
+};
+
+struct TypeNode;
+
+struct GenericKnown
+{
+    // TODO: For now this only supports fixed types
+    union
+    {
+        u64 integer;
+        f64 decimal = 0.0;
+    };
+
+    TypeNode* type_decl = nullptr;
+};
+
+struct Generic
+{
+    String name;
+    constraint_type constraint;
+
+    union
+    {
+        // Filled in during deduction
+        Type* type = nullptr;
+
+        // constraint_type::type
+        GenericKnown known;
+    };
+};
+
+using TypeOverloadTable = Array<TypeDecl*>;
+using GenericOverload = Array<Generic>;
 
 struct TypeDef
 {
@@ -193,8 +251,8 @@ struct TypeDef
     type_def_kind kind;
     TopLevelDefinition type_def;
 
-    // the definition root -> depends on the type!
-    AstNode* root = nullptr;
+    GenericOverload generic_base;
+    TypeOverloadTable generic_overload;
 };
 
 enum class assign_type
