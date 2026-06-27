@@ -13,15 +13,18 @@ Result<Array<String>,parse_error> split_namespace(Parser& parser, const Token& s
 
 ParserResult parse_template_call(Parser& parser, NameSpace* name_space, const Token& cur);
 
-Token next_expr_token(Parser& parser,ExprCtx& ctx)
+bool check_terminator(ExprCtx& ctx, const Token& token)
 {
-    const auto token = next_token(parser);
-
     const b32 hit_terminator = (token.type == ctx.term);
     b32 should_term = hit_terminator;
 
+    if(ctx.expr_flags & EXPR_TERM_ENUM_INIT)
+    {
+        should_term = token.type == token_type::comma || token.type == token_type::right_c_brace;
+    }
+
     // what will cause early termination?
-    if(ctx.expr_flags & EXPR_TERM_LIST_FLAG)
+    else if(ctx.expr_flags & EXPR_TERM_LIST_FLAG)
     {
         should_term |= (token.type == token_type::comma);
     }
@@ -34,7 +37,7 @@ Token next_expr_token(Parser& parser,ExprCtx& ctx)
     ctx.expr_flags |= (hit_terminator << EXPR_HIT_TERMINATOR_FLAG_BIT);
     ctx.expr_flags |= (should_term << EXPR_TERMINATED_FLAG_BIT);
 
-    return token;
+    return should_term;
 }
 
 Result<s32,parse_error> lbp(Parser &parser,const ExprCtx& ctx,const Token &token)
@@ -45,7 +48,7 @@ Result<s32,parse_error> lbp(Parser &parser,const ExprCtx& ctx,const Token &token
 
     if(bp == -1)
     {
-        (void)parser_error(parser,parse_error::invalid_lbp,token,"Invalid token %s",tok_name(token.type));
+        (void)parser_error(parser,parse_error::invalid_lbp,token,"Invalid token %s: %s",tok_name(token.type),tok_name(ctx.term));
 
         switch(token.type)
         {
@@ -102,145 +105,146 @@ ParserResult oper_eq(Parser &parser,ExprCtx& ctx,AstNode *left,Token t,arith_bin
     return ans;    
 }
 
-ParserResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
+ParserResult parse_binary(Parser &parser,ExprCtx& ctx,const Token &token,AstNode *left)
 {
-    switch(t.type)
+    switch(token.type)
     {
         case token_type::plus_eq:
         {
-            return oper_eq(parser,ctx,left,t,arith_bin_type::add_t);
+            return oper_eq(parser,ctx,left,token,arith_bin_type::add_t);
         }
 
         case token_type::minus_eq:
         {
-            return oper_eq(parser,ctx,left,t,arith_bin_type::sub_t);
+            return oper_eq(parser,ctx,left,token,arith_bin_type::sub_t);
         }
 
         case token_type::times_eq:
         {
-            return oper_eq(parser,ctx,left,t,arith_bin_type::mul_t);
+            return oper_eq(parser,ctx,left,token,arith_bin_type::mul_t);
         }
 
 
         case token_type::divide_eq:
         {
-            return oper_eq(parser,ctx,left,t,arith_bin_type::div_t);
+            return oper_eq(parser,ctx,left,token,arith_bin_type::div_t);
         }
 
         case token_type::bitwise_or_eq:
         {
-            return oper_eq(parser,ctx,left,t,arith_bin_type::or_t);
+            return oper_eq(parser,ctx,left,token,arith_bin_type::or_t);
         }
 
         case token_type::bitwise_and_eq:
         {
-            return oper_eq(parser,ctx,left,t,arith_bin_type::and_t);
+            return oper_eq(parser,ctx,left,token,arith_bin_type::and_t);
         }
 
         case token_type::equal:
         {
             // right precedence rbp = lbp -1 so that things on the right 
             // are sen as sub expressions
-            return ast_equal(parser,left,expression(parser,ctx,lbp_subexpr(parser,ctx,t)),t);  
+            return ast_equal(parser,left,expression(parser,ctx,lbp_subexpr(parser,ctx,token)),token);  
         }
     
       
         case token_type::plus:
         {
-            return ast_bin_arith(parser,arith_bin_type::add_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_bin_arith(parser,arith_bin_type::add_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::minus:
         {
-            return ast_bin_arith(parser,arith_bin_type::sub_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_bin_arith(parser,arith_bin_type::sub_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::divide:
         {
-            return ast_bin_arith(parser,arith_bin_type::div_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_bin_arith(parser,arith_bin_type::div_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::mod:
         {
-            return ast_bin_arith(parser,arith_bin_type::mod_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_bin_arith(parser,arith_bin_type::mod_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::shift_l:
         {
-            return ast_shift(parser,shift_type::left,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_shift(parser,shift_type::left,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::shift_r:
         {
-            return ast_shift(parser,shift_type::right,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_shift(parser,shift_type::right,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::times:
         {
-            return ast_bin_arith(parser,arith_bin_type::mul_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_bin_arith(parser,arith_bin_type::mul_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         // and operator in binary context is a bitwise and
         case token_type::operator_and:
         {
-            return ast_bin_arith(parser,arith_bin_type::and_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_bin_arith(parser,arith_bin_type::and_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::bitwise_or:
         {
-            return ast_bin_arith(parser,arith_bin_type::or_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_bin_arith(parser,arith_bin_type::or_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::bitwise_xor:
         {
-            return ast_bin_arith(parser,arith_bin_type::xor_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_bin_arith(parser,arith_bin_type::xor_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::logical_or:
         {
-            return ast_logic(parser,boolean_logic_op::or_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_logic(parser,boolean_logic_op::or_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
     
         case token_type::logical_and:
         {
-            return ast_logic(parser,boolean_logic_op::and_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_logic(parser,boolean_logic_op::and_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
 
         case token_type::logical_lt:
         {
-            return ast_comparison(parser,comparison_op::lt,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_comparison(parser,comparison_op::lt,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::logical_gt:
         {
-            return ast_comparison(parser,comparison_op::gt,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_comparison(parser,comparison_op::gt,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }   
 
         case token_type::logical_le:
         {
-            return ast_comparison(parser,comparison_op::le,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_comparison(parser,comparison_op::le,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }   
 
         case token_type::logical_ge:
         {
-            return ast_comparison(parser,comparison_op::ge,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_comparison(parser,comparison_op::ge,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }   
 
         case token_type::logical_eq:
         {
-            return ast_comparison(parser,comparison_op::eq,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_comparison(parser,comparison_op::eq,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }    
 
         case token_type::logical_ne:
         {
-            return ast_comparison(parser,comparison_op::ne,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_comparison(parser,comparison_op::ne,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }         
 
 
         default:
         {
-            return parser_error(parser,parse_error::unexpected_token,t,"led: unexpected token '%s' in %s",tok_name(t.type),ctx.expression_name.buf);
+            return parser_error(parser,parse_error::unexpected_token,token,"led: unexpected token '%s' in %s",
+                tok_name(token.type),ctx.expression_name.buf);
         }        
     }
 
@@ -723,8 +727,7 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 
         case token_type::left_paren:
         {
-            const auto expr = expr_terminate(parser,"brackets",token_type::right_paren);
-            return expr;
+            return expr_terminate(parser,"brackets",token_type::right_paren);
         }
 
         case token_type::deref:
@@ -767,39 +770,38 @@ ParserResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_
     const u32 rbp = *rbp_res;
 
     auto left = parse_unary(parser,ctx,next_token(parser));
-    auto cur = next_expr_token(parser,ctx);
 
-    if((ctx.expr_flags & EXPR_TERMINATED_FLAG) || !left)
+    for(;;)
     {
-        return left;
-    }
-
-    auto lbp_res = lbp(parser,ctx,cur);
-    if(!lbp_res)
-    {
-        return lbp_res.error();
-    }
-
-    u32 left_binding_power = *lbp_res;
-
-    while(rbp < left_binding_power)
-    {
-        left = parse_binary(parser,ctx,cur,*left);        
-        cur = next_expr_token(parser,ctx);
-
-        if((ctx.expr_flags & EXPR_TERMINATED_FLAG) || !left)
+        if(ctx.expr_flags & EXPR_TERMINATED_FLAG)
         {
             return left;
         }
 
-        lbp_res = lbp(parser,ctx,cur);
-        
+        auto cur = peek(parser,0);
+
+        if(check_terminator(ctx,cur))
+        {
+            // Terminator hit skip it
+            next_token(parser);
+            return left;
+        }
+
+        auto lbp_res = lbp(parser,ctx,cur);
         if(!lbp_res)
         {
             return lbp_res.error();
         }
 
-        left_binding_power = *lbp_res;
+        const u32 left_binding_power = *lbp_res;
+
+        if(rbp > left_binding_power)
+        {
+            break;
+        }
+
+        next_token(parser);
+        left = parse_binary(parser,ctx,cur,*left); 
     }
 
     return left;
@@ -865,4 +867,28 @@ ParserResult expr_list(Parser& parser,const String& expression_name, token_type 
 
     *hit_terminator = ctx.expr_flags & EXPR_HIT_TERMINATOR;
     return e_res;
+}
+
+ParserResult expr_enum_initializer(Parser& parser)
+{
+    const auto start = peek(parser,0);
+
+    ExprCtx ctx;
+    ctx.expression_name = "Enum initializer";
+    ctx.expr_flags = EXPR_TERM_ENUM_INIT;
+
+    const auto res = expression(parser,ctx,0);
+
+    if(!(ctx.expr_flags & EXPR_TERMINATED_FLAG))
+    {
+        return parser_error(parser,parse_error::malformed_stmt,start,"Enum initializer must term with a comma or }");
+    }
+
+    // If this is the final the outer level needs this tok
+    if(ctx.term_tok.type == token_type::right_c_brace)
+    {
+        prev_token(parser);
+    }
+
+    return res;
 }

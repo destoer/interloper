@@ -777,6 +777,7 @@ const u32 EXPR_TERMINATED_FLAG = (1 << EXPR_TERMINATED_FLAG_BIT);
 const u32 EXPR_HIT_TERMINATOR = (1 << EXPR_HIT_TERMINATOR_FLAG_BIT); 
 const u32 EXPR_MUST_TERMINATE_FLAG = (1 << 2);
 const u32 EXPR_TERM_LIST_FLAG = (1 << 3);
+const u32 EXPR_TERM_ENUM_INIT = (1 << 4);
 
 
 // Current state of the expression parser

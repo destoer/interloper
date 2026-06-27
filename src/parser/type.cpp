@@ -342,13 +342,9 @@ Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser,const ParsedAttr &a
         member.name = member_tok.literal;
 
         // see if we have an initializer
-        if(match(parser,token_type::equal))
+        if(consume_match(parser,token_type::equal))
         {
-            (void)consume(parser,token_type::equal);
-
-            token_type term;
-
-            auto initializer_res = expr_terminate(parser,"enum struct init",token_type::comma,term);
+            auto initializer_res = expr_enum_initializer(parser);
             if(!initializer_res)
             {
                 return initializer_res.error();
@@ -357,7 +353,7 @@ Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser,const ParsedAttr &a
             member.initializer = *initializer_res;
         }
 
-        else
+        else if(!match(parser,token_type::right_c_brace))
         {
             const auto comma_err = consume(parser,token_type::comma);
             if(comma_err)
@@ -365,6 +361,7 @@ Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser,const ParsedAttr &a
                 return *comma_err;
             }
         }
+        
 
         push_var(enum_node->member,member);        
     }
