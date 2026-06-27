@@ -1,7 +1,7 @@
 #include <interloper.h>
 
 ParserResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_opt);
-ParserResult parse_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t);
+ParserResult parse_initializer_list(Parser& parser, const Token& t);
 ParserResult expr_terminate(Parser &parser,const String& expression_name,token_type t, token_type &term);
 ParserResult expr_terminate(Parser &parser,const String& expression_name,token_type t);
 ParserResult expr_list(Parser& parser,const String& expression_name, token_type type,b32* hit_terminator);
@@ -17,19 +17,13 @@ Token next_expr_token(Parser& parser,ExprCtx& ctx)
 {
     const auto token = next_token(parser);
 
-    b32 should_term = false;
-
     const b32 hit_terminator = (token.type == ctx.term);
+    b32 should_term = hit_terminator;
 
     // what will cause early termination?
     if(ctx.expr_flags & EXPR_TERM_LIST_FLAG)
     {
-        should_term = (token.type == token_type::comma) || hit_terminator;
-    }
-
-    else
-    {
-        should_term = (token.type == ctx.term);
+        should_term |= (token.type == token_type::comma);
     }
 
     if(!(ctx.expr_flags & EXPR_HIT_TERMINATOR) && should_term)
@@ -43,52 +37,32 @@ Token next_expr_token(Parser& parser,ExprCtx& ctx)
     return token;
 }
 
-Option<parse_error> consume_expr(Parser &parser,ExprCtx& ctx,token_type type)
+Result<s32,parse_error> lbp(Parser &parser,const ExprCtx& ctx,const Token &token)
 {
-    const auto token =  next_expr_token(parser,ctx);
-
-    if(token.type == type)
-    {
-        return option::none;
-    }
-
-    return parser_error(parser,parse_error::invalid_consume,token,"expected: %s got %s",tok_name(type),tok_name(token.type));
-}
-
-bool consume_expr_match(Parser &parser,ExprCtx& ctx,token_type type)
-{
-    if(peek(parser,0).type == type)
-    {
-        next_expr_token(parser,ctx);
-        return true;
-    }
-
-    return false;
-}
-
-Result<s32,parse_error> lbp(Parser &parser,const ExprCtx& ctx,const Token &t)
-{
-    const auto bp = TOKEN_INFO[static_cast<size_t>(t.type)].lbp;
+    const auto bp = TOKEN_INFO[u32(token.type)].lbp;
 
     //printf("lbp: %s -> %d\n",tok_name(t.type),bp);
 
     if(bp == -1)
     {
-        switch(t.type)
+        (void)parser_error(parser,parse_error::invalid_lbp,token,"Invalid token %s",tok_name(token.type));
+
+        switch(token.type)
         {
             case token_type::increment:
             {
-                return parser_error(parser,parse_error::invalid_lbp,t,"increment operator not supported");
+                return parser_error(parser,parse_error::invalid_lbp,token,"increment operator not supported");
             }
 
             case token_type::decrement:
             {
-                return parser_error(parser,parse_error::invalid_lbp,t,"decrement operator not supported");
+                return parser_error(parser,parse_error::invalid_lbp,token,"decrement operator not supported");
             }
 
             default:
             {
-                return parser_error(parser,parse_error::invalid_lbp,t,"unexpected token '%s' in %s",tok_name(t.type),ctx.expression_name.buf);
+                assert(false);
+                return parser_error(parser,parse_error::invalid_lbp,token,"unexpected token '%s' in %s",tok_name(token.type),ctx.expression_name.buf);
             }
         }
     }
@@ -297,7 +271,7 @@ EnumMemberNode* parse_enum_member(Parser& parser, const Token& member_name, cons
     return ast_enum_member(parser,name_space,enum_name,member_name.literal,member_name);
 }
 
-ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const Token& cur)
+ParserResult parse_sym(Parser& parser,NameSpace* name_space, const Token& cur)
 {
     const auto next = peek(parser,0);
 
@@ -307,10 +281,8 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
         // Generic function
         case token_type::dollar:
         {
-            (void)consume_expr(parser,ctx,token_type::dollar);
-            const auto res = parse_template_call(parser,name_space,cur);
-
-            return res;
+            (void)consume(parser,token_type::dollar);
+            return parse_template_call(parser,name_space,cur);
         }
 
         // function call
@@ -333,7 +305,7 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
 
             Array<String> name_space_strings = *name_space_res;
 
-            const auto cur_next = next_expr_token(parser,ctx);
+            const auto cur_next = next_token(parser);
 
             EnumMemberNode* member = parse_enum_member(parser,cur_next,name_space_strings); 
             if(member)
@@ -344,7 +316,7 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
 
             NameSpace* name_space = scan_namespace(parser,name_space_strings);
             destroy_arr(name_space_strings); 
-            return parse_sym(parser,ctx,name_space,cur_next);
+            return parse_sym(parser,name_space,cur_next);
         }
 
         default:
@@ -354,9 +326,9 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
             {
                 const auto struct_name = cur;
                 const auto start = next;
-                (void)consume_expr(parser,ctx,token_type::left_c_brace);
+                (void)consume(parser,token_type::left_c_brace);
 
-                auto list_res = parse_initializer_list(parser,ctx,start);
+                auto list_res = parse_initializer_list(parser,start);
                 if(!list_res)
                 {
                     return list_res;
@@ -371,13 +343,13 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
     }   
 }
 
-ParserResult builtin_type_info_access(Parser& parser,ExprCtx& ctx,const Token& start,builtin_type type)
+ParserResult builtin_type_info_access(Parser& parser,const Token& start,builtin_type type)
 {
-    if(consume_expr_match(parser,ctx,token_type::dot))
+    if(consume_match(parser,token_type::dot))
     {
         if(match(parser,token_type::symbol))
         {
-            const auto sym = next_expr_token(parser,ctx);
+            const auto sym = next_token(parser);
             return ast_builtin_access(parser,type,sym.literal,start);
         }
     }
@@ -388,9 +360,9 @@ ParserResult builtin_type_info_access(Parser& parser,ExprCtx& ctx,const Token& s
         tok_name(cur.type)); 
 }
 
-ParserResult type_operator(Parser& parser,ExprCtx& ctx, type_operator oper, const Token& token)
+ParserResult type_operator(Parser& parser, type_operator oper, const Token& token)
 {
-    const auto consume_left_paren_err = consume_expr(parser,ctx,token_type::left_paren);
+    const auto consume_left_paren_err = consume(parser,token_type::left_paren);
     if(consume_left_paren_err)
     {
         return *consume_left_paren_err;
@@ -403,7 +375,7 @@ ParserResult type_operator(Parser& parser,ExprCtx& ctx, type_operator oper, cons
         return type_res.error();
     }
 
-    const auto consume_right_paren_err = consume_expr(parser,ctx,token_type::right_paren);
+    const auto consume_right_paren_err = consume(parser,token_type::right_paren);
     if(consume_right_paren_err)
     {
         return *consume_right_paren_err;
@@ -412,9 +384,9 @@ ParserResult type_operator(Parser& parser,ExprCtx& ctx, type_operator oper, cons
     return ast_type_operator(parser,type_res.value(),oper,token);   
 }
 
-ParserResult parse_cast(Parser& parser,ExprCtx& ctx, const Token &t)
+ParserResult parse_cast(Parser& parser,const Token &t)
 {
-    auto expr_consume_err = consume_expr(parser,ctx,token_type::left_paren);
+    auto expr_consume_err = consume(parser,token_type::left_paren);
     if(expr_consume_err)
     {
         return *expr_consume_err;
@@ -429,7 +401,8 @@ ParserResult parse_cast(Parser& parser,ExprCtx& ctx, const Token &t)
 
     TypeNode* type = type_res.value();
 
-    const auto comma_consume_err = consume_expr(parser,ctx,token_type::comma);
+    // Don't use the expr version is this is a subexpr
+    const auto comma_consume_err = consume(parser,token_type::comma);
     if(comma_consume_err)
     {
         return *comma_consume_err;
@@ -445,18 +418,18 @@ ParserResult parse_cast(Parser& parser,ExprCtx& ctx, const Token &t)
 }
 
 ParserResult parse_value_initializer_list(Parser& parser, const Token& t);
-ParserResult parse_designated_initializers(Parser& parser, ExprCtx& ctx, const Token& t);
+ParserResult parse_designated_initializers(Parser& parser, const Token& t);
 
-ParserResult parse_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t)
+ParserResult parse_initializer_list(Parser& parser, const Token& t)
 {
     const bool designated = match(parser,token_type::symbol) && match(parser,token_type::colon,1);
-    const auto list_res = designated? parse_designated_initializers(parser,ctx,t) :  parse_value_initializer_list(parser,t);
+    const auto list_res = designated? parse_designated_initializers(parser,t) :  parse_value_initializer_list(parser,t);
 
     // allow trailing comma if the list is about to end and its not the terminator i.e
     // {{0,0},{0,0},}
-    if(match(parser,token_type::comma) && match(parser,ctx.term,1))
+    if(match(parser,token_type::comma) && match(parser,token_type::right_c_brace,1))
     {
-        next_expr_token(parser,ctx);
+        next_token(parser);
     }
 
     return list_res;
@@ -484,17 +457,17 @@ ParserResult parse_value_initializer_list(Parser& parser, const Token& t)
 
 
 
-ParserResult parse_designated_initializers(Parser& parser, ExprCtx& ctx, const Token& t)
+ParserResult parse_designated_initializers(Parser& parser, const Token& t)
 {
     DesignatedListNode* list = ast_designated_initializer_list(parser,t);
 
     b32 hit_term = false;
     while(!hit_term)
     {
-        const auto sym = next_expr_token(parser,ctx);
+        const auto sym = next_token(parser);
 
         // Want to know if we started as designated because the entire list should match!
-        const bool designated = sym.type == token_type::symbol && consume_expr_match(parser,ctx,token_type::colon);
+        const bool designated = sym.type == token_type::symbol && consume_match(parser,token_type::colon);
 
         if(!designated)
         {
@@ -506,10 +479,10 @@ ParserResult parse_designated_initializers(Parser& parser, ExprCtx& ctx, const T
         // Nested struct initializer?
         if(match(parser,token_type::symbol) && match(parser,token_type::left_c_brace,1))
         {
-            const auto struct_name = next_expr_token(parser,ctx);
-            (void)consume_expr(parser,ctx,token_type::left_c_brace);
+            const auto struct_name = next_token(parser);
+            (void)consume(parser,token_type::left_c_brace);
 
-            auto list_res = parse_initializer_list(parser,ctx,t);
+            auto list_res = parse_initializer_list(parser,t);
 
             if(!list_res)
             {
@@ -521,9 +494,9 @@ ParserResult parse_designated_initializers(Parser& parser, ExprCtx& ctx, const T
             const DesignatedInitializer init = {struct_initializer,name};
             push_var(list->initializer,init);
 
-            if(!consume_expr_match(parser,ctx,token_type::comma))
+            if(!consume_match(parser,token_type::comma))
             {
-                hit_term = consume_expr_match(parser,ctx,token_type::right_c_brace);
+                hit_term = consume_match(parser,token_type::right_c_brace);
             }
         }
 
@@ -552,70 +525,70 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
     {
         case token_type::u8:
         {
-            return builtin_type_info_access(parser,ctx,t,builtin_type::u8_t);
+            return builtin_type_info_access(parser,t,builtin_type::u8_t);
         }
 
         case token_type::u16:
         {
-            return builtin_type_info_access(parser,ctx,t,builtin_type::u16_t);
+            return builtin_type_info_access(parser,t,builtin_type::u16_t);
         }
 
         case token_type::u32:
         {
-            return builtin_type_info_access(parser,ctx,t,builtin_type::u32_t);
+            return builtin_type_info_access(parser,t,builtin_type::u32_t);
         }
 
         case token_type::u64:
         {
-            return builtin_type_info_access(parser,ctx,t,builtin_type::u64_t);
+            return builtin_type_info_access(parser,t,builtin_type::u64_t);
         }
 
         case token_type::s8:
         {
-            return builtin_type_info_access(parser,ctx,t,builtin_type::s8_t);
+            return builtin_type_info_access(parser,t,builtin_type::s8_t);
         }
 
         case token_type::s16:
         {
-            return builtin_type_info_access(parser,ctx,t,builtin_type::s16_t);
+            return builtin_type_info_access(parser,t,builtin_type::s16_t);
         }
 
         case token_type::s32:
         {
-            return builtin_type_info_access(parser,ctx,t,builtin_type::s32_t);
+            return builtin_type_info_access(parser,t,builtin_type::s32_t);
         }
 
         case token_type::s64:
         {
-            return builtin_type_info_access(parser,ctx,t,builtin_type::s64_t);
+            return builtin_type_info_access(parser,t,builtin_type::s64_t);
         }
 
         case token_type::bool_t:
         {
-            return builtin_type_info_access(parser,ctx,t,builtin_type::bool_t);
+            return builtin_type_info_access(parser,t,builtin_type::bool_t);
         }
 
         case token_type::byte_t:
         {
-            return builtin_type_info_access(parser,ctx,t,builtin_type::byte_t);
+            return builtin_type_info_access(parser,t,builtin_type::byte_t);
         }
 
         case token_type::c8_t:
         {
-            return builtin_type_info_access(parser,ctx,t,builtin_type::c8_t);
+            return builtin_type_info_access(parser,t,builtin_type::c8_t);
         }
 
 
         // cast(<type>,<expr>)
         case token_type::cast:
         {
-            return parse_cast(parser,ctx,t);
+            return parse_cast(parser,t);
         }
     
         // sizeof(<expr>)
         case token_type::sizeof_t:
         {
-            const auto consume_err = consume_expr(parser,ctx,token_type::left_paren);
+            const auto consume_err = consume(parser,token_type::left_paren);
             if(consume_err)
             {
                 return *consume_err;
@@ -629,7 +602,7 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
         // cast_ref(<expr>)
         case token_type::cast_ref:
         {
-            const auto consume_err = consume_expr(parser,ctx,token_type::left_paren);
+            const auto consume_err = consume(parser,token_type::left_paren);
             if(consume_err)
             {
                 return *consume_err;
@@ -643,13 +616,13 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
         // sizeof_type(<type>)
         case token_type::sizeof_type_t:
         {
-            return type_operator(parser,ctx,type_operator::sizeof_type_t,t);   
+            return type_operator(parser,type_operator::sizeof_type_t,t);   
         }
 
         // sizeof_data(<type>)
         case token_type::sizeof_data_t:
         {
-            return type_operator(parser,ctx,type_operator::sizeof_data_t,t);   
+            return type_operator(parser,type_operator::sizeof_data_t,t);   
         }
 
 
@@ -659,9 +632,9 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
             // check for no init 
             // NOTE: as this is is not common we resolve it here
             // rather than inside the tokenizer
-            if(consume_expr_match(parser,ctx,token_type::qmark))
+            if(consume_match(parser,token_type::qmark))
             {
-                const auto consume_c_brace_err = consume_expr(parser,ctx,token_type::right_c_brace);
+                const auto consume_c_brace_err = consume(parser,token_type::right_c_brace);
                 if(consume_c_brace_err)
                 {
                     return *consume_c_brace_err;
@@ -670,7 +643,7 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
                 return ast_plain(parser,ast_type::no_init,t);
             }
 
-            return parse_initializer_list(parser,ctx,t);
+            return parse_initializer_list(parser,t);
         }
     
         case token_type::value:
@@ -711,7 +684,7 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 
         case token_type::dollar:
         {
-            const auto sym = next_expr_token(parser,ctx);
+            const auto sym = next_token(parser);
 
             if(sym.type != token_type::symbol)
             {
@@ -724,7 +697,7 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 
         case token_type::symbol:
         {
-            return parse_sym(parser,ctx,nullptr,t);
+            return parse_sym(parser,nullptr,t);
         }
 
         case token_type::minus:
@@ -793,15 +766,14 @@ ParserResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_
 
     const u32 rbp = *rbp_res;
 
+    auto left = parse_unary(parser,ctx,next_token(parser));
     auto cur = next_expr_token(parser,ctx);
-    auto left = parse_unary(parser,ctx,cur);
 
     if((ctx.expr_flags & EXPR_TERMINATED_FLAG) || !left)
     {
         return left;
     }
 
-    cur = next_expr_token(parser,ctx);
     auto lbp_res = lbp(parser,ctx,cur);
     if(!lbp_res)
     {
@@ -812,13 +784,7 @@ ParserResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_
 
     while(rbp < left_binding_power)
     {
-        left = parse_binary(parser,ctx,cur,*left);
-
-        if((ctx.expr_flags & EXPR_TERMINATED_FLAG) || !left)
-        {
-            return left;
-        }
-        
+        left = parse_binary(parser,ctx,cur,*left);        
         cur = next_expr_token(parser,ctx);
 
         if((ctx.expr_flags & EXPR_TERMINATED_FLAG) || !left)

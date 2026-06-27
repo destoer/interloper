@@ -1287,7 +1287,7 @@ BlockNode* ast_block(Parser& parser, const Token& token)
 std::pair<u32,u32> get_line_info(const String& filename, u32 idx);
 
 
-inline parse_error parser_error(Parser &parser,parse_error error ,const Token &token,const char *fmt, ...)
+inline parse_error parser_verror(Parser &parser,parse_error error ,const Token &token,const char *fmt, va_list args)
 {
     parser.ctx.error_count += 1;
 
@@ -1297,10 +1297,7 @@ inline parse_error parser_error(Parser &parser,parse_error error ,const Token &t
         return error;
     }
 
-    va_list args; 
-    va_start(args, fmt);
     vprintf(fmt,args);
-    va_end(args);
     putchar('\n');
 
     const auto [line,col] = get_line_info(parser.ctx.cur_file,token.idx);
@@ -1309,7 +1306,18 @@ inline parse_error parser_error(Parser &parser,parse_error error ,const Token &t
     parser.ctx.line = line;
     parser.ctx.col = col;
     parser.ctx.idx = token.idx;
+    assert(false);
     return error;
+}
+
+inline parse_error parser_error(Parser &parser,parse_error error ,const Token &token,const char *fmt, ...)
+{
+    va_list args; 
+    va_start(args, fmt);
+    const auto err = parser_verror(parser,error,token,fmt,args);
+    va_end(args);
+    
+    return err;
 }
 
 void print_depth(int depth);
