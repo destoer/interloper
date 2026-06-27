@@ -96,6 +96,15 @@ Result<Array<AstNode*>,parse_error> parse_generic_args(Parser& parser, const Gen
             }
 
             arg = (AstNode*)res.value();
+
+            if(!match(parser,token_type::logical_gt))
+            {
+                const auto err = consume(parser,token_type::comma);
+                if(err)
+                {
+                    return *err;
+                }
+            }
         }
 
         else

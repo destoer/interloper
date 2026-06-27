@@ -13,7 +13,7 @@ func sum_fixed<T: Sized,SIZE: usize>(fixed: const FixedArray<$T,$SIZE>@)
 
 	for i in 0 < $SIZE
 	{
-		ans += fixed.buffer[i]
+		ans += fixed.buffer[i];
 	}
 } 
 
