@@ -81,7 +81,7 @@ NameSpace* new_named_scope(ArenaAllocator& arena,ArenaAllocator& string_allocato
 
 NameSpace* scan_namespace(Parser& parser, const Array<String>& name_space)
 {
-    NameSpace* root = parser.context.global_namespace;
+    NameSpace* root = parser.ctx.global_namespace;
 
     u32 name_idx = 0;
 
@@ -198,19 +198,6 @@ TypeDecl* lookup_complete_decl(Interloper& itl, const String& name)
 
     return type_decl;
 }
-
-TypeDef* lookup_type_def(Interloper& itl, const String& name)
-{
-    TypeDecl* type_decl = lookup_incomplete_decl(itl,name);
-
-    if(!type_decl || !(type_decl->flags & TYPE_DECL_DEF_FLAG))
-    {
-        return nullptr;
-    }
-
-    return (TypeDef*)type_decl;
-}
-
 
 // NOTE: this gets a function ONLY in the requested scope
 FunctionDef* lookup_func_def_scope(Interloper& itl, NameSpace* name_space, const String& name)

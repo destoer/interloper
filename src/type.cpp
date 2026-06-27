@@ -88,9 +88,9 @@ void add_type_definition(Interloper& itl, type_def_kind kind, const TopLevelDefi
     definition->decl.flags = TYPE_DECL_DEF_FLAG;
     definition->decl.name_space = name_space;
     definition->decl.kind = type_kind(kind);
+    definition->decl.root = nullptr;
 
     definition->filename = filename;
-    definition->root = nullptr;
     definition->type_def = type_def;
     definition->kind = kind;
 
@@ -229,9 +229,9 @@ void finalise_type(TypeDecl& decl, u32 type_idx)
     decl.state = type_def_state::checked;
 }
 
-Option<itl_error> parse_alias_def(Interloper& itl, TypeDef& def)
+Option<itl_error> parse_alias_def(Interloper& itl, TypeDecl& decl)
 {
-    AliasNode* node = (AliasNode*)def.root;
+    AliasNode* node = (AliasNode*)decl.root;
 
     auto type_res = get_complete_type(itl,node->type);
 
@@ -248,7 +248,7 @@ Option<itl_error> parse_alias_def(Interloper& itl, TypeDef& def)
     }
 
     const u32 type_idx = count(itl.alias_table);
-    finalise_type(def.decl,type_idx);
+    finalise_type(decl,type_idx);
     push_var(itl.alias_table,type); 
 
     return option::none;
@@ -266,48 +266,50 @@ void declare_compiler_type_aliases(Interloper& itl)
     add_internal_alias(itl,itl.string_type,"string");
 }
 
-Option<itl_error> parse_struct_def(Interloper& itl, TypeDef& def);
-Option<itl_error> parse_alias_def(Interloper& itl, TypeDef& def);
-Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set);
+Option<itl_error> parse_struct_def(Interloper& itl, TypeDecl& decl);
+Option<itl_error> parse_alias_def(Interloper& itl, TypeDecl& decl);
+Option<itl_error> parse_enum_def(Interloper& itl, TypeDecl& decl, Set<u64>& set);
 
-Option<itl_error> parse_def(Interloper& itl, TypeDef& def)
+Option<itl_error> parse_def(Interloper& itl, TypeDecl& decl)
 {
-    log(itl.itl_log,"Parse type: %s\n",def.decl.name.buf);
+    log(itl.itl_log,"Parse type: %s\n",decl.name.buf);
     // this node make be from a different context
     // save the current one
     push_context(itl);
 
     Option<itl_error> res = option::none;
 
-    switch(def.decl.state)
+    switch(decl.state)
     {
         case type_def_state::not_checked:
         {
             // mark as checking to lock this against recursion!
-            def.decl.state = type_def_state::checking;
+            decl.state = type_def_state::checking;
 
-            switch(def.kind)
+            switch(decl.kind)
             {
-                case type_def_kind::struct_t:
+                case type_kind::struct_t:
                 {
-                    res = parse_struct_def(itl,def);
+                    res = parse_struct_def(itl,decl);
                     break;
                 }
 
-                case type_def_kind::alias_t:
+                case type_kind::alias_t:
                 {
-                    res = parse_alias_def(itl,def);
+                    res = parse_alias_def(itl,decl);
                     break;
                 }
 
-                case type_def_kind::enum_t: 
+                case type_kind::enum_t: 
                 {
                     auto set = make_set<u64>();
 
-                    res = parse_enum_def(itl,def,set);
+                    res = parse_enum_def(itl,decl,set);
                     destroy_set(set);
                     break;
                 }
+
+                case type_kind::builtin: break;
             }
 
             break;
@@ -316,7 +318,7 @@ Option<itl_error> parse_def(Interloper& itl, TypeDef& def)
         case type_def_state::checking:
         {
             // TODO: add heuristics to scan for where!
-            return compile_error(itl,itl_error::black_hole,"Parse def: type %S is recursively defined",def.decl.name);
+            return compile_error(itl,itl_error::black_hole,"Parse def: type %S is recursively defined",decl.name);
         }
 
         // already checked we don't care
@@ -326,7 +328,7 @@ Option<itl_error> parse_def(Interloper& itl, TypeDef& def)
         }
     }
 
-    log(itl.itl_log,"Finish parsing type: %s\n",def.decl.name.buf);
+    log(itl.itl_log,"Finish parsing type: %s\n",decl.name.buf);
 
     pop_context(itl);
     return res;

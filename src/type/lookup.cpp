@@ -102,7 +102,7 @@ Option<TypeDecl*> lookup_type_internal(Interloper& itl,NameSpace* name_space,con
     // attempt to parse the def
     if(user_type->state != type_def_state::checked)
     {
-        // no such definiton exists
+        // no such definition exists
         // NOTE: this is allowed to not panic the 
         // caller is expected to check the pointer and not just
         // compiler error state
@@ -112,13 +112,11 @@ Option<TypeDecl*> lookup_type_internal(Interloper& itl,NameSpace* name_space,con
         }
 
         // okay attempt to parse the def
-        TypeDef& type_def = *((TypeDef*)user_type);
-
-        // def parsing failed in some fashion just bail out
-        // there are no options left
-        const auto def_err = parse_def(itl,type_def);
+        const auto def_err = parse_def(itl,*user_type);
         if(def_err)
         {
+            // def parsing failed in some fashion just bail out
+            // there are no options left
             return option::none;
         }
     }
@@ -141,7 +139,7 @@ DefInfo* parser_lookup_definition(Parser& parser, NameSpace* name_space, const S
 {
     if(!name_space)
     {
-        name_space = parser.context.cur_namespace;
+        name_space = parser.ctx.cur_namespace;
     }
 
     return lookup_definition(name_space,name);
@@ -163,11 +161,28 @@ FunctionDef* parser_lookup_func(Parser& parser, NameSpace* name_space, const Str
     return &parser.func_table->table[info->handle];
 }
 
+TypeDecl* parser_lookup_type(Parser& parser, NameSpace* name_space, const String& name)
+{
+    DefInfo* info = parser_lookup_definition(parser,name_space,name);
+    if(!info)
+    {
+        return nullptr;
+    }
+
+    if(info->type != definition_type::type)
+    {
+        return nullptr;
+    }
+
+    return info->type_decl;
+}
+
+
 bool parser_type_kind_exists(Parser& parser, NameSpace* name_space, const String& name, type_kind kind)
 { 
     if(!name_space)
     {
-        name_space = parser.context.cur_namespace;
+        name_space = parser.ctx.cur_namespace;
     }
 
     const DefInfo* def = lookup_typed_definition(name_space,name,definition_type::type);
@@ -183,7 +198,7 @@ bool parser_type_exists(Parser& parser, NameSpace* name_space, const String& nam
 { 
     if(!name_space)
     {
-        name_space = parser.context.cur_namespace;
+        name_space = parser.ctx.cur_namespace;
     }
 
     return lookup_typed_definition(name_space,name,definition_type::type) != nullptr;
@@ -295,9 +310,7 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
                     // parse it
                     if(user_type->state == type_def_state::not_checked)
                     {
-                        TypeDef& type_def = *((TypeDef*)user_type);
-
-                        const auto type_err = parse_def(itl,type_def);
+                        const auto type_err = parse_def(itl,*user_type);
                         if(type_err)
                         {
                             return *type_err;

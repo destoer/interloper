@@ -10,16 +10,10 @@ ParserResult func_call(Parser& parser,AstNode *expr, const Token& t)
 
     FuncCallNode* func_call = (FuncCallNode*)ast_call(parser,expr,t);
 
-    // keep reading args till we run out of commas
-    b32 done = false;
-
     // empty call we are done
-    if(match(parser,token_type::right_paren))
-    {
-        (void)consume(parser,token_type::right_paren);
-        done = true;
-    }
+    b32 done = consume_match(parser,token_type::right_paren);
 
+    // keep reading args till we run out of commas
     while(!done)
     {
         auto list_res = expr_list(parser,"function call",token_type::right_paren,&done);
@@ -70,7 +64,7 @@ Option<parse_error> block_ast(Parser &parser, AstBlock* block)
     {
         if(match(parser,token_type::eof))
         {
-            return parser_error(parser,parse_error::malformed_stmt,tok,"unterminated block!\n");
+            return parser_error(parser,parse_error::malformed_stmt,tok,"unterminated block!");
         }
 
         auto stmt_res = statement(parser);
@@ -86,102 +80,18 @@ Option<parse_error> block_ast(Parser &parser, AstBlock* block)
     return option::none;
 }
 
-
-Result<constraint_type,parse_error> find_constraint(Parser& parser, const String& name, const Token& token)
-{
-    if(name == "Real")
-    {
-        return constraint_type::real;
-    }
-
-    else if(name == "Integer")
-    {
-        return constraint_type::integer;
-    }
-
-    else if(name == "Sized")
-    {
-        return constraint_type::sized;
-    }
-
-    return parser_error(parser,parse_error::malformed_stmt,token,"%S is not a generic constraint.\n",name);
-}
-
-Option<parse_error> parse_generic(Parser& parser, FuncNode* f)
-{
-    const auto generic_start = next_token(parser);
-
-    while(!consume_match(parser,token_type::logical_gt))
-    {
-        if(!match(parser,token_type::symbol))
-        {
-            return parser_error(parser,parse_error::unexpected_token,generic_start,"expected name for generic type\n");    
-        }
-
-        const auto name = next_token(parser);
-
-        const auto colon_err = consume(parser,token_type::colon);
-        if(colon_err)
-        {
-            return *colon_err;
-        }
-
-        Generic generic;
-        generic.name = name.literal;
-
-        if(match_builtin_type(parser))
-        {
-            generic.constraint = constraint_type::builtin;
-            generic.builtin.type = builtin_type_from_tok(next_token(parser));
-        }
-
-        else if(match(parser,token_type::symbol))
-        {
-            const auto constraint_tok = next_token(parser);
-        
-            const auto constraint_res = find_constraint(parser,constraint_tok.literal,generic_start);
-            if(!constraint_res)
-            {
-                return constraint_res.error();
-            }
-
-            generic.constraint = *constraint_res;
-        }
-
-        else
-        {
-            return parser_error(parser,parse_error::unexpected_token,generic_start,
-                "Expected name for generic type constraint or builtin type\n");
-        }
-
-        push_var(f->generic,generic);
-
-        // if the declaration isn't closed get the next arg
-        if(!match(parser,token_type::logical_gt))
-        {
-            const auto comma_err = consume(parser,token_type::comma);
-            if(comma_err)
-            {
-                return *comma_err;
-            }
-        }
-    }
-
-    return option::none;
-}
-
 // parse just the function signature
 // NOTE: this is used to parse signatures for function pointers
 Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_name, const Token& token)
 {
-    FuncNode *f = (FuncNode*)ast_func(parser,func_name,parser.context.cur_file,token);
+    FuncNode *f = (FuncNode*)ast_func(parser,func_name,parser.ctx.cur_file,token);
 
     const auto paren = peek(parser,0);
 
     // Generic
     if(paren.type == token_type::logical_lt)
     {
-        const auto err = parse_generic(parser,f);
+        const auto err = parse_generic(parser,f->generic);
         if(err)
         {
             return *err;
@@ -200,7 +110,7 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
     {
         if(match(parser,token_type::eof))
         {
-            return parser_error(parser,parse_error::invalid_terminator,paren,"unterminated function declaration!\n");
+            return parser_error(parser,parse_error::invalid_terminator,paren,"unterminated function declaration!");
         }
 
         // for each arg pull type, name
@@ -208,7 +118,7 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
 
         if(lit_tok.type != token_type::symbol)
         {
-            return parser_error(parser,parse_error::unexpected_token,lit_tok,"expected name for function arg got %s\n",
+            return parser_error(parser,parse_error::unexpected_token,lit_tok,"expected name for function arg got %s",
                 tok_name(lit_tok.type));
         }
         
@@ -220,17 +130,15 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
         }
 
         // va_args
-        if(match(parser,token_type::va_args))
+        if(consume_match(parser,token_type::va_args))
         {
-            (void)consume(parser,token_type::va_args);
-
             f->va_args = true;
             f->args_name = lit_tok.literal;
 
             // by definition this must be the last arg!
             if(!match(parser,token_type::right_paren))
             {
-                return parser_error(parser,parse_error::malformed_stmt,lit_tok,"va_args can only be placed as the last arg : got %s\n",
+                return parser_error(parser,parse_error::malformed_stmt,lit_tok,"va_args can only be placed as the last arg : got %s",
                     tok_name(peek(parser,0).type));
             }
         }
@@ -265,15 +173,13 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
     b32 named_return = false;
 
     // tuple type
-    if(match(parser,token_type::sl_brace))
+    if(consume_match(parser,token_type::sl_brace))
     {
-        (void)consume(parser,token_type::sl_brace);
-
         while(!consume_match(parser,token_type::sr_brace))
         {
             if(match(parser,token_type::eof))
             {
-                return parser_error(parser,parse_error::invalid_terminator,paren,"unterminated function declaration!\n");
+                return parser_error(parser,parse_error::invalid_terminator,paren,"unterminated function declaration!");
             }
 
             FuncReturnVar var = {"",nullptr};
@@ -281,20 +187,20 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
             const bool cur_named_return = match(parser,token_type::colon,1);
             if(named_return && !cur_named_return)
             {
-                return parser_error(parser,parse_error::malformed_stmt,paren,"All return types must have a name or none\n");
+                return parser_error(parser,parse_error::malformed_stmt,paren,"All return types must have a name or none");
             }
 
             if(cur_named_return)
             {
                 if(!named_return && f->return_type)
                 {
-                    return parser_error(parser,parse_error::malformed_stmt,paren,"All return types must have a name or none\n");
+                    return parser_error(parser,parse_error::malformed_stmt,paren,"All return types must have a name or none");
                 }
 
                 named_return = true;                
                 if(!match(parser,token_type::symbol))
                 {
-                    return parser_error(parser,parse_error::malformed_stmt,paren,"Expected name in named return value\n");
+                    return parser_error(parser,parse_error::malformed_stmt,paren,"Expected name in named return value");
                 }
 
                 const auto sym = next_token(parser);
@@ -333,7 +239,7 @@ Result<FuncNode*,parse_error> parse_func_sig(Parser& parser,const String& func_n
         {
             if(!match(parser,token_type::symbol))
             {
-                return parser_error(parser,parse_error::malformed_stmt,paren,"Expected name in named return value\n");
+                return parser_error(parser,parse_error::malformed_stmt,paren,"Expected name in named return value");
             }
 
             const auto sym = next_token(parser);
@@ -403,17 +309,17 @@ Option<parse_error> parse_func_decl(Parser &parser, FunctionDef& func_def)
 
 Option<parse_error> func_decl(Interloper& itl, Parser &parser, const ParsedAttr &attr)
 {
-    const auto start_span = make_const_span(parser.tokens,parser.tok_idx, parser.tokens.size - parser.tok_idx);
+    const auto start_span = make_const_span(parser.ctx.tokens,parser.ctx.tok_idx, parser.ctx.tokens.size - parser.ctx.tok_idx);
 
     // what is the name of our function?
     const auto func_name = next_token(parser);
 
     if(func_name.type != token_type::symbol)
     {
-        return parser_error(parser,parse_error::unexpected_token,func_name,"Expected function name got: %s!\n",tok_name(func_name.type));  
+        return parser_error(parser,parse_error::unexpected_token,func_name,"Expected function name got: %s!",tok_name(func_name.type));  
     }
 
-    if(check_redeclaration(itl,parser.context.cur_namespace,func_name.literal,"function"))
+    if(check_redeclaration(itl,parser.ctx.cur_namespace,func_name.literal,"function"))
     {
         return parse_error::itl_error;
     }
@@ -427,7 +333,7 @@ Option<parse_error> func_decl(Interloper& itl, Parser &parser, const ParsedAttr 
     const auto func_def = *res;
 
     const auto def = make_top_level_def(parser,func_def,attr);
-    add_func(itl,func_name.literal,parser.context.cur_namespace,def);
+    add_func(itl,func_name.literal,parser.ctx.cur_namespace,def);
 
     return option::none;
 }

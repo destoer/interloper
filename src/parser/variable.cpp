@@ -1,3 +1,7 @@
+Option<parse_error> parse_generic(Parser& parser, Array<Generic>& generic_overload);
+Result<Array<AstNode*>,parse_error> parse_generic_args(Parser& parser, const GenericOverload& overload, const Token& tok);
+Option<parse_error> parse_type_def(Parser& parser, TypeDef* type_def);
+
 Result<NameSpace*,parse_error> parse_name_space(Parser& parser)
 {
     // See if this type is name spaced
@@ -121,8 +125,36 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser)
 
     else
     {
-        return parser_error(parser,parse_error::unexpected_token,plain_tok,"expected plain type got : '%s'\n",tok_name(plain_tok.type));
+        return parser_error(parser,parse_error::unexpected_token,plain_tok,"expected plain type got : '%s'",tok_name(plain_tok.type));
     }    
+
+    if(match(parser,token_type::logical_lt))
+    {
+        // Find our function def and parse it so we know what the generics expect.
+        TypeDecl* decl = parser_lookup_type(parser,name_space,type->name);
+        if(!decl)
+        {
+            return parser_error(parser,parse_error::itl_error,plain_tok,"Type %S does not exist for generic instantiation",type->name);
+        }
+
+        // This is only legal on decl obtained directly from a lookup
+        TypeDef* def = (TypeDef*)decl;
+
+        // Ensure this is parsed so we can actually get the generic args
+        const auto parse_err = parse_type_def(parser,def);
+        if(parse_err)
+        {
+            return *parse_err;
+        }
+
+        const auto generic_args_res = parse_generic_args(parser,def->generic_base,plain_tok);
+        if(!generic_args_res)
+        {
+            return generic_args_res.error();
+        }
+
+        type->generic_args = *generic_args_res;
+    }
 
     b32 quit = false;
 
@@ -134,12 +166,7 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser)
             // pointer decl
             case token_type::deref:
             {
-                const auto err = consume(parser,token_type::deref);
-                if(err)
-                {
-                    return *err;
-                }
-
+                (void)consume(parser,token_type::deref);
                 push_var(type->compound,make_compound_type(compound_type::ptr));
                 break;
             }
@@ -147,12 +174,7 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser)
             // Nullable pointer decl
             case token_type::qmark:
             {
-                const auto err = consume(parser,token_type::qmark);
-                if(err)
-                {
-                    return *err;
-                }
-
+                (void)consume(parser,token_type::qmark);
                 push_var(type->compound,make_compound_type(compound_type::nullable_ptr));
                 break;
             }
@@ -161,56 +183,36 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser)
             // array decl
             case token_type::sl_brace:
             {
-                while(match(parser,token_type::sl_brace))
+                while(consume_match(parser,token_type::sl_brace))
                 {
-                    const auto err = consume(parser,token_type::sl_brace);
-                    if(err)
-                    {
-                        return *err;
-                    }
-
                     // var size
-                    if(match(parser,token_type::sr_brace))
+                    if(consume_match(parser,token_type::sr_brace))
                     {
                         push_var(type->compound,make_compound_type(compound_type::arr_var_size));
-                        const auto err = consume(parser,token_type::sr_brace);
-                        if(err)
+                    }
+
+                    // figure out this size later
+                    else if(consume_match(parser,token_type::qmark))
+                    {
+                        push_var(type->compound,make_compound_type(compound_type::arr_deduce_size));
+                    
+                        const auto sr_err = consume(parser,token_type::sr_brace);
+                        if(sr_err)
                         {
-                            return *err;
+                            return *sr_err;
                         }
                     }
 
-                    else 
+                    else
                     {
-                        // figure out this size later
-                        if(match(parser,token_type::qmark))
-                        {
-                            const auto qmark_err = consume(parser,token_type::qmark);
-                            if(qmark_err)
-                            {
-                                return *qmark_err;
-                            }
+                        auto e_res = expr_terminate(parser,"array declaration",token_type::sr_brace);
 
-                            push_var(type->compound,make_compound_type(compound_type::arr_deduce_size));
-                        
-                            const auto sr_err = consume(parser,token_type::sr_brace);
-                            if(sr_err)
-                            {
-                                return *sr_err;
-                            }
+                        if(!e_res)
+                        {
+                            return e_res.error();
                         }
 
-                        else
-                        {
-                            auto e_res = expr_terminate(parser,"array declaration",token_type::sr_brace);
-
-                            if(!e_res)
-                            {
-                                return e_res.error();
-                            }
-
-                            push_var(type->compound,make_compound_type_fixed(*e_res));
-                        }
+                        push_var(type->compound,make_compound_type_fixed(*e_res));
                     }
                 }
 
@@ -243,7 +245,7 @@ ParserResult parse_struct_initializer(Parser &parser)
 
     if(list->type != ast_type::initializer_list && list->type != ast_type::designated_initializer_list)
     {
-        return parser_error(parser,parse_error::malformed_stmt,struct_name,"Expected initializer list for struct initializer\n");
+        return parser_error(parser,parse_error::malformed_stmt,struct_name,"Expected initializer list for struct initializer");
     }
 
     return ast_struct_initializer(parser,struct_name.literal,list,nullptr,struct_name); 
@@ -258,7 +260,7 @@ ParserResult declaration(Parser &parser, token_type terminator, b32 is_const_dec
 
     if(s.type != token_type::symbol)
     {
-        return parser_error(parser,parse_error::unexpected_token,s,"declaration expected symbol got: '%s'  (%zd)\n",tok_name(s.type),parser.tok_idx);
+        return parser_error(parser,parse_error::unexpected_token,s,"declaration expected symbol got: '%s'  (%zd)",tok_name(s.type),parser.ctx.tok_idx);
     }
 
     const auto colon_err = consume(parser,token_type::colon);
@@ -330,7 +332,7 @@ ParserResult declaration(Parser &parser, token_type terminator, b32 is_const_dec
 
             else
             {
-                return parser_error(parser,parse_error::invalid_terminator,eq,"malformed declaration: got %s expected terminator %s\n",
+                return parser_error(parser,parse_error::invalid_terminator,eq,"malformed declaration: got %s expected terminator %s",
                     tok_name(eq.type),tok_name(terminator));
             }
             break;
@@ -347,7 +349,8 @@ ParserResult auto_decl(Parser &parser)
 
     if(sym.type != token_type::symbol)
     {
-        return parser_error(parser,parse_error::unexpected_token,sym,"declaration expected symbol got: %s:%zd\n",tok_name(sym.type),parser.tok_idx);
+        return parser_error(parser,parse_error::unexpected_token,sym,"declaration expected symbol got: %s:%zd",
+            tok_name(sym.type),parser.ctx.tok_idx);
     }
 
     const auto err = consume(parser,token_type::decl);
@@ -431,7 +434,7 @@ ParserResult tuple_assign(Parser& parser, const Token& t)
 
             default:
             {
-                return parser_error(parser,parse_error::unexpected_token,t,"tuple assignment attempted on non symbol: %s\n",
+                return parser_error(parser,parse_error::unexpected_token,t,"tuple assignment attempted on non symbol: %s",
                     tok_name(sym_tok.type));
             }
         }
@@ -552,7 +555,7 @@ ParserResult parse_user_type_info(Parser& parser, NameSpace* name_space, const S
 
     if(!match(parser,token_type::symbol))
     {
-        return parser_error(parser,parse_error::malformed_stmt,token,"Expected symbol for user type info got %s\n",tok_name(peek(parser,0).type));
+        return parser_error(parser,parse_error::malformed_stmt,token,"Expected symbol for user type info got %s",tok_name(peek(parser,0).type));
     }
 
     if(match(parser,token_type::dot))
@@ -568,10 +571,8 @@ ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t)
 {
     StructAccessNode* struct_access = ast_struct_access(parser,expr_node,t);
 
-    while(match(parser,token_type::dot))
+    while(consume_match(parser,token_type::dot))
     {
-        (void)consume(parser,token_type::dot);
-
         const auto member_tok = next_token(parser);
 
         if(member_tok.type == token_type::symbol)
@@ -614,7 +615,7 @@ ParserResult struct_access(Parser& parser, AstNode* expr_node,const Token& t)
 
         else
         {
-            return parser_error(parser,parse_error::unexpected_token,member_tok,"expected struct member got %S(%s)\n",
+            return parser_error(parser,parse_error::unexpected_token,member_tok,"expected struct member got %S(%s)",
                 member_tok.literal,tok_name(member_tok.type));           
         }
     }
@@ -627,10 +628,8 @@ ParserResult array_index(Parser& parser,const Token& t)
 {
     IndexNode* arr_access = (IndexNode*)ast_index(parser,t.literal,t);
 
-    while(match(parser,token_type::sl_brace))
+    while(consume_match(parser,token_type::sl_brace))
     {
-        (void)consume(parser,token_type::sl_brace);
-
         auto expr_res = expr_terminate(parser,"array indexing",token_type::sr_brace);
 
         if(!expr_res)
@@ -654,13 +653,7 @@ ParserResult arr_slice(Parser& parser,const Token& t)
 
     SliceNode* slice_node = (SliceNode*)ast_slice(parser,t.literal,t);
 
-    // check if left side is empty.
-    if(match(parser,token_type::colon))
-    {
-        (void)consume(parser,token_type::colon);
-    }
-
-    else
+    if(!consume_match(parser,token_type::colon))
     {
         auto lower_res = expr_terminate(parser,"slice lower",token_type::colon);
         if(!lower_res)
@@ -672,14 +665,12 @@ ParserResult arr_slice(Parser& parser,const Token& t)
     }
 
     // check if right side is empty
-    if(match(parser,token_type::sr_brace))
+    if(consume_match(parser,token_type::sr_brace))
     {
         if(!slice_node->lower)
         {
             return parser_error(parser,parse_error::missing_expr,t,"Array slice with empty lower and upper bounds!");
         }
-
-        (void)consume(parser,token_type::sr_brace);
     }
 
     else

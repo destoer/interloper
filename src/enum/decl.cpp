@@ -34,11 +34,11 @@ void print_enum(Enum& enumeration)
     printf("}\n");       
 }
 
-Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
+Option<itl_error> parse_enum_def(Interloper& itl, TypeDecl& decl, Set<u64>& set)
 {
-    EnumNode* node = (EnumNode*)def.root;    
+    EnumNode* node = (EnumNode*)decl.root;    
 
-    trash_context(itl,node->filename,def.decl.name_space,def.root);
+    trash_context(itl,node->filename,decl.name_space,decl.root);
 
     Enum enumeration;
 
@@ -210,7 +210,7 @@ Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
     enumeration.type_idx = slot;
 
     push_var(itl.enum_table,enumeration);
-    finalise_type(def.decl,enumeration.type_idx);
+    finalise_type(decl,enumeration.type_idx);
 
     if(itl.print_types)
     {
