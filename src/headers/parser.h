@@ -786,10 +786,9 @@ struct ExprCtx
     // NOTE: this is only used for error messaging
     String expression_name = "";
 
-    // current token
-    Token expr_tok;
-
     u32 expr_flags = 0;
+
+    Token term_tok;
 
     // make pratt parser terminate as soon as it sees
     // this token
