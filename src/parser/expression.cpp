@@ -44,12 +44,8 @@ Result<s32,parse_error> lbp(Parser &parser,const ExprCtx& ctx,const Token &token
 {
     const auto bp = TOKEN_INFO[u32(token.type)].lbp;
 
-    //printf("lbp: %s -> %d\n",tok_name(t.type),bp);
-
     if(bp == -1)
     {
-        (void)parser_error(parser,parse_error::invalid_lbp,token,"Invalid token %s: %s",tok_name(token.type),tok_name(ctx.term));
-
         switch(token.type)
         {
             case token_type::increment:
@@ -64,7 +60,6 @@ Result<s32,parse_error> lbp(Parser &parser,const ExprCtx& ctx,const Token &token
 
             default:
             {
-                assert(false);
                 return parser_error(parser,parse_error::invalid_lbp,token,"unexpected token '%s' in %s",tok_name(token.type),ctx.expression_name.buf);
             }
         }
@@ -795,13 +790,12 @@ ParserResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_
 
         const u32 left_binding_power = *lbp_res;
 
-        if(rbp > left_binding_power)
+        if(rbp >= left_binding_power)
         {
             break;
         }
 
-        next_token(parser);
-        left = parse_binary(parser,ctx,cur,*left); 
+        left = parse_binary(parser,ctx,next_token(parser),*left); 
     }
 
     return left;

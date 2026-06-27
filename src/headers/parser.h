@@ -1307,7 +1307,6 @@ inline parse_error parser_verror(Parser &parser,parse_error error ,const Token &
     parser.ctx.line = line;
     parser.ctx.col = col;
     parser.ctx.idx = token.idx;
-    assert(false);
     return error;
 }
 
