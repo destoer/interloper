@@ -237,19 +237,13 @@ Type* make_enum_type(Interloper& itl,Enum& enumeration)
 
 Result<EnumType*,itl_error> lookup_enum(Interloper& itl, NameSpace* name_space,const String& name)
 {
-    const auto info = type_lookup_from_parts(name,name_space);
+    const auto info = type_lookup_from_parts(name,name_space,type_lookup_kind::enum_t);
     const auto enum_decl_res = lookup_type(itl,info);
     if(!enum_decl_res)
     {
-        return compile_error(itl,itl_error::enum_type_error,"No such enum: %S",name);
+        return enum_decl_res.error();
     }
 
     const auto enum_decl = *enum_decl_res;
-
-    if(enum_decl->kind != type_kind::enum_t)
-    {
-        return compile_error(itl,itl_error::enum_type_error,"No such enum: %S",name);
-    }
-
     return (EnumType*)make_enum(itl,enum_decl->type_idx);   
 }

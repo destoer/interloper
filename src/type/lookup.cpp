@@ -8,21 +8,23 @@ void print_type(Interloper& itl, const Type* type)
     printf("type: %s\n",type_name(itl,type).buf);
 }
 
-TypeLookupInfo type_node_to_lookup(const TypeNode* node)
+TypeLookupInfo type_node_to_lookup(const TypeNode* node, type_lookup_kind kind)
 {
     TypeLookupInfo info;
     info.name = node->name;
     info.name_space = node->name_space;
     info.generic_args = node->generic_args;
+    info.kind = kind;
 
     return info;
 }
 
-TypeLookupInfo type_lookup_from_parts(const String& name, NameSpace* name_space)
+TypeLookupInfo type_lookup_from_parts(const String& name, NameSpace* name_space, type_lookup_kind kind)
 {
     TypeLookupInfo info;
     info.name = name;
     info.name_space = name_space;
+    info.kind = kind;
     
     return info;
 }
@@ -103,48 +105,35 @@ Type* copy_type(Interloper& itl, const Type* type)
 }
 
 
-// NOTE: 
-// to be used externally when attempting to find a type decl
-// dont look it up in the type table directly as the definition might not
-// have been parsed yet
-Option<TypeDecl*> lookup_type(Interloper& itl,const TypeLookupInfo& info)
+Result<TypeDecl*,itl_error> lookup_type(Interloper& itl,const TypeLookupInfo& info)
 {
-    TypeDecl* type_decl = lookup_incomplete_decl(itl,info);
-
-    if(!type_decl)
+    const auto res = lookup_incomplete_decl(itl,info);
+    if(!res)
     {
-        return option::none;
+        return res;
     }
+
+    TypeDef* def = (TypeDef*)res.value();
+
+    // TODO: Handle overload resolution
+    assert(!def->generic_base);
 
     // currently type does not exist
     // attempt to parse the def
-    if(type_decl->state != type_def_state::checked)
+    if(def->decl.state != type_def_state::checked)
     {
         // no such definition exists
-        // NOTE: this is allowed to not panic the 
-        // caller is expected to check the pointer and not just
-        // compiler error state
-        if(!(type_decl->flags & TYPE_DECL_DEF_FLAG))
+        if(!(def->decl.flags & TYPE_DECL_DEF_FLAG))
         {
-            return option::none;
+            return compile_error(itl,itl_error::undeclared,"Type %n%s does not have a definition",info.name_space,info.name);
         }
 
         // okay attempt to parse the def
-        const auto def_res = parse_def(itl,(TypeDef*)type_decl,info);
-        if(!def_res)
-        {
-            // def parsing failed in some fashion just bail out
-            // there are no options left
-            return option::none;
-        }
-
-        return def_res.value();
+        return parse_def(itl,def,info);
     }
 
-    return type_decl;
+    return &def->decl;
 }
-
-
 
 DefInfo* parser_lookup_definition(Parser& parser, NameSpace* name_space, const String& name)
 {
@@ -299,64 +288,40 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
                 // NOTE: here we are doing the heavy lifting on defs by our self
                 // to handle out of order decl so we directly query the type table
                 // rather than using lookup_type
-                const auto name = type_decl->name;
-                TypeDecl* user_type = lookup_incomplete_decl(itl,name,type_decl->name_space);
-
-                // check we have a type definition
-                // no such definition exists, nothing we can do
-                if(!user_type)
+                const auto user_res =  lookup_incomplete_decl(itl,type_node_to_lookup(type_decl,type_lookup_kind::any_t));
+                if(!user_res)
                 {
-                    return compile_error(itl,itl_error::undeclared,"type %S is not defined",type_decl->name);
+                    return user_res.error();
                 }
+
+                TypeDecl* user_type = *user_res;
 
                 is_alias = user_type->kind == type_kind::alias_t;   
 
                 // user type does not exist yet
                 if(user_type->state != type_def_state::checked)
                 {
-                    // By this point only types that have definitions can not be finalized
-                    assert(user_type->flags & TYPE_DECL_DEF_FLAG);
-
-                    // if this is not currently being checked 
-                    // parse it
+                    // if this is not currently being checked parse it
                     if(user_type->state == type_def_state::not_checked)
                     {
-                        const auto type_res = parse_def(itl,(TypeDef*)user_type,type_node_to_lookup(type_decl));
+                        const auto type_res = parse_def(itl,(TypeDef*)user_type,type_node_to_lookup(type_decl,type_lookup_kind::any_t));
                         if(!type_res)
                         {
                             return type_res.error();
                         }
-
-                        // okay now we have a complete type build it!
-                        type = make_base_type(itl,user_type->type_idx,user_type->kind,flags);
                     }
 
-                    // type is being currently checked?
+                    // type is being currently checked? 
                     // we might have a potential black hole
-                    else
+                    else if(!def_has_indirection(type_decl))
                     {
-                        // indirection, this is fine we dont need details of the type yet
-                        if(def_has_indirection(type_decl))
-                        {
-                            type = make_base_type(itl,user_type->type_idx,user_type->kind,flags);
-                        }
-
-                        // this is no indirection and we have attempted to parse a type twice
-                        // this means recursion is happening somewhere
-                        else
-                        {
-                            // TODO: add heuristics to scan for where!
-                            return compile_error(itl,itl_error::black_hole,"Lookup type: type %S is recursively defined",name);           
-                        }
+                        // TODO: add heuristics to scan for where!
+                        return compile_error(itl,itl_error::black_hole,"Lookup type: type %S is recursively defined",user_type->name);     
                     }
                 }
 
-                // user defined type allready exists, just pull the info out
-                else
-                {   
-                    type = make_base_type(itl,user_type->type_idx,user_type->kind,flags); 
-                }
-
+                // okay now we have a complete type build it!
+                type = make_base_type(itl,user_type->type_idx,user_type->kind,flags);
                 break;
             }
         

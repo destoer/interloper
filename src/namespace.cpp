@@ -163,7 +163,7 @@ void print_namespace_tree(NameSpace* root, u32 depth)
     }
 }
 
-TypeDecl* lookup_incomplete_decl_scoped(NameSpace* name_space, const String& name)
+TypeDecl* lookup_incomplete_decl_internal_scoped(NameSpace* name_space, const String& name)
 {
     DefInfo* info = lookup_typed_definition_scoped(name_space,name,definition_type::type);
 
@@ -175,40 +175,86 @@ TypeDecl* lookup_incomplete_decl_scoped(NameSpace* name_space, const String& nam
     return nullptr;
 }
 
-TypeDecl* lookup_incomplete_decl(Interloper& itl, const String& name, NameSpace* name_space)
+TypeDecl* lookup_incomplete_decl_internal(Interloper& itl, const TypeLookupInfo& info)
 {
-    DefInfo* info = nullptr;
+    DefInfo* def = nullptr;
     
-    if(!name_space)
+    if(!info.name_space)
     {
-        info = lookup_typed_definition(itl.symbol_table.ctx->name_space,name,definition_type::type);
+        def = lookup_typed_definition(itl.symbol_table.ctx->name_space,info.name,definition_type::type);
 
-        if(info)
+        if(def)
         {
-            return info->type_decl;
+            return def->type_decl;
         }
 
         return nullptr;
     }
 
-    return lookup_incomplete_decl_scoped(name_space,name);
+    return lookup_incomplete_decl_internal_scoped(info.name_space,info.name);
 }
 
-TypeDecl* lookup_incomplete_decl(Interloper& itl, const TypeLookupInfo& info)
+Result<TypeDecl*,itl_error> lookup_incomplete_decl(Interloper& itl, const TypeLookupInfo& info)
 {
-    return lookup_incomplete_decl(itl,info.name,info.name_space);
-}
+    const auto decl = lookup_incomplete_decl_internal(itl,info);
 
-TypeDecl* lookup_complete_decl(Interloper& itl, const String& name)
-{
-    TypeDecl* type_decl = lookup_incomplete_decl(itl,name,nullptr);
-
-    if (!type_decl || type_decl->state != type_def_state::checked)
+    // Check the type decl event exists?
+    if(!decl)
     {
-        return nullptr;
+        return compile_error(itl,itl_error::undeclared,"Type %n%s is not declared",info.name_space,info.name);
     }
 
-    return type_decl;
+    // Check we got back the kind of type we requested
+    if(info.kind == type_lookup_kind::struct_t && decl->kind != type_kind::struct_t)
+    {
+        return compile_error(itl,itl_error::struct_error,"Type %n%s is not a struct",info.name_space,info.name);
+    }
+
+    else if(info.kind == type_lookup_kind::enum_t && decl->kind != type_kind::enum_t)
+    {
+        return compile_error(itl,itl_error::enum_type_error,"Type %n%s is not an enum",info.name_space,info.name);
+    }
+
+    // Check any generics are used correctly
+    switch(decl->kind)
+    {
+        case type_kind::builtin: break;
+        
+        case type_kind::alias_t:
+        {
+            if(info.generic_args)
+            {
+                return compile_error(itl,itl_error::generic,"Cannot use type alias as a generic",
+                    info.name_space,info.name);          
+            }
+
+            break;
+        }
+
+        case type_kind::enum_t: 
+        case type_kind::struct_t:
+        {
+            TypeDef* def = (TypeDef*)decl;
+
+            // Check validity on templates
+            if(def->generic_base && !info.generic_args)
+            {
+                assert(false);
+                return compile_error(itl,itl_error::generic,"Generic type %n%s instantiated without args",
+                    info.name_space,info.name);
+            }
+
+            if(!def->generic_base && info.generic_args)
+            {
+                return compile_error(itl,itl_error::generic,"Generic instantiation on plain type %n%s",
+                    info.name_space,info.name);
+            }
+
+            break;
+        }
+    }
+
+    return decl;
 }
 
 // NOTE: this gets a function ONLY in the requested scope

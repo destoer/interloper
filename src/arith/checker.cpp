@@ -681,13 +681,13 @@ TypeResult type_check_user_type_info(Interloper& itl, AstNode* expr)
 {
     UserTypeInfoNode* user_info = (UserTypeInfoNode*)expr;
 
-    auto type_decl_opt = lookup_type(itl,type_lookup_from_parts(user_info->type_name,user_info->name_space));
-    if(!type_decl_opt)
+    auto type_decl_res = lookup_type(itl,type_lookup_from_parts(user_info->type_name,user_info->name_space,type_lookup_kind::any_t));
+    if(!type_decl_res)
     {
-        return compile_error(itl,itl_error::undeclared,"No such type %n%S",user_info->name_space,user_info->type_name);
+        return type_decl_res.error();
     }
 
-    TypeDecl* type_decl = *type_decl_opt;
+    TypeDecl* type_decl = *type_decl_res;
     const auto& member_name = user_info->member_name;
 
     switch(type_decl->kind)

@@ -157,6 +157,13 @@ enum class type_def_kind
     alias_t,
 };
 
+enum class type_lookup_kind
+{
+    enum_t,
+    struct_t,
+    any_t
+};
+
 
 enum class type_def_state
 {
@@ -262,6 +269,7 @@ struct TypeLookupInfo
 
     // NOTE: Non owning
     Array<AstNode*> generic_args;
+    type_lookup_kind kind;
 };
 
 enum class assign_type

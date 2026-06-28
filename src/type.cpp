@@ -99,9 +99,16 @@ void add_type_definition(Interloper& itl, type_def_kind kind, const TopLevelDefi
 }
 
 
-b32 type_exists(Interloper& itl, const String& name)
+Result<b32, itl_error> is_type_checked(Interloper& itl, const TypeLookupInfo& info)
 {
-    return lookup_complete_decl(itl,name) != nullptr;
+    const auto res = lookup_incomplete_decl(itl,info);
+    if(!res)
+    {
+        return res.error();
+    }
+
+    const auto type_decl = *res;
+    return type_decl->state == type_def_state::checked;
 }
 
 

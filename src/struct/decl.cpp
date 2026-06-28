@@ -94,29 +94,24 @@ Result<StructType*,itl_error> lookup_struct(Interloper& itl, const TypeLookupInf
     const auto struct_decl_res = lookup_type(itl,info);
     if(!struct_decl_res)
     {
-        return compile_error(itl,itl_error::struct_error,"No such struct: %S",info.name);
+        return struct_decl_res.error();
     }
 
     const auto struct_decl = *struct_decl_res;
-
-    if(struct_decl->kind != type_kind::struct_t)
-    {
-        return compile_error(itl,itl_error::struct_error,"No such struct: %S",info.name);
-    }
-
     return (StructType*)make_struct(itl,struct_decl->type_idx);   
 }
 
 Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* type_decl, u32* type_idx_override)
 {
-    const auto info = type_node_to_lookup(type_decl);
-    TypeDecl* decl_ptr = lookup_incomplete_decl(itl,info);
+    const auto info = type_node_to_lookup(type_decl,type_lookup_kind::any_t);
+    const auto res = lookup_incomplete_decl(itl,info);
 
-    // no such decl exists
-    if(!decl_ptr)
+    if(!res)
     {
-        return compile_error(itl,itl_error::undeclared,"%S : member type %S is not defined",struct_name,type_decl->name);
+        return res.error();
     }
+
+    TypeDecl* decl_ptr = *res;
 
     // Type is allways complete we don't need any further checking
     if(!(decl_ptr->flags & TYPE_DECL_DEF_FLAG))
@@ -165,13 +160,24 @@ Result<u32,itl_error> add_member(Interloper& itl,Struct& structure,DeclNode* m, 
     u32 type_idx_override = INVALID_TYPE;
 
     // If this type could we recursive we may need to override the idx if its held by a reference.
-    if(type_decl->kind == type_node_kind::user && !type_exists(itl,type_decl->name))
+    if(type_decl->kind == type_node_kind::user)
     {
-        const auto recur_err = handle_recursive_type(itl,structure.name,type_decl,&type_idx_override);
-        if(recur_err)
+        const auto checked_res = is_type_checked(itl,type_node_to_lookup(type_decl,type_lookup_kind::any_t));
+        if(!checked_res)
         {
-            destroy_struct(structure);
-            return *recur_err;
+            return checked_res.error();
+        }
+
+        const auto checked = *checked_res;
+
+        if(!checked)
+        {
+            const auto recur_err = handle_recursive_type(itl,structure.name,type_decl,&type_idx_override);
+            if(recur_err)
+            {
+                destroy_struct(structure);
+                return *recur_err;
+            }
         }
     }
 
