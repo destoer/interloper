@@ -34,7 +34,7 @@ void print_enum(Enum& enumeration)
     printf("}\n");       
 }
 
-Option<itl_error> parse_enum_def(Interloper& itl, TypeDecl& decl, Set<u64>& set)
+Result<TypeDecl*,itl_error> parse_enum_def(Interloper& itl, TypeDecl& decl, Set<u64>& set)
 {
     EnumNode* node = (EnumNode*)decl.root;    
 
@@ -217,7 +217,7 @@ Option<itl_error> parse_enum_def(Interloper& itl, TypeDecl& decl, Set<u64>& set)
         print_enum(enumeration);
     }
 
-    return option::none;
+    return &decl;
 }
 
 
@@ -237,7 +237,8 @@ Type* make_enum_type(Interloper& itl,Enum& enumeration)
 
 Result<EnumType*,itl_error> lookup_enum(Interloper& itl, NameSpace* name_space,const String& name)
 {
-    const auto enum_decl_res = lookup_type_internal(itl,name_space,name);
+    const auto info = type_lookup_from_parts(name,name_space);
+    const auto enum_decl_res = lookup_type(itl,info);
     if(!enum_decl_res)
     {
         return compile_error(itl,itl_error::enum_type_error,"No such enum: %S",name);

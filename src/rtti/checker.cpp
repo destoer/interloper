@@ -1,6 +1,7 @@
 Result<u32,itl_error> cache_struct_index(Interloper& itl, NameSpace* name_space, const String& name)
 {
-    auto type_opt = lookup_type_scoped(itl,name_space,name);
+    const auto info = type_lookup_from_parts(name,name_space);
+    auto type_opt = lookup_type(itl,info);
     if(!type_opt)
     {
         return compile_error(itl,itl_error::struct_error,"No such type %s",name.buf);

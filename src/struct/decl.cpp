@@ -89,19 +89,19 @@ std::pair<u32,u32> compute_member_size(Interloper& itl,const Type* type)
 }
 
 
-Result<StructType*,itl_error> lookup_struct(Interloper& itl, NameSpace* name_space,const String& name)
+Result<StructType*,itl_error> lookup_struct(Interloper& itl, const TypeLookupInfo& info)
 {
-    const auto struct_decl_res = lookup_type_internal(itl,name_space,name);
+    const auto struct_decl_res = lookup_type(itl,info);
     if(!struct_decl_res)
     {
-        return compile_error(itl,itl_error::struct_error,"No such struct: %S",name);
+        return compile_error(itl,itl_error::struct_error,"No such struct: %S",info.name);
     }
 
     const auto struct_decl = *struct_decl_res;
 
     if(struct_decl->kind != type_kind::struct_t)
     {
-        return compile_error(itl,itl_error::struct_error,"No such struct: %S",name);
+        return compile_error(itl,itl_error::struct_error,"No such struct: %S",info.name);
     }
 
     return (StructType*)make_struct(itl,struct_decl->type_idx);   
@@ -109,8 +109,8 @@ Result<StructType*,itl_error> lookup_struct(Interloper& itl, NameSpace* name_spa
 
 Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* type_decl, u32* type_idx_override)
 {
-    const auto name = type_decl->name;
-    TypeDecl* decl_ptr = type_decl->name_space? lookup_incomplete_decl_scoped(type_decl->name_space,name) : lookup_incomplete_decl(itl,name);
+    const auto info = type_node_to_lookup(type_decl);
+    TypeDecl* decl_ptr = lookup_incomplete_decl(itl,info);
 
     // no such decl exists
     if(!decl_ptr)
@@ -143,7 +143,7 @@ Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_nam
 
     else
     {
-        return parse_def(itl,*decl_ptr);
+        return parse_def(itl,(TypeDef*)decl_ptr,info).remap_to_err();
     }
 
     return option::none;    
@@ -317,8 +317,14 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
     }
 }
 
-Option<itl_error> parse_struct_def(Interloper& itl, TypeDecl& decl)
+Result<TypeDecl*, itl_error> parse_struct_def(Interloper& itl, TypeDef& def, const TypeLookupInfo& type_info)
 {
+    UNUSED(type_info);
+    // TODO: Handle generics
+    assert(!count(def.generic_base));
+
+    auto& decl = def.decl;
+
     StructNode* node = (StructNode*)decl.root;
 
     // NOTE: we expect the caller to save this
@@ -375,6 +381,6 @@ Option<itl_error> parse_struct_def(Interloper& itl, TypeDecl& decl)
     }
 
     add_struct(itl,structure,decl);
-    return option::none;
+    return &def.decl;
 }
 

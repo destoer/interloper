@@ -681,7 +681,7 @@ TypeResult type_check_user_type_info(Interloper& itl, AstNode* expr)
 {
     UserTypeInfoNode* user_info = (UserTypeInfoNode*)expr;
 
-    auto type_decl_opt = lookup_type_internal(itl,user_info->name_space,user_info->type_name);
+    auto type_decl_opt = lookup_type(itl,type_lookup_from_parts(user_info->type_name,user_info->name_space));
     if(!type_decl_opt)
     {
         return compile_error(itl,itl_error::undeclared,"No such type %n%S",user_info->name_space,user_info->type_name);

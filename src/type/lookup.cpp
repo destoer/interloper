@@ -8,6 +8,24 @@ void print_type(Interloper& itl, const Type* type)
     printf("type: %s\n",type_name(itl,type).buf);
 }
 
+TypeLookupInfo type_node_to_lookup(const TypeNode* node)
+{
+    TypeLookupInfo info;
+    info.name = node->name;
+    info.name_space = node->name_space;
+    info.generic_args = node->generic_args;
+
+    return info;
+}
+
+TypeLookupInfo type_lookup_from_parts(const String& name, NameSpace* name_space)
+{
+    TypeLookupInfo info;
+    info.name = name;
+    info.name_space = name_space;
+    
+    return info;
+}
 
 Type* copy_type_internal(Interloper& itl, const Type* type)
 {
@@ -89,50 +107,43 @@ Type* copy_type(Interloper& itl, const Type* type)
 // to be used externally when attempting to find a type decl
 // dont look it up in the type table directly as the definition might not
 // have been parsed yet
-Option<TypeDecl*> lookup_type_internal(Interloper& itl,NameSpace* name_space,const String& name)
+Option<TypeDecl*> lookup_type(Interloper& itl,const TypeLookupInfo& info)
 {
-    TypeDecl* user_type = name_space == nullptr? lookup_incomplete_decl(itl,name) : lookup_incomplete_decl_scoped(name_space,name);
+    TypeDecl* type_decl = lookup_incomplete_decl(itl,info);
 
-    if(!user_type)
+    if(!type_decl)
     {
         return option::none;
     }
 
     // currently type does not exist
     // attempt to parse the def
-    if(user_type->state != type_def_state::checked)
+    if(type_decl->state != type_def_state::checked)
     {
         // no such definition exists
         // NOTE: this is allowed to not panic the 
         // caller is expected to check the pointer and not just
         // compiler error state
-        if(!(user_type->flags & TYPE_DECL_DEF_FLAG))
+        if(!(type_decl->flags & TYPE_DECL_DEF_FLAG))
         {
             return option::none;
         }
 
         // okay attempt to parse the def
-        const auto def_err = parse_def(itl,*user_type);
-        if(def_err)
+        const auto def_res = parse_def(itl,(TypeDef*)type_decl,info);
+        if(!def_res)
         {
             // def parsing failed in some fashion just bail out
             // there are no options left
             return option::none;
         }
+
+        return def_res.value();
     }
 
-    return user_type;
+    return type_decl;
 }
 
-Option<TypeDecl*> lookup_type(Interloper& itl,const String& name)
-{
-    return lookup_type_internal(itl,nullptr,name);
-}
-
-Option<TypeDecl*> lookup_type_scoped(Interloper& itl,NameSpace* name_space,const String& name)
-{
-    return lookup_type_internal(itl,name_space,name);
-}
 
 
 DefInfo* parser_lookup_definition(Parser& parser, NameSpace* name_space, const String& name)
@@ -289,7 +300,7 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
                 // to handle out of order decl so we directly query the type table
                 // rather than using lookup_type
                 const auto name = type_decl->name;
-                TypeDecl* user_type = type_decl->name_space? lookup_incomplete_decl_scoped(type_decl->name_space,name) : lookup_incomplete_decl(itl,name);
+                TypeDecl* user_type = lookup_incomplete_decl(itl,name,type_decl->name_space);
 
                 // check we have a type definition
                 // no such definition exists, nothing we can do
@@ -310,10 +321,10 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
                     // parse it
                     if(user_type->state == type_def_state::not_checked)
                     {
-                        const auto type_err = parse_def(itl,*user_type);
-                        if(type_err)
+                        const auto type_res = parse_def(itl,(TypeDef*)user_type,type_node_to_lookup(type_decl));
+                        if(!type_res)
                         {
-                            return *type_err;
+                            return type_res.error();
                         }
 
                         // okay now we have a complete type build it!

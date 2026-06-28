@@ -175,21 +175,33 @@ TypeDecl* lookup_incomplete_decl_scoped(NameSpace* name_space, const String& nam
     return nullptr;
 }
 
-TypeDecl* lookup_incomplete_decl(Interloper& itl, const String& name)
+TypeDecl* lookup_incomplete_decl(Interloper& itl, const String& name, NameSpace* name_space)
 {
-    DefInfo* info = lookup_typed_definition(itl.symbol_table.ctx->name_space,name,definition_type::type);
-
-    if(info)
+    DefInfo* info = nullptr;
+    
+    if(!name_space)
     {
-        return info->type_decl;
+        info = lookup_typed_definition(itl.symbol_table.ctx->name_space,name,definition_type::type);
+
+        if(info)
+        {
+            return info->type_decl;
+        }
+
+        return nullptr;
     }
 
-    return nullptr;
+    return lookup_incomplete_decl_scoped(name_space,name);
+}
+
+TypeDecl* lookup_incomplete_decl(Interloper& itl, const TypeLookupInfo& info)
+{
+    return lookup_incomplete_decl(itl,info.name,info.name_space);
 }
 
 TypeDecl* lookup_complete_decl(Interloper& itl, const String& name)
 {
-    TypeDecl* type_decl = lookup_incomplete_decl(itl,name);
+    TypeDecl* type_decl = lookup_incomplete_decl(itl,name,nullptr);
 
     if (!type_decl || type_decl->state != type_def_state::checked)
     {

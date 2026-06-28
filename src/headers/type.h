@@ -168,31 +168,6 @@ enum class type_def_state
 struct AstNode;
 struct NameSpace;
 
-// TODO: THE Internal state inside this needs to be an array for generics with a union for ordinary ones
-// The actual generic struct should be held by the node
-// Array<TypeDeclState>
-
-
-struct TypeDecl
-{
-    String name;
-    // what kind of type is it, and what index does it hold 
-    // in the relevant typing table
-    type_kind kind = type_kind::builtin;
-    u32 type_idx = INVALID_TYPE_IDX;
-
-    // current definition state
-    type_def_state state = type_def_state::not_checked;
-    NameSpace* name_space = nullptr;
-
-    // the definition root -> depends on the type!
-    AstNode* root = nullptr;
-
-    u32 flags = 0;
-};
-
-static constexpr u32 TYPE_DECL_DEF_FLAG = (1 << 0);
-
 static constexpr u32 CONSTRAINT_SIZE = 4;
 
 const char* CONSTRAINT_NAMES[CONSTRAINT_SIZE] =
@@ -240,8 +215,32 @@ struct Generic
     };
 };
 
+struct TypeDecl;
 using TypeOverloadTable = Array<TypeDecl*>;
 using GenericOverload = Array<Generic>;
+
+
+struct TypeDecl
+{
+    String name;
+    // what kind of type is it, and what index does it hold 
+    // in the relevant typing table
+    type_kind kind = type_kind::builtin;
+    u32 type_idx = INVALID_TYPE_IDX;
+
+    // current definition state
+    type_def_state state = type_def_state::not_checked;
+    NameSpace* name_space = nullptr;
+
+    // the definition root -> depends on the type!
+    AstNode* root = nullptr;
+    GenericOverload overload;
+    u32 flags = 0;
+};
+
+static constexpr u32 TYPE_DECL_DEF_FLAG = (1 << 0);
+
+
 
 struct TypeDef
 {
@@ -254,6 +253,15 @@ struct TypeDef
     // NOTE: This is not owned
     GenericOverload generic_base;
     TypeOverloadTable generic_overload;
+};
+
+struct TypeLookupInfo
+{
+    NameSpace* name_space;
+    String name;
+
+    // NOTE: Non owning
+    Array<AstNode*> generic_args;
 };
 
 enum class assign_type

@@ -229,7 +229,7 @@ void finalise_type(TypeDecl& decl, u32 type_idx)
     decl.state = type_def_state::checked;
 }
 
-Option<itl_error> parse_alias_def(Interloper& itl, TypeDecl& decl)
+Result<TypeDecl*,itl_error> parse_alias_def(Interloper& itl, TypeDecl& decl)
 {
     AliasNode* node = (AliasNode*)decl.root;
 
@@ -251,7 +251,7 @@ Option<itl_error> parse_alias_def(Interloper& itl, TypeDecl& decl)
     finalise_type(decl,type_idx);
     push_var(itl.alias_table,type); 
 
-    return option::none;
+    return &decl;
 }
 
 void declare_compiler_type_aliases(Interloper& itl) 
@@ -266,18 +266,20 @@ void declare_compiler_type_aliases(Interloper& itl)
     add_internal_alias(itl,itl.string_type,"string");
 }
 
-Option<itl_error> parse_struct_def(Interloper& itl, TypeDecl& decl);
-Option<itl_error> parse_alias_def(Interloper& itl, TypeDecl& decl);
-Option<itl_error> parse_enum_def(Interloper& itl, TypeDecl& decl, Set<u64>& set);
+Result<TypeDecl*,itl_error> parse_struct_def(Interloper& itl, TypeDef& def, const TypeLookupInfo& type_info);
+Result<TypeDecl*,itl_error> parse_alias_def(Interloper& itl, TypeDecl& decl);
+Result<TypeDecl*,itl_error> parse_enum_def(Interloper& itl, TypeDecl& decl, Set<u64>& set);
 
-Option<itl_error> parse_def(Interloper& itl, TypeDecl& decl)
+Result<TypeDecl*,itl_error> parse_def(Interloper& itl, TypeDef* def, const TypeLookupInfo& type_info)
 {
-    log(itl.itl_log,"Parse type: %s\n",decl.name.buf);
+    log(itl.itl_log,"Parse type: %s\n",def->decl.name.buf);
     // this node make be from a different context
     // save the current one
     push_context(itl);
 
-    Option<itl_error> res = option::none;
+    Result<TypeDecl*, itl_error> res = &def->decl;
+
+    auto& decl = def->decl;
 
     switch(decl.state)
     {
@@ -290,13 +292,13 @@ Option<itl_error> parse_def(Interloper& itl, TypeDecl& decl)
             {
                 case type_kind::struct_t:
                 {
-                    res = parse_struct_def(itl,decl);
+                    res = parse_struct_def(itl,*def, type_info);
                     break;
                 }
 
                 case type_kind::alias_t:
                 {
-                    res = parse_alias_def(itl,decl);
+                    res = parse_alias_def(itl,def->decl);
                     break;
                 }
 
@@ -304,7 +306,7 @@ Option<itl_error> parse_def(Interloper& itl, TypeDecl& decl)
                 {
                     auto set = make_set<u64>();
 
-                    res = parse_enum_def(itl,decl,set);
+                    res = parse_enum_def(itl,def->decl,set);
                     destroy_set(set);
                     break;
                 }
@@ -318,7 +320,7 @@ Option<itl_error> parse_def(Interloper& itl, TypeDecl& decl)
         case type_def_state::checking:
         {
             // TODO: add heuristics to scan for where!
-            return compile_error(itl,itl_error::black_hole,"Parse def: type %S is recursively defined",decl.name);
+            return compile_error(itl,itl_error::black_hole,"Parse def: type %S is recursively defined",def->decl.name);
         }
 
         // already checked we don't care
