@@ -181,7 +181,7 @@ func push_mem(arr : Array@, v: const byte@,size: usize)
 
 func push_var<T: Sized>(array: Array@, var: const $T@)
 {
-    push_mem(array,&var,sizeof_type($T));
+    push_mem(array,var,sizeof_type($T));
 }
 
 func push_buffer(arr : Array@, buffer: const byte[])

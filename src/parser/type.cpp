@@ -1,3 +1,106 @@
+Option<constraint_type> find_constraint(Parser& parser, const String& name)
+{
+    UNUSED(parser);
+
+
+    if(name == "Real")
+    {
+        return constraint_type::real;
+    }
+
+    else if(name == "Integer")
+    {
+        return constraint_type::integer;
+    }
+
+    else if(name == "Sized")
+    {
+        return constraint_type::sized;
+    }
+
+    return option::none;
+}
+
+Option<parse_error> parse_generic(Parser& parser, Array<Generic>& generic_overload)
+{
+    const auto generic_start = next_token(parser);
+
+    while(!consume_match(parser,token_type::logical_gt))
+    {
+        if(!match(parser,token_type::symbol))
+        {
+            return parser_error(parser,parse_error::unexpected_token,generic_start,"expected name for generic type");    
+        }
+
+        const auto name = next_token(parser);
+
+        const auto colon_err = consume(parser,token_type::colon);
+        if(colon_err)
+        {
+            return *colon_err;
+        }
+
+        Generic generic;
+        generic.name = name.literal;
+
+
+        if(match(parser,token_type::symbol))
+        {
+            const auto constraint_tok = next_token(parser);
+
+            const auto constraint_opt = find_constraint(parser,constraint_tok.literal);
+            if(constraint_opt)
+            {
+                generic.constraint = *constraint_opt;
+            }
+
+            else
+            {
+                prev_token(parser);
+                const auto type_res = parse_type(parser);
+                if(!type_res)
+                {
+                    return type_res.error();
+                }
+
+                generic.known.type_decl = *type_res;
+                generic.constraint = constraint_type::type;
+            }
+        }
+
+        else if(match_builtin_type(parser))
+        {
+            const auto type_res = parse_type(parser);
+            if(!type_res)
+            {
+                return type_res.error();
+            }
+
+            generic.known.type_decl = *type_res;
+            generic.constraint = constraint_type::type;
+        }
+
+        else
+        {
+            return parser_error(parser,parse_error::unexpected_token,generic_start,
+                "Expected name for generic type constraint or builtin type");
+        }
+
+        push_var(generic_overload,generic);
+
+        // if the declaration isn't closed get the next arg
+        if(!match(parser,token_type::logical_gt))
+        {
+            const auto comma_err = consume(parser,token_type::comma);
+            if(comma_err)
+            {
+                return *comma_err;
+            }
+        }
+    }
+
+    return option::none;
+}
 
 
 Option<itl_error> check_redeclaration(Interloper& itl, NameSpace* root, const String& name, const String& checked_def_type)
@@ -17,17 +120,17 @@ Option<itl_error> check_redeclaration(Interloper& itl, NameSpace* root, const St
 Option<parse_error> type_alias(Interloper& itl, Parser &parser)
 {
     // type_alias literal '=' type ';'
-    const auto start_span = make_const_span(parser.tokens,parser.tok_idx, parser.tokens.size - parser.tok_idx);
+    const auto start_span = make_const_span(parser.ctx.tokens,parser.ctx.tok_idx, parser.ctx.tokens.size - parser.ctx.tok_idx);
     const auto token = next_token(parser);
 
     const String& name = token.literal;
 
     if(token.type != token_type::symbol)
     {
-        return parser_error(parser,parse_error::unexpected_token,token,"expected symbol for type alias name got %s\n",tok_name(token.type));
+        return parser_error(parser,parse_error::unexpected_token,token,"expected symbol for type alias name got %s",tok_name(token.type));
     }
 
-    if(check_redeclaration(itl,parser.context.cur_namespace,name,"type alias"))
+    if(check_redeclaration(itl,parser.ctx.cur_namespace,name,"type alias"))
     {
         return parse_error::itl_error;
     }
@@ -39,7 +142,7 @@ Option<parse_error> type_alias(Interloper& itl, Parser &parser)
     }
 
     const auto alias_def = make_top_level_def(parser,*span_res,{});
-    add_type_definition(itl, type_def_kind::alias_t, alias_def, name, parser.context.cur_file,parser.context.cur_namespace);
+    add_type_definition(itl, type_def_kind::alias_t, alias_def, name, parser.ctx.cur_file,parser.ctx.cur_namespace);
     return option::none;
 }
 
@@ -65,7 +168,7 @@ Result<AliasNode*, parse_error> parse_alias_decl(Parser &parser)
     TypeNode* rtype = *rtype_res;
 
 
-    AliasNode* alias_node = (AliasNode*)ast_alias(parser,rtype,name,parser.context.cur_file,token);
+    AliasNode* alias_node = (AliasNode*)ast_alias(parser,rtype,name,parser.ctx.cur_file,token);
 
     const auto term_err = consume(parser,token_type::semi_colon);
     if(term_err)
@@ -78,7 +181,7 @@ Result<AliasNode*, parse_error> parse_alias_decl(Parser &parser)
 
 Option<parse_error> struct_decl(Interloper& itl,Parser& parser, const ParsedAttr& attr)
 {
-    const auto start_span = make_const_span(parser.tokens,parser.tok_idx, parser.tokens.size - parser.tok_idx);
+    const auto start_span = make_const_span(parser.ctx.tokens,parser.ctx.tok_idx, parser.ctx.tokens.size - parser.ctx.tok_idx);
     const auto name = next_token(parser);
 
     if(name.type != token_type::symbol)
@@ -86,7 +189,7 @@ Option<parse_error> struct_decl(Interloper& itl,Parser& parser, const ParsedAttr
         return parser_error(parser,parse_error::unexpected_token,name,"expected name after struct decl got %s\n",tok_name(name.type));
     }
 
-    if(check_redeclaration(itl,parser.context.cur_namespace,name.literal,"struct"))
+    if(check_redeclaration(itl,parser.ctx.cur_namespace,name.literal,"struct"))
     {
         return parse_error::itl_error;
     }
@@ -100,23 +203,34 @@ Option<parse_error> struct_decl(Interloper& itl,Parser& parser, const ParsedAttr
     const auto struct_def = *res;
 
     const auto def = make_top_level_def(parser,struct_def,attr);
-    add_type_definition(itl, type_def_kind::struct_t,def, name.literal, parser.context.cur_file,parser.context.cur_namespace);
+    add_type_definition(itl, type_def_kind::struct_t,def, name.literal, parser.ctx.cur_file,parser.ctx.cur_namespace);
 
     return option::none;
 }
 
-Result<StructNode*, parse_error> parse_struct_decl(Parser& parser, const ParsedAttr& attr)
+Option<parse_error> parse_struct_decl(Parser& parser, TypeDef& def)
 {
     const auto name = next_token(parser);
-    StructNode* struct_node = (StructNode*)ast_struct(parser,name.literal,parser.context.cur_file,name);
+    StructNode* struct_node = (StructNode*)ast_struct(parser,name.literal,parser.ctx.cur_file,name);
+    struct_node->attr_flags = def.type_def.attr.flags;
 
-    struct_node->attr_flags = attr.flags;
+    def.decl.root = (AstNode*)struct_node;
+
+    if(match(parser,token_type::logical_lt))
+    {
+        const auto err = parse_generic(parser,struct_node->generic);
+        if(err)
+        {
+            return *err;
+        }
+    }
+
+    // Mark the generic overload early so it can be used in a sub parsing.
+    def.generic_base = struct_node->generic;
 
     // Does this struct have a forced first member?
-    if(match(parser,token_type::left_paren))
+    if(consume_match(parser,token_type::left_paren))
     {
-        (void)consume(parser,token_type::left_paren);
-
         auto decl_res = declaration(parser,token_type::right_paren);
         if(!decl_res)
         {
@@ -146,17 +260,14 @@ Result<StructNode*, parse_error> parse_struct_decl(Parser& parser, const ParsedA
     }
 
     // semi colon after decl is optional
-    if(match(parser,token_type::semi_colon))
-    {
-        (void)consume(parser,token_type::semi_colon);
-    }
+    consume_match(parser,token_type::semi_colon);
 
-    return struct_node;
+    return option::none;
 }
 
 Option<parse_error> enum_decl(Interloper& itl,Parser& parser, const ParsedAttr &attr)
 {
-    const auto start_span = make_const_span(parser.tokens,parser.tok_idx, parser.tokens.size - parser.tok_idx);
+    const auto start_span = make_const_span(parser.ctx.tokens,parser.ctx.tok_idx, parser.ctx.tokens.size - parser.ctx.tok_idx);
 
     const auto name_tok = next_token(parser);
 
@@ -166,7 +277,7 @@ Option<parse_error> enum_decl(Interloper& itl,Parser& parser, const ParsedAttr &
         return parse_error::itl_error;
     }
 
-    const auto redecl_err = check_redeclaration(itl,parser.context.cur_namespace,name_tok.literal,"enum");
+    const auto redecl_err = check_redeclaration(itl,parser.ctx.cur_namespace,name_tok.literal,"enum");
     if(redecl_err)
     {
         return parse_error::itl_error;
@@ -181,7 +292,7 @@ Option<parse_error> enum_decl(Interloper& itl,Parser& parser, const ParsedAttr &
     const auto enum_def = *res;
 
     const auto def = make_top_level_def(parser,enum_def,attr);
-    add_type_definition(itl, type_def_kind::enum_t,def, name_tok.literal, parser.context.cur_file,parser.context.cur_namespace);
+    add_type_definition(itl, type_def_kind::enum_t,def, name_tok.literal, parser.ctx.cur_file,parser.ctx.cur_namespace);
 
     return option::none;
 }
@@ -190,11 +301,10 @@ Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser,const ParsedAttr &a
 {
     const auto name_tok = next_token(parser);
 
-    EnumNode* enum_node = (EnumNode*)ast_enum(parser,name_tok.literal,parser.context.cur_file,name_tok);
+    EnumNode* enum_node = (EnumNode*)ast_enum(parser,name_tok.literal,parser.ctx.cur_file,name_tok);
 
-    if(match(parser,token_type::colon))
+    if(consume_match(parser,token_type::colon))
     {
-        (void)consume(parser,token_type::colon);
         auto type_res = parse_type(parser);
         if(!type_res)
         {
@@ -224,7 +334,7 @@ Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser,const ParsedAttr &a
 
         if(member_tok.type != token_type::symbol)
         {
-            return parser_error(parser,parse_error::unexpected_token,member_tok,"Expected symbol for enum %s member got %s\n",
+            return parser_error(parser,parse_error::unexpected_token,member_tok,"Expected symbol for enum %s member got %s",
                 name_tok.literal.buf,tok_name(member_tok.type));
         }
 
@@ -232,13 +342,9 @@ Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser,const ParsedAttr &a
         member.name = member_tok.literal;
 
         // see if we have an initializer
-        if(match(parser,token_type::equal))
+        if(consume_match(parser,token_type::equal))
         {
-            (void)consume(parser,token_type::equal);
-
-            token_type term;
-
-            auto initializer_res = expr_terminate(parser,"enum struct init",token_type::comma,term);
+            auto initializer_res = expr_enum_initializer(parser);
             if(!initializer_res)
             {
                 return initializer_res.error();
@@ -247,7 +353,7 @@ Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser,const ParsedAttr &a
             member.initializer = *initializer_res;
         }
 
-        else
+        else if(!match(parser,token_type::right_c_brace))
         {
             const auto comma_err = consume(parser,token_type::comma);
             if(comma_err)
@@ -255,15 +361,12 @@ Result<EnumNode*,parse_error> parse_enum_decl(Parser& parser,const ParsedAttr &a
                 return *comma_err;
             }
         }
+        
 
         push_var(enum_node->member,member);        
     }
 
     // semi colon after decl is optional
-    if(match(parser,token_type::semi_colon))
-    {
-        (void)consume(parser,token_type::semi_colon);
-    }
-
+    consume_match(parser,token_type::semi_colon);
     return enum_node;
 }

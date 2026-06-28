@@ -111,7 +111,8 @@ TypeResult type_check_access_struct_member(Interloper& itl, StructAccessNode* ac
 TypeResult type_check_struct_initializer(Interloper& itl, StructInitializerNode* init)
 {
     // Get structure
-    auto struct_res = lookup_struct(itl,init->name_space,init->struct_name);
+    const auto info = type_lookup_from_parts(init->struct_name,init->name_space,type_lookup_kind::struct_t);
+    auto struct_res = lookup_struct(itl,info);
     if(!struct_res)
     {
         return struct_res.error();
@@ -197,8 +198,6 @@ TypeResult type_check_access_index_member(Interloper& itl, Type* ltype, AccessMe
     {
         return *access_err;
     }
-
-
 
     const auto index_res = type_check_index_internal(itl,index,member_access.expr_type);
     if(!index_res)

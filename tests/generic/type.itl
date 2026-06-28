@@ -1,0 +1,37 @@
+
+
+struct FixedArray<T: Sized, SIZE: usize>
+{
+	buffer: $T[$SIZE];
+};
+
+type_alias FixedU32Five = FixedArray<u32,5>;
+
+func sum_fixed<T: Sized,SIZE: usize>(fixed: const FixedArray<$T,$SIZE>@)
+{
+	ans: u32 = 0;
+
+	for i in 0 < $SIZE
+	{
+		ans += fixed.buffer[i];
+	}
+} 
+
+func main() s32
+{
+	fixed5: FixedU32Five = {{
+		1,2,3,4,5
+	}};
+
+	sum1 := std::sum(fixed5.buffer);
+
+	// FixedArray<s32,4> fixed4 = {{
+	// 	1,2,3,4
+	// }};
+
+	// sum2 := sum_fixed(&fixed4);
+
+	ans := sum1 == 18;
+
+	return cast(s32,ans);
+}

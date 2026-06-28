@@ -89,34 +89,29 @@ std::pair<u32,u32> compute_member_size(Interloper& itl,const Type* type)
 }
 
 
-Result<StructType*,itl_error> lookup_struct(Interloper& itl, NameSpace* name_space,const String& name)
+Result<StructType*,itl_error> lookup_struct(Interloper& itl, const TypeLookupInfo& info)
 {
-    const auto struct_decl_res = lookup_type_internal(itl,name_space,name);
+    const auto struct_decl_res = lookup_type(itl,info);
     if(!struct_decl_res)
     {
-        return compile_error(itl,itl_error::struct_error,"No such struct: %S",name);
+        return struct_decl_res.error();
     }
 
     const auto struct_decl = *struct_decl_res;
-
-    if(struct_decl->kind != type_kind::struct_t)
-    {
-        return compile_error(itl,itl_error::struct_error,"No such struct: %S",name);
-    }
-
     return (StructType*)make_struct(itl,struct_decl->type_idx);   
 }
 
 Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* type_decl, u32* type_idx_override)
 {
-    const auto name = type_decl->name;
-    TypeDecl* decl_ptr = type_decl->name_space? lookup_incomplete_decl_scoped(type_decl->name_space,name) : lookup_incomplete_decl(itl,name);
+    const auto info = type_node_to_lookup(type_decl,type_lookup_kind::any_t);
+    const auto res = lookup_incomplete_decl(itl,info);
 
-    // no such decl exists
-    if(!decl_ptr)
+    if(!res)
     {
-        return compile_error(itl,itl_error::undeclared,"%S : member type %S is not defined",struct_name,type_decl->name);
+        return res.error();
     }
+
+    TypeDecl* decl_ptr = *res;
 
     // Type is allways complete we don't need any further checking
     if(!(decl_ptr->flags & TYPE_DECL_DEF_FLAG))
@@ -124,17 +119,14 @@ Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_nam
         return option::none;
     }
 
-
-    TypeDef& def = *((TypeDef*)decl_ptr);
-
     // if we attempt to check a partial definition twice that the definition is recursive
-    if(def.decl.state == type_def_state::checking)
+    if(decl_ptr->state == type_def_state::checking)
     {
         // if its a pointer we dont need the complete information yet as they are all alike
         // so just override the type idx from the one reserved inside the def
         if(def_has_indirection(type_decl))
         {
-            *type_idx_override = def.decl.type_idx;
+            *type_idx_override = decl_ptr->type_idx;
         }
 
         else
@@ -146,7 +138,7 @@ Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_nam
 
     else
     {
-        return parse_def(itl,def);
+        return parse_def(itl,(TypeDef*)decl_ptr,info).remap_to_err();
     }
 
     return option::none;    
@@ -168,13 +160,24 @@ Result<u32,itl_error> add_member(Interloper& itl,Struct& structure,DeclNode* m, 
     u32 type_idx_override = INVALID_TYPE;
 
     // If this type could we recursive we may need to override the idx if its held by a reference.
-    if(type_decl->kind == type_node_kind::user && !type_exists(itl,type_decl->name))
+    if(type_decl->kind == type_node_kind::user)
     {
-        const auto recur_err = handle_recursive_type(itl,structure.name,type_decl,&type_idx_override);
-        if(recur_err)
+        const auto checked_res = is_type_checked(itl,type_node_to_lookup(type_decl,type_lookup_kind::any_t));
+        if(!checked_res)
         {
-            destroy_struct(structure);
-            return *recur_err;
+            return checked_res.error();
+        }
+
+        const auto checked = *checked_res;
+
+        if(!checked)
+        {
+            const auto recur_err = handle_recursive_type(itl,structure.name,type_decl,&type_idx_override);
+            if(recur_err)
+            {
+                destroy_struct(structure);
+                return *recur_err;
+            }
         }
     }
 
@@ -320,23 +323,29 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
     }
 }
 
-Option<itl_error> parse_struct_def(Interloper& itl, TypeDef& def)
+Result<TypeDecl*, itl_error> parse_struct_def(Interloper& itl, TypeDef& def, const TypeLookupInfo& type_info)
 {
-    StructNode* node = (StructNode*)def.root;
+    UNUSED(type_info);
+    // TODO: Handle generics
+    assert(!count(def.generic_base));
+
+    auto& decl = def.decl;
+
+    StructNode* node = (StructNode*)decl.root;
 
     // NOTE: we expect the caller to save this
-    trash_context(itl,node->filename,def.decl.name_space,def.root);
+    trash_context(itl,node->filename,decl.name_space,decl.root);
 
     Struct structure;
     
     // allocate a reserved slot for the struct
-    def.decl.type_idx = count(itl.struct_table);
+    decl.type_idx = count(itl.struct_table);
     resize(itl.struct_table,count(itl.struct_table) + 1);
 
 
     structure.name = node->name;
     structure.filename = node->filename;
-    structure.name_space = def.decl.name_space;
+    structure.name_space = decl.name_space;
     structure.member_map = make_table<String,u32>();
 
     // we want to get how many sizes of each we have
@@ -377,7 +386,7 @@ Option<itl_error> parse_struct_def(Interloper& itl, TypeDef& def)
         print_struct(itl,structure);
     }
 
-    add_struct(itl,structure,def.decl);
-    return option::none;
+    add_struct(itl,structure,decl);
+    return &def.decl;
 }
 

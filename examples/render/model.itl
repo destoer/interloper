@@ -8,6 +8,11 @@ struct Model
     faces: Triangle[];
 }
 
+func destroy_model(model: Model@)
+{
+    std::destroy_array_heap(&itl_context.heap, &model.faces);
+}
+
 func scan_verticies(line: const string[]) [res: result,vertices: std::Vec3F]
 {
     ans: std::Vec3F = {?};

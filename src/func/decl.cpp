@@ -7,7 +7,7 @@ Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock &blo
 
 GenericScopeGuard switch_generic_context(Interloper& itl, const GenericOverload& overload);
 Result<Array<Generic>,itl_error> deduce_generic_args(Interloper& itl, FuncNode& node, FuncCallNode* func_call);
-Function* find_overload(const OverloadTable& overload, const Array<Generic>& generic_overload);
+Function* find_func_overload(const FuncOverloadTable& overload, const Array<Generic>& generic_overload);
 
 FunctionTable make_func_table()
 {
@@ -63,32 +63,6 @@ void add_func(Interloper& itl, const String& name, NameSpace* name_space, const 
 
     const DefInfo info = {definition_type::function,handle};
     add(name_space->table,copy_string(itl.string_allocator,name), info);  
-}
-
-void print_generic_overload(Interloper& itl, const ConstSpan<Generic>& generic_overload)
-{
-    for(const auto& generic : generic_overload)
-    {   
-        if(generic.constraint != constraint_type::builtin)
-        {
-            print_itl(itl,"%S = %t",generic.name,generic.type);
-        }
-
-        else
-        {
-            if(generic.builtin.type != builtin_type::f64_t)
-            {
-                print_itl(itl,"%S = %d",generic.name,generic.builtin.integer);
-            }
-
-            else
-            {
-                print_itl(itl,"%S = %f",generic.name,generic.builtin.decimal);
-            }
-        }
-    }
-
-    putchar('\n');
 }
 
 Option<itl_error> type_check_function(Interloper& itl, Function& func)
@@ -172,7 +146,7 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
         // Scan and see if overload already exists
         if(func_def.generic_overload)
         {
-            Function* func = find_overload(func_def.generic_overload,generic_overload);
+            Function* func = find_func_overload(func_def.generic_overload,generic_overload);
 
             if(func)
             {

@@ -121,52 +121,6 @@ const u32 FUNC_CALL_FUNC_POINTER_FLAG = (1 << 0);
 const u32 FUNC_CALL_FUNC_POINTER_EXPR_FLAG = (1 << 1);
 
 
-static constexpr u32 CONSTRAINT_SIZE = 4;
-
-const char* CONSTRAINT_NAMES[CONSTRAINT_SIZE] =
-{
-    "Integer",
-    "Real",
-    "Sized",
-    "builtin"
-};
-
-enum class constraint_type
-{
-    integer,
-    real,
-    sized,
-    // builtin type
-    builtin,
-};
-
-struct GenericBuiltin
-{
-    union
-    {
-        u64 integer;
-        f64 decimal = 0.0;
-    };
-
-    builtin_type type = builtin_type::void_t;
-};
-
-struct Generic
-{
-    String name;
-    constraint_type constraint;
-
-    union
-    {
-        // Filled in during deduction
-        Type* type = nullptr;
-
-        // constraint_type::builtin
-        GenericBuiltin builtin;
-    };
-};
-
-
 struct FuncCall
 {
     FuncSig sig = {};
@@ -206,8 +160,7 @@ struct Function
     FuncCall call_info;
 };
 
-using OverloadTable = Array<Function*>;
-using GenericOverload = Array<Generic>;
+using FuncOverloadTable = Array<Function*>;
 
 
 struct GenericOverloadContext
@@ -251,7 +204,7 @@ struct FunctionDef
     String name;
 
     GenericOverload generic_base;
-    OverloadTable generic_overload;
+    FuncOverloadTable generic_overload;
 };
 
 struct FunctionTable

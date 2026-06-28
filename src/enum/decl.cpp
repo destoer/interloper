@@ -34,11 +34,11 @@ void print_enum(Enum& enumeration)
     printf("}\n");       
 }
 
-Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
+Result<TypeDecl*,itl_error> parse_enum_def(Interloper& itl, TypeDecl& decl, Set<u64>& set)
 {
-    EnumNode* node = (EnumNode*)def.root;    
+    EnumNode* node = (EnumNode*)decl.root;    
 
-    trash_context(itl,node->filename,def.decl.name_space,def.root);
+    trash_context(itl,node->filename,decl.name_space,decl.root);
 
     Enum enumeration;
 
@@ -210,14 +210,14 @@ Option<itl_error> parse_enum_def(Interloper& itl, TypeDef& def, Set<u64>& set)
     enumeration.type_idx = slot;
 
     push_var(itl.enum_table,enumeration);
-    finalise_type(def.decl,enumeration.type_idx);
+    finalise_type(decl,enumeration.type_idx);
 
     if(itl.print_types)
     {
         print_enum(enumeration);
     }
 
-    return option::none;
+    return &decl;
 }
 
 
@@ -237,18 +237,13 @@ Type* make_enum_type(Interloper& itl,Enum& enumeration)
 
 Result<EnumType*,itl_error> lookup_enum(Interloper& itl, NameSpace* name_space,const String& name)
 {
-    const auto enum_decl_res = lookup_type_internal(itl,name_space,name);
+    const auto info = type_lookup_from_parts(name,name_space,type_lookup_kind::enum_t);
+    const auto enum_decl_res = lookup_type(itl,info);
     if(!enum_decl_res)
     {
-        return compile_error(itl,itl_error::enum_type_error,"No such enum: %S",name);
+        return enum_decl_res.error();
     }
 
     const auto enum_decl = *enum_decl_res;
-
-    if(enum_decl->kind != type_kind::enum_t)
-    {
-        return compile_error(itl,itl_error::enum_type_error,"No such enum: %S",name);
-    }
-
     return (EnumType*)make_enum(itl,enum_decl->type_idx);   
 }

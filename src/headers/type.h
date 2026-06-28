@@ -157,6 +157,13 @@ enum class type_def_kind
     alias_t,
 };
 
+enum class type_lookup_kind
+{
+    enum_t,
+    struct_t,
+    any_t
+};
+
 
 enum class type_def_state
 {
@@ -167,6 +174,58 @@ enum class type_def_state
 
 struct AstNode;
 struct NameSpace;
+
+static constexpr u32 CONSTRAINT_SIZE = 4;
+
+const char* CONSTRAINT_NAMES[CONSTRAINT_SIZE] =
+{
+    "Integer",
+    "Real",
+    "Sized",
+    "builtin"
+};
+
+enum class constraint_type
+{
+    integer,
+    real,
+    sized,
+    type,
+};
+
+struct TypeNode;
+
+struct GenericKnown
+{
+    // TODO: For now this only supports fixed types
+    union
+    {
+        u64 integer;
+        f64 decimal = 0.0;
+    };
+
+    TypeNode* type_decl = nullptr;
+};
+
+struct Generic
+{
+    String name;
+    constraint_type constraint;
+
+    union
+    {
+        // Filled in during deduction
+        Type* type = nullptr;
+
+        // constraint_type::type
+        GenericKnown known;
+    };
+};
+
+struct TypeDecl;
+using TypeOverloadTable = Array<TypeDecl*>;
+using GenericOverload = Array<Generic>;
+
 
 struct TypeDecl
 {
@@ -180,10 +239,15 @@ struct TypeDecl
     type_def_state state = type_def_state::not_checked;
     NameSpace* name_space = nullptr;
 
+    // the definition root -> depends on the type!
+    AstNode* root = nullptr;
+    GenericOverload overload;
     u32 flags = 0;
 };
 
 static constexpr u32 TYPE_DECL_DEF_FLAG = (1 << 0);
+
+
 
 struct TypeDef
 {
@@ -193,8 +257,19 @@ struct TypeDef
     type_def_kind kind;
     TopLevelDefinition type_def;
 
-    // the definition root -> depends on the type!
-    AstNode* root = nullptr;
+    // NOTE: This is not owned
+    GenericOverload generic_base;
+    TypeOverloadTable generic_overload;
+};
+
+struct TypeLookupInfo
+{
+    NameSpace* name_space;
+    String name;
+
+    // NOTE: Non owning
+    Array<AstNode*> generic_args;
+    type_lookup_kind kind;
 };
 
 enum class assign_type

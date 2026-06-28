@@ -63,7 +63,7 @@ ParserResult parse_for_iter(Parser& parser, const Token& t, b32 term_paren)
         auto next = peek(parser,0);
         if(next.type != token_type::left_c_brace)
         {
-            return parser_error(parser,parse_error::invalid_terminator,next,"invalid iter for statement terminator: %s expected {\n",
+            return parser_error(parser,parse_error::invalid_terminator,next,"invalid iter for statement terminator: %s expected {",
                 tok_name(next.type));                      
         }
     }
@@ -176,7 +176,7 @@ ParserResult parse_for_range(Parser& parser,const Token& t, b32 term_paren, b32 
         auto next = peek(parser,0);
         if(next.type != token_type::left_c_brace)
         {
-            return parser_error(parser,parse_error::malformed_stmt,next,"invalid range for statement terminator: %s expected {\n",tok_name(next.type));                      
+            return parser_error(parser,parse_error::malformed_stmt,next,"invalid range for statement terminator: %s expected {",tok_name(next.type));                      
         }
     }
 
@@ -299,7 +299,7 @@ ParserResult parse_switch(Parser& parser, const Token& t)
         {
             if(switch_node->default_statement)
             {
-                return parser_error(parser,parse_error::malformed_stmt,case_tok,"Cannot have two default statements in switch statement\n");
+                return parser_error(parser,parse_error::malformed_stmt,case_tok,"Cannot have two default statements in switch statement");
             }
 
             (void)consume(parser,token_type::default_t);
@@ -376,15 +376,11 @@ ParserResult parse_if(Parser& parser, const Token& t)
     
     while(!done)
     {
-        if(match(parser,token_type::else_t))
+        if(consume_match(parser,token_type::else_t))
         {
-            (void)consume(parser,token_type::else_t);
-
             // we have an else if
-            if(match(parser,token_type::if_t))
+            if(consume_match(parser,token_type::if_t))
             {
-                (void)consume(parser,token_type::if_t);
-
                 auto expr_res = expr_terminate(parser,"else if condition statement",token_type::left_c_brace); prev_token(parser);
                 if(!expr_res)
                 {

@@ -1,9 +1,10 @@
 #include <interloper.h>
 
 ParserResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_opt);
-ParserResult expr_terminate_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type);
-ParserResult expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type, b32* hit_term);
-ParserResult parse_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t);
+ParserResult parse_initializer_list(Parser& parser, const Token& t);
+ParserResult expr_terminate(Parser &parser,const String& expression_name,token_type t, token_type &term);
+ParserResult expr_terminate(Parser &parser,const String& expression_name,token_type t);
+ParserResult expr_list(Parser& parser,const String& expression_name, token_type type,b32* hit_terminator);
 
 Token next_token(Parser &parser);
 Value read_value(const Token &t);
@@ -12,63 +13,54 @@ Result<Array<String>,parse_error> split_namespace(Parser& parser, const Token& s
 
 ParserResult parse_template_call(Parser& parser, NameSpace* name_space, const Token& cur);
 
-void next_expr_token(Parser& parser,ExprCtx& ctx)
+bool check_terminator(ExprCtx& ctx, const Token& token)
 {
-    ctx.expr_tok = next_token(parser);
+    const b32 hit_terminator = (token.type == ctx.term);
+    b32 should_term = hit_terminator;
 
-    b32 should_term = false;
-
-    const b32 hit_terminator = (ctx.expr_tok.type == ctx.term);
-
-    // what will cause early termination?
-    if(ctx.expr_flags & EXPR_TERM_LIST_FLAG)
+    if(ctx.expr_flags & EXPR_TERM_ENUM_INIT)
     {
-        should_term = (ctx.expr_tok.type == token_type::comma) || hit_terminator;
+        should_term = token.type == token_type::comma || token.type == token_type::right_c_brace;
     }
 
-    else
+    // what will cause early termination?
+    else if(ctx.expr_flags & EXPR_TERM_LIST_FLAG)
     {
-        should_term = (ctx.expr_tok.type == ctx.term);
+        should_term |= (token.type == token_type::comma);
+    }
+
+    if(!(ctx.expr_flags & EXPR_HIT_TERMINATOR) && should_term)
+    {
+        ctx.term_tok = token;
     }
 
     ctx.expr_flags |= (hit_terminator << EXPR_HIT_TERMINATOR_FLAG_BIT);
     ctx.expr_flags |= (should_term << EXPR_TERMINATED_FLAG_BIT);
+
+    return should_term;
 }
 
-Option<parse_error> consume_expr(Parser &parser,ExprCtx& ctx,token_type type)
+Result<s32,parse_error> lbp(Parser &parser,const ExprCtx& ctx,const Token &token)
 {
-    if(type != ctx.expr_tok.type)
-    {
-        return parser_error(parser,parse_error::invalid_consume,ctx.expr_tok,"expected: %s got %s\n",tok_name(type),tok_name(ctx.expr_tok.type));
-    }
-
-    next_expr_token(parser,ctx);
-    return option::none;
-}
-
-Result<s32,parse_error> lbp(Parser &parser,const ExprCtx& ctx,const Token &t)
-{
-    const auto bp = TOKEN_INFO[static_cast<size_t>(t.type)].lbp;
-
-    //printf("lbp: %s -> %d\n",tok_name(t.type),bp);
+    const auto bp = TOKEN_INFO[u32(token.type)].lbp;
 
     if(bp == -1)
     {
-        switch(t.type)
+        switch(token.type)
         {
             case token_type::increment:
             {
-                return parser_error(parser,parse_error::invalid_lbp,t,"increment operator not supported\n");
+                return parser_error(parser,parse_error::invalid_lbp,token,"increment operator not supported");
             }
 
             case token_type::decrement:
             {
-                return parser_error(parser,parse_error::invalid_lbp,t,"decrement operator not supported\n");
+                return parser_error(parser,parse_error::invalid_lbp,token,"decrement operator not supported");
             }
 
             default:
             {
-                return parser_error(parser,parse_error::invalid_lbp,t,"unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
+                return parser_error(parser,parse_error::invalid_lbp,token,"unexpected token '%s' in %s",tok_name(token.type),ctx.expression_name.buf);
             }
         }
     }
@@ -108,145 +100,146 @@ ParserResult oper_eq(Parser &parser,ExprCtx& ctx,AstNode *left,Token t,arith_bin
     return ans;    
 }
 
-ParserResult parse_binary(Parser &parser,ExprCtx& ctx,Token &t,AstNode *left)
+ParserResult parse_binary(Parser &parser,ExprCtx& ctx,const Token &token,AstNode *left)
 {
-    switch(t.type)
+    switch(token.type)
     {
         case token_type::plus_eq:
         {
-            return oper_eq(parser,ctx,left,t,arith_bin_type::add_t);
+            return oper_eq(parser,ctx,left,token,arith_bin_type::add_t);
         }
 
         case token_type::minus_eq:
         {
-            return oper_eq(parser,ctx,left,t,arith_bin_type::sub_t);
+            return oper_eq(parser,ctx,left,token,arith_bin_type::sub_t);
         }
 
         case token_type::times_eq:
         {
-            return oper_eq(parser,ctx,left,t,arith_bin_type::mul_t);
+            return oper_eq(parser,ctx,left,token,arith_bin_type::mul_t);
         }
 
 
         case token_type::divide_eq:
         {
-            return oper_eq(parser,ctx,left,t,arith_bin_type::div_t);
+            return oper_eq(parser,ctx,left,token,arith_bin_type::div_t);
         }
 
         case token_type::bitwise_or_eq:
         {
-            return oper_eq(parser,ctx,left,t,arith_bin_type::or_t);
+            return oper_eq(parser,ctx,left,token,arith_bin_type::or_t);
         }
 
         case token_type::bitwise_and_eq:
         {
-            return oper_eq(parser,ctx,left,t,arith_bin_type::and_t);
+            return oper_eq(parser,ctx,left,token,arith_bin_type::and_t);
         }
 
         case token_type::equal:
         {
             // right precedence rbp = lbp -1 so that things on the right 
             // are sen as sub expressions
-            return ast_equal(parser,left,expression(parser,ctx,lbp_subexpr(parser,ctx,t)),t);  
+            return ast_equal(parser,left,expression(parser,ctx,lbp_subexpr(parser,ctx,token)),token);  
         }
     
       
         case token_type::plus:
         {
-            return ast_bin_arith(parser,arith_bin_type::add_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_bin_arith(parser,arith_bin_type::add_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::minus:
         {
-            return ast_bin_arith(parser,arith_bin_type::sub_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_bin_arith(parser,arith_bin_type::sub_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::divide:
         {
-            return ast_bin_arith(parser,arith_bin_type::div_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_bin_arith(parser,arith_bin_type::div_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::mod:
         {
-            return ast_bin_arith(parser,arith_bin_type::mod_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_bin_arith(parser,arith_bin_type::mod_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::shift_l:
         {
-            return ast_shift(parser,shift_type::left,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_shift(parser,shift_type::left,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::shift_r:
         {
-            return ast_shift(parser,shift_type::right,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_shift(parser,shift_type::right,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::times:
         {
-            return ast_bin_arith(parser,arith_bin_type::mul_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_bin_arith(parser,arith_bin_type::mul_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         // and operator in binary context is a bitwise and
         case token_type::operator_and:
         {
-            return ast_bin_arith(parser,arith_bin_type::and_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_bin_arith(parser,arith_bin_type::and_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::bitwise_or:
         {
-            return ast_bin_arith(parser,arith_bin_type::or_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_bin_arith(parser,arith_bin_type::or_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::bitwise_xor:
         {
-            return ast_bin_arith(parser,arith_bin_type::xor_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_bin_arith(parser,arith_bin_type::xor_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::logical_or:
         {
-            return ast_logic(parser,boolean_logic_op::or_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_logic(parser,boolean_logic_op::or_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
     
         case token_type::logical_and:
         {
-            return ast_logic(parser,boolean_logic_op::and_t,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_logic(parser,boolean_logic_op::and_t,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
 
         case token_type::logical_lt:
         {
-            return ast_comparison(parser,comparison_op::lt,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_comparison(parser,comparison_op::lt,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }
 
         case token_type::logical_gt:
         {
-            return ast_comparison(parser,comparison_op::gt,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_comparison(parser,comparison_op::gt,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }   
 
         case token_type::logical_le:
         {
-            return ast_comparison(parser,comparison_op::le,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_comparison(parser,comparison_op::le,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }   
 
         case token_type::logical_ge:
         {
-            return ast_comparison(parser,comparison_op::ge,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_comparison(parser,comparison_op::ge,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }   
 
         case token_type::logical_eq:
         {
-            return ast_comparison(parser,comparison_op::eq,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_comparison(parser,comparison_op::eq,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }    
 
         case token_type::logical_ne:
         {
-            return ast_comparison(parser,comparison_op::ne,left,expression(parser,ctx,lbp(parser,ctx,t)),t);
+            return ast_comparison(parser,comparison_op::ne,left,expression(parser,ctx,lbp(parser,ctx,token)),token);
         }         
 
 
         default:
         {
-            return parser_error(parser,parse_error::unexpected_token,t,"led: unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
+            return parser_error(parser,parse_error::unexpected_token,token,"led: unexpected token '%s' in %s",
+                tok_name(token.type),ctx.expression_name.buf);
         }        
     }
 
@@ -277,49 +270,32 @@ EnumMemberNode* parse_enum_member(Parser& parser, const Token& member_name, cons
     return ast_enum_member(parser,name_space,enum_name,member_name.literal,member_name);
 }
 
-ParserResult parse_sym_in_expr(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const Token& cur)
+ParserResult parse_sym(Parser& parser,NameSpace* name_space, const Token& cur)
 {
-    prev_token(parser);
-    auto var_res = var(parser,name_space,cur,true);
+    const auto next = peek(parser,0);
 
-    next_expr_token(parser,ctx);
-    return var_res;
-}
-
-ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const Token& cur)
-{
     // look ahead extra tokens that would change the meaning of this
-    switch(ctx.expr_tok.type)
+    switch(next.type)
     {
         // Generic function
         case token_type::dollar:
         {
-            const auto res = parse_template_call(parser,name_space,cur);
-
-            next_expr_token(parser,ctx);
-
-            return res;
+            (void)consume(parser,token_type::dollar);
+            return parse_template_call(parser,name_space,cur);
         }
 
         // function call
         case token_type::left_paren:
         {
-            // correct the state machine
-            prev_token(parser);
-
-            auto call_res = func_call(parser,ast_symbol(parser,name_space,cur.literal,cur),cur); 
-            next_expr_token(parser,ctx);
-
-            return call_res;
+            return func_call(parser,ast_symbol(parser,name_space,cur.literal,cur),cur); 
         }
 
         case token_type::scope:
         {
             // correct state machine
             prev_token(parser);
-            prev_token(parser);
 
-            auto name_space_res = split_namespace(parser,ctx.expr_tok);
+            auto name_space_res = split_namespace(parser,next);
 
             if(!name_space_res)
             {
@@ -329,7 +305,6 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
             Array<String> name_space_strings = *name_space_res;
 
             const auto cur_next = next_token(parser);
-            next_expr_token(parser,ctx);
 
             EnumMemberNode* member = parse_enum_member(parser,cur_next,name_space_strings); 
             if(member)
@@ -340,19 +315,19 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
 
             NameSpace* name_space = scan_namespace(parser,name_space_strings);
             destroy_arr(name_space_strings); 
-            return parse_sym(parser,ctx,name_space,cur_next);
+            return parse_sym(parser,name_space,cur_next);
         }
 
         default:
         {
             // Read out struct initializer
-            if(ctx.expr_tok.type == token_type::left_c_brace && parser_type_kind_exists(parser,name_space,cur.literal,type_kind::struct_t))
+            if(next.type == token_type::left_c_brace && parser_type_kind_exists(parser,name_space,cur.literal,type_kind::struct_t))
             {
                 const auto struct_name = cur;
-                const auto start = ctx.expr_tok;
-                (void)consume_expr(parser,ctx,token_type::left_c_brace);
+                const auto start = next;
+                (void)consume(parser,token_type::left_c_brace);
 
-                auto list_res = parse_initializer_list(parser,ctx,start);
+                auto list_res = parse_initializer_list(parser,start);
                 if(!list_res)
                 {
                     return list_res;
@@ -361,45 +336,36 @@ ParserResult parse_sym(Parser& parser,ExprCtx& ctx, NameSpace* name_space, const
                 return ast_struct_initializer(parser,struct_name.literal,*list_res,name_space,struct_name);
             }
 
-
-            return parse_sym_in_expr(parser,ctx,name_space,cur);
+            return var(parser,name_space,cur,true);
         }
         break;
     }   
 }
 
-ParserResult builtin_type_info_access(Parser& parser,ExprCtx& ctx,builtin_type type)
+ParserResult builtin_type_info_access(Parser& parser,const Token& start,builtin_type type)
 {
-    const Token t = ctx.expr_tok;
-
-    if(ctx.expr_tok.type == token_type::dot)
+    if(consume_match(parser,token_type::dot))
     {
-        next_expr_token(parser,ctx);
-
-        if(ctx.expr_tok.type == token_type::symbol)
+        if(match(parser,token_type::symbol))
         {
-            const String literal = ctx.expr_tok.literal;
-
-            next_expr_token(parser,ctx);
-            return ast_builtin_access(parser,type,literal,t);
+            const auto sym = next_token(parser);
+            return ast_builtin_access(parser,type,sym.literal,start);
         }
     }
 
-    return parser_error(parser,parse_error::unexpected_token,ctx.expr_tok,"expected member access after builtin type, got %s\n",
-        tok_name(ctx.expr_tok.type)); 
+    const auto cur = next_token(parser);
+
+    return parser_error(parser,parse_error::unexpected_token,cur,"expected member access after builtin type, got %s",
+        tok_name(cur.type)); 
 }
 
-ParserResult type_operator(Parser& parser,ExprCtx& ctx, type_operator oper, const Token& token)
+ParserResult type_operator(Parser& parser, type_operator oper, const Token& token)
 {
-    const auto consume_left_paren_err = consume_expr(parser,ctx,token_type::left_paren);
+    const auto consume_left_paren_err = consume(parser,token_type::left_paren);
     if(consume_left_paren_err)
     {
         return *consume_left_paren_err;
     }
-
-    // get_type is inside the normal parser we need
-    // to correct the tok idx
-    prev_token(parser);
 
     auto type_res = parse_type(parser);
 
@@ -408,10 +374,7 @@ ParserResult type_operator(Parser& parser,ExprCtx& ctx, type_operator oper, cons
         return type_res.error();
     }
 
-    // correct our state machine
-    ctx.expr_tok = next_token(parser);
-
-    const auto consume_right_paren_err = consume_expr(parser,ctx,token_type::right_paren);
+    const auto consume_right_paren_err = consume(parser,token_type::right_paren);
     if(consume_right_paren_err)
     {
         return *consume_right_paren_err;
@@ -420,17 +383,13 @@ ParserResult type_operator(Parser& parser,ExprCtx& ctx, type_operator oper, cons
     return ast_type_operator(parser,type_res.value(),oper,token);   
 }
 
-ParserResult parse_cast(Parser& parser,ExprCtx& ctx, const Token &t)
+ParserResult parse_cast(Parser& parser,const Token &t)
 {
-    auto expr_consume_err = consume_expr(parser,ctx,token_type::left_paren);
+    auto expr_consume_err = consume(parser,token_type::left_paren);
     if(expr_consume_err)
     {
         return *expr_consume_err;
     }
-
-    // get_type is inside the normal parser we need
-    // to correct the tok idx
-    prev_token(parser);
 
     auto type_res = parse_type(parser);
 
@@ -440,18 +399,15 @@ ParserResult parse_cast(Parser& parser,ExprCtx& ctx, const Token &t)
     }
 
     TypeNode* type = type_res.value();
-    
-    // correct our state machine
-    // NOTE: we bypass the normal function here because commas require special handling
-    ctx.expr_tok = next_token(parser);
 
-    const auto comma_consume_err = consume_expr(parser,ctx,token_type::comma);
+    // Don't use the expr version is this is a subexpr
+    const auto comma_consume_err = consume(parser,token_type::comma);
     if(comma_consume_err)
     {
         return *comma_consume_err;
     }
 
-    const auto right_res = expr_terminate_in_expr(parser,ctx,"cast",token_type::right_paren);
+    const auto right_res = expr_terminate(parser,"cast",token_type::right_paren);
     if(!right_res)
     {
         return right_res;
@@ -460,33 +416,32 @@ ParserResult parse_cast(Parser& parser,ExprCtx& ctx, const Token &t)
     return ast_cast(parser,type,right_res.value(),t); 
 }
 
-ParserResult parse_value_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t);
-ParserResult parse_designated_initializers(Parser& parser, ExprCtx& ctx, const Token& t);
+ParserResult parse_value_initializer_list(Parser& parser, const Token& t);
+ParserResult parse_designated_initializers(Parser& parser, const Token& t);
 
-ParserResult parse_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t)
+ParserResult parse_initializer_list(Parser& parser, const Token& t)
 {
-    const bool designated = ctx.expr_tok.type == token_type::symbol && match(parser,token_type::colon);
-
-    const auto list_res = designated? parse_designated_initializers(parser,ctx,t) :  parse_value_initializer_list(parser,ctx,t);
+    const bool designated = match(parser,token_type::symbol) && match(parser,token_type::colon,1);
+    const auto list_res = designated? parse_designated_initializers(parser,t) :  parse_value_initializer_list(parser,t);
 
     // allow trailing comma if the list is about to end and its not the terminator i.e
     // {{0,0},{0,0},}
-    if(ctx.expr_tok.type == token_type::comma && match(parser,ctx.term))
+    if(match(parser,token_type::comma) && match(parser,token_type::right_c_brace,1))
     {
-        next_expr_token(parser,ctx);
+        next_token(parser);
     }
 
     return list_res;
 }
 
-ParserResult parse_value_initializer_list(Parser& parser, ExprCtx& ctx, const Token& t)
+ParserResult parse_value_initializer_list(Parser& parser, const Token& t)
 {
     InitializerListNode* init = ast_initializer_list(parser,t);
 
     b32 hit_term = false;
     while(!hit_term)
     {
-        auto e_res = expr_list_in_expr(parser,ctx,"value initializer list",token_type::right_c_brace,&hit_term);
+        auto e_res = expr_list(parser,"value initializer list",token_type::right_c_brace,&hit_term);
 
         if(!e_res)
         {
@@ -501,34 +456,32 @@ ParserResult parse_value_initializer_list(Parser& parser, ExprCtx& ctx, const To
 
 
 
-ParserResult parse_designated_initializers(Parser& parser, ExprCtx& ctx, const Token& t)
+ParserResult parse_designated_initializers(Parser& parser, const Token& t)
 {
     DesignatedListNode* list = ast_designated_initializer_list(parser,t);
 
     b32 hit_term = false;
     while(!hit_term)
     {
+        const auto sym = next_token(parser);
+
         // Want to know if we started as designated because the entire list should match!
-        const bool designated = ctx.expr_tok.type == token_type::symbol && match(parser,token_type::colon);
+        const bool designated = sym.type == token_type::symbol && consume_match(parser,token_type::colon);
 
         if(!designated)
         {
-            return parser_error(parser,parse_error::malformed_stmt,ctx.expr_tok,"Designator: Hit unexpected token %s\n",tok_name(ctx.expr_tok.type));
+            return parser_error(parser,parse_error::malformed_stmt,sym,"Designator: Hit unexpected token %s",tok_name(sym.type));
         }
 
-        const auto name = ctx.expr_tok.literal;
-
-        next_expr_token(parser,ctx);
-        next_expr_token(parser,ctx);
+        const auto name = sym.literal;
 
         // Nested struct initializer?
-        if(ctx.expr_tok.type == token_type::symbol && match(parser,token_type::left_c_brace))
+        if(match(parser,token_type::symbol) && match(parser,token_type::left_c_brace,1))
         {
-            const auto struct_name = ctx.expr_tok;
-            (void)consume_expr(parser,ctx,token_type::symbol);
-            (void)consume_expr(parser,ctx,token_type::left_c_brace);
+            const auto struct_name = next_token(parser);
+            (void)consume(parser,token_type::left_c_brace);
 
-            auto list_res = parse_initializer_list(parser,ctx,t);
+            auto list_res = parse_initializer_list(parser,t);
 
             if(!list_res)
             {
@@ -540,22 +493,16 @@ ParserResult parse_designated_initializers(Parser& parser, ExprCtx& ctx, const T
             const DesignatedInitializer init = {struct_initializer,name};
             push_var(list->initializer,init);
 
-            if(ctx.expr_tok.type == token_type::comma)
+            if(!consume_match(parser,token_type::comma))
             {
-                (void)consume_expr(parser,ctx,token_type::comma);
-            }
-
-            else if(ctx.expr_tok.type == token_type::right_c_brace)
-            {
-                hit_term = true;
-                (void)consume_expr(parser,ctx,token_type::right_c_brace);
+                hit_term = consume_match(parser,token_type::right_c_brace);
             }
         }
 
         else
         {
             // Read out the designator
-            auto e_res = expr_list_in_expr(parser,ctx,"designated initializer list",token_type::right_c_brace,&hit_term);
+            auto e_res = expr_list(parser,"designated initializer list",token_type::right_c_brace,&hit_term);
 
             if(!e_res)
             {
@@ -577,76 +524,76 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
     {
         case token_type::u8:
         {
-            return builtin_type_info_access(parser,ctx,builtin_type::u8_t);
+            return builtin_type_info_access(parser,t,builtin_type::u8_t);
         }
 
         case token_type::u16:
         {
-            return builtin_type_info_access(parser,ctx,builtin_type::u16_t);
+            return builtin_type_info_access(parser,t,builtin_type::u16_t);
         }
 
         case token_type::u32:
         {
-            return builtin_type_info_access(parser,ctx,builtin_type::u32_t);
+            return builtin_type_info_access(parser,t,builtin_type::u32_t);
         }
 
         case token_type::u64:
         {
-            return builtin_type_info_access(parser,ctx,builtin_type::u64_t);
+            return builtin_type_info_access(parser,t,builtin_type::u64_t);
         }
 
         case token_type::s8:
         {
-            return builtin_type_info_access(parser,ctx,builtin_type::s8_t);
+            return builtin_type_info_access(parser,t,builtin_type::s8_t);
         }
 
         case token_type::s16:
         {
-            return builtin_type_info_access(parser,ctx,builtin_type::s16_t);
+            return builtin_type_info_access(parser,t,builtin_type::s16_t);
         }
 
         case token_type::s32:
         {
-            return builtin_type_info_access(parser,ctx,builtin_type::s32_t);
+            return builtin_type_info_access(parser,t,builtin_type::s32_t);
         }
 
         case token_type::s64:
         {
-            return builtin_type_info_access(parser,ctx,builtin_type::s64_t);
+            return builtin_type_info_access(parser,t,builtin_type::s64_t);
         }
 
         case token_type::bool_t:
         {
-            return builtin_type_info_access(parser,ctx,builtin_type::bool_t);
+            return builtin_type_info_access(parser,t,builtin_type::bool_t);
         }
 
         case token_type::byte_t:
         {
-            return builtin_type_info_access(parser,ctx,builtin_type::byte_t);
+            return builtin_type_info_access(parser,t,builtin_type::byte_t);
         }
 
         case token_type::c8_t:
         {
-            return builtin_type_info_access(parser,ctx,builtin_type::c8_t);
+            return builtin_type_info_access(parser,t,builtin_type::c8_t);
         }
 
 
         // cast(<type>,<expr>)
         case token_type::cast:
         {
-            return parse_cast(parser,ctx,t);
+            return parse_cast(parser,t);
         }
     
         // sizeof(<expr>)
         case token_type::sizeof_t:
         {
-            const auto consume_err = consume_expr(parser,ctx,token_type::left_paren);
+            const auto consume_err = consume(parser,token_type::left_paren);
             if(consume_err)
             {
                 return *consume_err;
             }
 
-            auto expr_res = expr_terminate_in_expr(parser,ctx,"sizeof",token_type::right_paren);
+            auto expr_res = expr_terminate(parser,"sizeof",token_type::right_paren);
 
             return ast_sizeof(parser,expr_res,t);    
         }
@@ -654,13 +601,13 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
         // cast_ref(<expr>)
         case token_type::cast_ref:
         {
-            const auto consume_err = consume_expr(parser,ctx,token_type::left_paren);
+            const auto consume_err = consume(parser,token_type::left_paren);
             if(consume_err)
             {
                 return *consume_err;
             }
 
-            auto expr_res = expr_terminate_in_expr(parser,ctx,"cast_ref",token_type::right_paren);
+            auto expr_res = expr_terminate(parser,"cast_ref",token_type::right_paren);
 
             return ast_cast_ref(parser,expr_res,t);    
         }
@@ -668,13 +615,13 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
         // sizeof_type(<type>)
         case token_type::sizeof_type_t:
         {
-            return type_operator(parser,ctx,type_operator::sizeof_type_t,t);   
+            return type_operator(parser,type_operator::sizeof_type_t,t);   
         }
 
         // sizeof_data(<type>)
         case token_type::sizeof_data_t:
         {
-            return type_operator(parser,ctx,type_operator::sizeof_data_t,t);   
+            return type_operator(parser,type_operator::sizeof_data_t,t);   
         }
 
 
@@ -684,15 +631,9 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
             // check for no init 
             // NOTE: as this is is not common we resolve it here
             // rather than inside the tokenizer
-            if(ctx.expr_tok.type == token_type::qmark)
+            if(consume_match(parser,token_type::qmark))
             {
-                const auto consume_qmark_err = consume_expr(parser,ctx,token_type::qmark);
-                if(consume_qmark_err)
-                {
-                    return *consume_qmark_err;
-                }
-
-                const auto consume_c_brace_err = consume_expr(parser,ctx,token_type::right_c_brace);
+                const auto consume_c_brace_err = consume(parser,token_type::right_c_brace);
                 if(consume_c_brace_err)
                 {
                     return *consume_c_brace_err;
@@ -701,7 +642,7 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
                 return ast_plain(parser,ast_type::no_init,t);
             }
 
-            return parse_initializer_list(parser,ctx,t);
+            return parse_initializer_list(parser,t);
         }
     
         case token_type::value:
@@ -742,22 +683,20 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 
         case token_type::dollar:
         {
-            if(ctx.expr_tok.type != token_type::symbol)
+            const auto sym = next_token(parser);
+
+            if(sym.type != token_type::symbol)
             {
                 return parser_error(parser,parse_error::unexpected_token,t,
-                    "Expected symbol after $ for generic var got %s",tok_name(ctx.expr_tok.type));
+                    "Expected symbol after $ for generic var got %s",tok_name(sym.type));
             }
-
-            const auto sym = ctx.expr_tok;
-
-            next_expr_token(parser,ctx);
             
             return ast_generic_var(parser,sym.literal,sym); 
         }   
 
         case token_type::symbol:
         {
-            return parse_sym(parser,ctx,nullptr,t);
+            return parse_sym(parser,nullptr,t);
         }
 
         case token_type::minus:
@@ -783,8 +722,7 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 
         case token_type::left_paren:
         {
-            const auto expr = expr_terminate_in_expr(parser,ctx,"brackets",token_type::right_paren);
-            return expr;
+            return expr_terminate(parser,"brackets",token_type::right_paren);
         }
 
         case token_type::deref:
@@ -805,7 +743,7 @@ ParserResult parse_unary(Parser &parser,ExprCtx& ctx, const Token &t)
 
         default:
         {
-            return parser_error(parser,parse_error::unexpected_token,t,"unary: unexpected token '%s' in %s\n",tok_name(t.type),ctx.expression_name.buf);
+            return parser_error(parser,parse_error::unexpected_token,t,"unary: unexpected token '%s' in %s",tok_name(t.type),ctx.expression_name.buf);
         }
     }
 
@@ -826,42 +764,38 @@ ParserResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_
 
     const u32 rbp = *rbp_res;
 
-    auto cur = ctx.expr_tok;
-    next_expr_token(parser,ctx);
+    auto left = parse_unary(parser,ctx,next_token(parser));
 
-    auto left = parse_unary(parser,ctx,cur);
-
-    if((ctx.expr_flags & EXPR_TERMINATED_FLAG) || !left)
+    for(;;)
     {
-        return left;
-    }
-
-    auto lbp_res = lbp(parser,ctx,ctx.expr_tok);
-    if(!lbp_res)
-    {
-        return lbp_res.error();
-    }
-
-    u32 left_binding_power = *lbp_res;
-
-    while(rbp < left_binding_power)
-    {
-        cur = ctx.expr_tok;
-        next_expr_token(parser,ctx);
-        left = parse_binary(parser,ctx,cur,*left);
-
-        if((ctx.expr_flags & EXPR_TERMINATED_FLAG) || !left)
+        if(ctx.expr_flags & EXPR_TERMINATED_FLAG)
         {
             return left;
         }
-        
-        lbp_res = lbp(parser,ctx,ctx.expr_tok);
+
+        auto cur = peek(parser,0);
+
+        if(check_terminator(ctx,cur))
+        {
+            // Terminator hit skip it
+            next_token(parser);
+            return left;
+        }
+
+        auto lbp_res = lbp(parser,ctx,cur);
         if(!lbp_res)
         {
             return lbp_res.error();
         }
 
-        left_binding_power = *lbp_res;
+        const u32 left_binding_power = *lbp_res;
+
+        if(rbp >= left_binding_power)
+        {
+            break;
+        }
+
+        left = parse_binary(parser,ctx,next_token(parser),*left); 
     }
 
     return left;
@@ -875,8 +809,8 @@ ParserResult expr_terminate_internal(Parser &parser,ExprCtx& ctx)
     // expression must terminate on this token
     if(!(ctx.expr_flags & EXPR_TERMINATED_FLAG) && (ctx.expr_flags & EXPR_MUST_TERMINATE_FLAG))
     {
-        return parser_error(parser,parse_error::invalid_terminator,ctx.expr_tok,"%s should terminate with '%s' terminated with '%s'\n",
-            ctx.expression_name.buf,tok_name(ctx.term),tok_name(ctx.expr_tok.type));
+        return parser_error(parser,parse_error::invalid_terminator,ctx.term_tok,"%s should terminate with '%s' terminated with '%s'",
+            ctx.expression_name.buf,tok_name(ctx.term),tok_name(ctx.term_tok.type));
     }
 
     return e;
@@ -889,12 +823,11 @@ ParserResult expr_terminate(Parser &parser,const String& expression_name,token_t
     ExprCtx ctx;
     ctx.term = t;
     ctx.expression_name = expression_name;
-    ctx.expr_tok = next_token(parser);
 
     auto e = expr_terminate_internal(parser,ctx);
 
     // what token did we terminate on?
-    term = ctx.expr_tok.type;
+    term = ctx.term_tok.type;
 
     return e;
 }
@@ -906,7 +839,6 @@ ParserResult expr_terminate(Parser &parser,const String& expression_name,token_t
     ExprCtx ctx;
     ctx.term = t;
     ctx.expression_name = expression_name;
-    ctx.expr_tok = next_token(parser);
     ctx.expr_flags = EXPR_MUST_TERMINATE_FLAG;
 
     return expr_terminate_internal(parser,ctx);
@@ -923,7 +855,6 @@ ParserResult expr_list(Parser& parser,const String& expression_name, token_type 
     ExprCtx ctx;
     ctx.term = type;
     ctx.expression_name = expression_name;
-    ctx.expr_tok = next_token(parser);
     ctx.expr_flags = EXPR_MUST_TERMINATE_FLAG | EXPR_TERM_LIST_FLAG;
 
     auto e_res = expr_terminate_internal(parser,ctx);
@@ -932,33 +863,26 @@ ParserResult expr_list(Parser& parser,const String& expression_name, token_type 
     return e_res;
 }
 
-// for use inside the parser so the state machine does not have to be messed with
-ParserResult expr_terminate_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type)
+ParserResult expr_enum_initializer(Parser& parser)
 {
+    const auto start = peek(parser,0);
+
     ExprCtx ctx;
-    ctx.term = type;
-    ctx.expression_name = expression_name;
-    ctx.expr_tok = old_ctx.expr_tok;
-    ctx.expr_flags = EXPR_MUST_TERMINATE_FLAG;
+    ctx.expression_name = "Enum initializer";
+    ctx.expr_flags = EXPR_TERM_ENUM_INIT;
 
-    auto e_opt = expr_terminate_internal(parser,ctx);
+    const auto res = expression(parser,ctx,0);
 
-    next_expr_token(parser,old_ctx);
+    if(!(ctx.expr_flags & EXPR_TERMINATED_FLAG))
+    {
+        return parser_error(parser,parse_error::malformed_stmt,start,"Enum initializer must term with a comma or }");
+    }
 
-    return e_opt;
-}
+    // If this is the final the outer level needs this tok
+    if(ctx.term_tok.type == token_type::right_c_brace)
+    {
+        prev_token(parser);
+    }
 
-ParserResult expr_list_in_expr(Parser& parser,ExprCtx& old_ctx,const String& expression_name, token_type type,b32* hit_terminator)
-{
-    ExprCtx ctx;
-    ctx.term = type;
-    ctx.expression_name = expression_name;
-    ctx.expr_tok = old_ctx.expr_tok;
-    ctx.expr_flags = EXPR_MUST_TERMINATE_FLAG | EXPR_TERM_LIST_FLAG;
-
-    auto e_res = expr_terminate_internal(parser,ctx);
-    *hit_terminator = ctx.expr_flags & EXPR_HIT_TERMINATOR;
-    next_expr_token(parser,old_ctx);
-
-    return e_res;
+    return res;
 }
