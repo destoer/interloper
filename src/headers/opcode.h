@@ -187,11 +187,11 @@ struct RegSlot
     union 
     {
         TmpSlot tmp_slot;
-        SymSlot sym_slot = {INVALID_HANDLE};
+        SymSlot sym_slot;
         spec_reg spec;
     };
 
-    reg_kind kind = reg_kind::sym;
+    reg_kind kind;
 };
 
 
@@ -811,7 +811,7 @@ struct IrRegister
 {
     union
     {
-        RegSlot ir = {};
+        RegSlot ir;
         lowered_reg_t reg;
     };
 };

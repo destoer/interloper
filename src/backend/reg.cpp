@@ -347,7 +347,7 @@ void print_reg_name(SymbolTable& table, RegSlot slot)
     }
 }
 
-void log_reg(b32 print,SymbolTable& table, const String& fmt_string, ...)
+void log_reg(b32 print,SymbolTable& table, const String fmt_string, ...)
 {  
     if(!print)
     {

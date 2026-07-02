@@ -61,7 +61,7 @@ void add_func(Interloper& itl, const String& name, NameSpace* name_space, const 
     const auto handle = count(itl.func_table.table);
     push_var(itl.func_table.table,func_def);
 
-    const DefInfo info = {definition_type::function,handle};
+    const DefInfo info = {definition_type::function,{handle}};
     add(name_space->table,copy_string(itl.string_allocator,name), info);  
 }
 

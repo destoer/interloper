@@ -368,7 +368,7 @@ struct OptReg
 {
     union
     {
-        RegSlot slot = {};
+        RegSlot slot;
         u64 value;
     };
 

@@ -2,7 +2,7 @@ struct LinearRange
 {
     u32 start = 0xffff'ffff;
     u32 end = 0;
-    RegSlot slot = {INVALID_HANDLE};
+    RegSlot slot;
     u32 global_reg = REG_FREE;
     OpcodeNode* node = nullptr;
     BlockSlot block_slot = {INVALID_HANDLE};

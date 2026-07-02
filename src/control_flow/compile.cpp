@@ -223,7 +223,7 @@ void compile_range_for_array(Interloper& itl, Function& func, ForRangeNode* rang
         mov_imm(itl,func,index,0);
     }
 
-    RegSlot arr_end = {INVALID_HANDLE};
+    RegSlot arr_end;
     const auto arr_data = load_arr_data(itl,func,entry_arr);
 
     if(is_fixed_array(arr_type))

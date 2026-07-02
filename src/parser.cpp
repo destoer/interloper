@@ -1219,7 +1219,7 @@ void print_if_stmt(Interloper& itl,const IfStmt& stmt, const char* name, int dep
 }
 
 
-void vprint_itl(Interloper& itl, const String& fmt, va_list args)
+void vprint_itl(Interloper& itl, const String fmt, va_list args)
 {
     // %S  String
     // %s  string
@@ -1330,7 +1330,7 @@ void vprint_itl(Interloper& itl, const String& fmt, va_list args)
     }
 }
 
-void print_itl(Interloper& itl, const String& fmt, ...)
+void print_itl(Interloper& itl, const String fmt, ...)
 {
     va_list args;
     va_start(args,fmt);
