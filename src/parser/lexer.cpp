@@ -145,29 +145,25 @@ std::pair<Value,b32> parse_value(const char** src_ptr)
             v = 10 + (c - 'A');
         }
 
-        else
+        // alpha in this context is an error
+        else if(isalpha(c))
         {
-            // alpha in this context is an error
-            if(isalpha(c))
-            {
-                return std::pair{value,true};
-            }
-
-            else
-            {
-                done = true;
-                break;                
-            }
+            return std::pair{value,true};
         }
 
-        // acummulate digit
+        else
+        {
+            done = true;
+            break;                
+        }
+
+        // accumulate digit
         value.v *= base;
         value.v += v;
 
         src++;
     }
 
-    //printf("parsed value: %s0x%lx\n",value.sign? "-" : "",value.v);
 
     // make twos complement
     if(value.sign)
@@ -254,7 +250,7 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                 // null term the string
                 push_char(*lexer.string_allocator,buffer,'\0');
 
-                // create string fomr the array
+                // create string form the array
                 String literal = make_string(buffer);
 
                 insert_token(lexer,token_type::string,literal);
@@ -396,7 +392,6 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                 {
                     // need to copy literal as we ditch the file later
                     const String literal = copy_string(*lexer.string_allocator,literal_file);
-                    //printf("%s\n",literal.buf);
                     insert_token(lexer,token_type::symbol,literal);
                 }
                 break;

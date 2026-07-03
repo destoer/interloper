@@ -235,10 +235,7 @@ ParserResult parse_for(Parser& parser, const Token& t)
         }
 
         // [v, i] in arr
-        else
-        {
-            return parse_for_range(parser,t,term_paren,true,false);
-        }
+        return parse_for_range(parser,t,term_paren,true,false);
     }
 
     // potential pointer for array iter
@@ -256,10 +253,7 @@ ParserResult parse_for(Parser& parser, const Token& t)
     }
 
     // must be iter for
-    else
-    {
-        return parse_for_iter(parser,t,term_paren);
-    }
+    return parse_for_iter(parser,t,term_paren);
 }
 
 
@@ -294,21 +288,18 @@ ParserResult parse_switch(Parser& parser, const Token& t)
     {
         const auto case_tok = peek(parser,0);
 
-
-        if(case_tok.type == token_type::default_t)
+        if(consume_match(parser,token_type::default_t))
         {
             if(switch_node->default_statement)
             {
                 return parser_error(parser,parse_error::malformed_stmt,case_tok,"Cannot have two default statements in switch statement");
             }
 
-            (void)consume(parser,token_type::default_t);
             const auto colon_err = consume(parser,token_type::colon);
             if(colon_err)
             {
                 return *colon_err;
             }
-
 
             const auto case_res = make_case(parser,nullptr);
             if(!case_res)

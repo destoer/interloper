@@ -22,10 +22,7 @@ builtin_type value_type(const Value& value)
             return builtin_type::s32_t;
         }
 
-        else
-        {
-            return builtin_type::s64_t;
-        }
+        return builtin_type::s64_t;
     }
 
     else
@@ -48,11 +45,8 @@ builtin_type value_type(const Value& value)
             return builtin_type::u32_t;
         }
 
-        else
-        {
-            return builtin_type::u64_t;
-        }        
-    }    
+        return builtin_type::u64_t;      
+    }   
 }
 
 TypeResult promote_signed_unsigned(Interloper& itl,Type* signed_type, Type* unsigned_type)
@@ -126,10 +120,7 @@ TypeResult effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, arith_
         }
 
         // something else
-        else
-        {
-            return compile_error(itl,itl_error::undefined_type_oper,"arithmetic operation undefined for %t and %t",ltype,rtype);
-        }
+        return compile_error(itl,itl_error::undefined_type_oper,"arithmetic operation undefined for %t and %t",ltype,rtype);
     }
 
     // pointer arithmetic is fine
@@ -149,10 +140,7 @@ TypeResult effective_arith_type(Interloper& itl,Type *ltype, Type *rtype, arith_
     }
 
     // one or more user defined
-    else
-    {
-        return compile_error(itl,itl_error::undefined_type_oper,"arithmetic operation undefined for %t and %t",ltype,rtype);   
-    }
+    return compile_error(itl,itl_error::undefined_type_oper,"arithmetic operation undefined for %t and %t",ltype,rtype);   
 }
 
 TypeResult check_comparison_operation(Interloper& itl,const Type *ltype, const Type *rtype, comparison_op type)
@@ -246,12 +234,11 @@ TypeResult check_comparison_operation(Interloper& itl,const Type *ltype, const T
         }
     }
 
-
-    // no matching operator
-    else 
+    else
     {
+        // no matching operator
         return compile_error(itl,itl_error::undefined_type_oper,"logical operation on user defined type: %t : %t",ltype,rtype);
-    }   
+    }
 
     return make_builtin(itl,builtin_type::bool_t);
 }
@@ -331,27 +318,10 @@ Option<itl_error> check_const(Interloper&itl, const Type* ltype, const Type* rty
             }
 
             case type_class::struct_t:
-            {
-                done = true;
-                break;
-            }
-
             case type_class::enum_t:
-            {
-                done = true;
-                break;
-            }
-
             case type_class::func_pointer_t:
-            {
-                done = true;
-                break;
-            }
-
-            case type_class::tuple_t: assert(false); break;
-
-            // check end type
             case type_class::builtin_t:
+            case type_class::tuple_t: 
             {
                 done = true;
                 break;
@@ -499,45 +469,43 @@ Option<itl_error> type_check_pointer(Interloper& itl,const Type* ltype, const Ty
         if(ltype->kind != rtype->kind)
         {
             indirection = false;
+            break;
         }
 
-        else
+        switch(ltype->kind)
         {
-            switch(ltype->kind)
+            case type_class::pointer_t:
             {
-                case type_class::pointer_t:
+                const auto null_err = type_check_pointer_nullable(itl,base_ltype,base_rtype,assign_kind);
+                if(null_err)
                 {
-                    const auto null_err = type_check_pointer_nullable(itl,base_ltype,base_rtype,assign_kind);
-                    if(null_err)
-                    {
-                        return null_err;
-                    }
-
-                    ltype = deref_pointer(ltype);
-                    rtype = deref_pointer(rtype);
-
-                    break;
+                    return null_err;
                 }
 
-                case type_class::array_t:
+                ltype = deref_pointer(ltype);
+                rtype = deref_pointer(rtype);
+
+                break;
+            }
+
+            case type_class::array_t:
+            {
+                if(!is_runtime_size(ltype) || !is_runtime_size(rtype))
                 {
-                    if(!is_runtime_size(ltype) || !is_runtime_size(rtype))
-                    {
-                        return compile_error(itl,itl_error::array_type_error,"Pointer to fixed array");
-                    }
-
-                    ltype = index_arr(ltype);
-                    rtype = index_arr(rtype);
-
-                    break;
+                    return compile_error(itl,itl_error::array_type_error,"Pointer to fixed array");
                 }
 
-                // is a standard type, struct, enum, builtin etc2
-                default:
-                {
-                    indirection = false;
-                    break;
-                }
+                ltype = index_arr(ltype);
+                rtype = index_arr(rtype);
+
+                break;
+            }
+
+            // is a standard type, struct, enum, builtin etc2
+            default:
+            {
+                indirection = false;
+                break;
             }
         }
     }
@@ -547,14 +515,10 @@ Option<itl_error> type_check_pointer(Interloper& itl,const Type* ltype, const Ty
         return compile_error(itl,itl_error::pointer_type_error,"expected pointer of type %t got %t",(Type*)base_ltype,(Type*)base_rtype);
     }
 
-    // anything else
-    else
+    // if base types still aren't equal we have a problem!
+    else if(!plain_type_equal(ltype,rtype))
     {
-        // if base types still aren't equal we have a problem!
-        if(!plain_type_equal(ltype,rtype))
-        {
-            return compile_error(itl,itl_error::pointer_type_error,"expected pointer of type %t got %t",(Type*)base_ltype,(Type*)base_rtype);
-        }
+        return compile_error(itl,itl_error::pointer_type_error,"expected pointer of type %t got %t",(Type*)base_ltype,(Type*)base_rtype);
     }
 
     return option::none;
@@ -604,19 +568,17 @@ Option<itl_error> check_assign_plain(Interloper& itl, const Type* ltype, const T
 
         // something else (probably by here we only want the same types to be allowed)
         // i.e when we add a boolean type or pointers etc
-        else
-        {
-            // void is not assignable!
-            if(builtin_r == builtin_type::void_t || builtin_l == builtin_type::void_t)
-            {
-                return compile_error(itl,itl_error::undefined_type_oper,"void assign %t = %t",ltype,rtype);
-            }
 
-            // must be same type
-            else if(builtin_r != builtin_l)
-            {
-                return compile_error(itl,itl_error::undefined_type_oper,"invalid assign %t = %t",ltype,rtype);     
-            }
+        // void is not assignable!
+        else if(builtin_r == builtin_type::void_t || builtin_l == builtin_type::void_t)
+        {
+            return compile_error(itl,itl_error::undefined_type_oper,"void assign %t = %t",ltype,rtype);
+        }
+
+        // must be same type
+        else if(builtin_r != builtin_l)
+        {
+            return compile_error(itl,itl_error::undefined_type_oper,"invalid assign %t = %t",ltype,rtype);     
         }
     }
 
@@ -795,6 +757,7 @@ Option<itl_error> type_check_array(Interloper& itl, const Type* ltype, const Typ
             default:
             {
                 done = true;
+                break;
             }
         }
     }
@@ -820,31 +783,27 @@ Option<itl_error> check_assign_internal(Interloper& itl,const Type *ltype, const
         }
     }
 
-    // check assign by ltype
-    else
+    else if(is_pointer(ltype))
     {
-        if(is_pointer(ltype))
+        const auto ptr_err = type_check_pointer(itl,ltype,rtype,type);
+        if(ptr_err)
         {
-            const auto ptr_err = type_check_pointer(itl,ltype,rtype,type);
-            if(ptr_err)
-            {
-                return ptr_err;
-            }
+            return ptr_err;
         }
+    }
 
-        else if(is_array(ltype))
+    else if(is_array(ltype))
+    {
+        const auto array_err = type_check_array(itl,ltype,rtype,type);
+        if(array_err)
         {
-            const auto array_err = type_check_array(itl,ltype,rtype,type);
-            if(array_err)
-            {
-                return array_err;
-            }
+            return array_err;
         }
+    }
 
-        else
-        {            
-            return compile_error(itl,itl_error::mismatched_args,"cannot assign %t = %t",ltype,rtype);
-        }
+    else
+    {            
+        return compile_error(itl,itl_error::mismatched_args,"cannot assign %t = %t",ltype,rtype);
     }
 
     if(type == assign_type::no_const)

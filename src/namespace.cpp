@@ -237,11 +237,16 @@ Result<TypeDecl*,itl_error> lookup_incomplete_decl(Interloper& itl, const TypeLo
             TypeDef* def = (TypeDef*)decl;
 
             // Check validity on templates
-            if(def->generic_base && !info.generic_args)
+            if(def->generic_base)
             {
+                if(!info.generic_args)
+                {
+                    return compile_error(itl,itl_error::generic,"Generic type %n%s instantiated without args",
+                        info.name_space,info.name);
+                }
+
+                // TODO: Scan for a existing generic
                 assert(false);
-                return compile_error(itl,itl_error::generic,"Generic type %n%s instantiated without args",
-                    info.name_space,info.name);
             }
 
             if(!def->generic_base && info.generic_args)

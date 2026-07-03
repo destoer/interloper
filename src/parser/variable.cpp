@@ -325,16 +325,13 @@ ParserResult declaration(Parser &parser, token_type terminator, b32 is_const_dec
 
         default:
         {
-            if(eq.type == terminator)
-            {
-                (void)consume(parser,terminator);
-            }
-
-            else
+            if(eq.type != terminator)
             {
                 return parser_error(parser,parse_error::invalid_terminator,eq,"malformed declaration: got %s expected terminator %s",
                     tok_name(eq.type),tok_name(terminator));
             }
+
+            (void)consume(parser,terminator);
             break;
         }
     }

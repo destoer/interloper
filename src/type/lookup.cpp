@@ -29,14 +29,14 @@ TypeLookupInfo type_lookup_from_parts(const String& name, NameSpace* name_space,
     return info;
 }
 
-Type* copy_type_internal(Interloper& itl, const Type* type)
+Type* copy_type(Interloper& itl, const Type* type)
 {
     switch(type->kind)
     {
         case type_class::array_t:
         {
             ArrayType* array_type = (ArrayType*)type;
-            Type* contained_type = copy_type_internal(itl,array_type->contained_type);
+            Type* contained_type = copy_type(itl,array_type->contained_type);
 
             return make_array(itl,contained_type,array_type->size,type->flags);
         }
@@ -45,7 +45,7 @@ Type* copy_type_internal(Interloper& itl, const Type* type)
         {
             PointerType* pointer_type = (PointerType*)type;
 
-            Type* contained_type = copy_type_internal(itl,pointer_type->contained_type);
+            Type* contained_type = copy_type(itl,pointer_type->contained_type);
             
             return make_pointer(itl,contained_type,pointer_type->pointer_kind,type->flags);
         }
@@ -99,12 +99,6 @@ Type* copy_type_internal(Interloper& itl, const Type* type)
     assert(false);    
 }
 
-Type* copy_type(Interloper& itl, const Type* type)
-{
-    return copy_type_internal(itl,type);
-}
-
-
 Result<TypeDecl*,itl_error> lookup_type(Interloper& itl,const TypeLookupInfo& info)
 {
     const auto res = lookup_incomplete_decl(itl,info);
@@ -148,12 +142,7 @@ DefInfo* parser_lookup_definition(Parser& parser, NameSpace* name_space, const S
 FunctionDef* parser_lookup_func(Parser& parser, NameSpace* name_space, const String& name)
 {
     DefInfo* info = parser_lookup_definition(parser,name_space,name);
-    if(!info)
-    {
-        return nullptr;
-    }
-
-    if(info->type != definition_type::function)
+    if(!info || info->type != definition_type::function)
     {
         return nullptr;
     }
@@ -164,12 +153,7 @@ FunctionDef* parser_lookup_func(Parser& parser, NameSpace* name_space, const Str
 TypeDecl* parser_lookup_type(Parser& parser, NameSpace* name_space, const String& name)
 {
     DefInfo* info = parser_lookup_definition(parser,name_space,name);
-    if(!info)
-    {
-        return nullptr;
-    }
-
-    if(info->type != definition_type::type)
+    if(!info || info->type != definition_type::type)
     {
         return nullptr;
     }
@@ -288,7 +272,7 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
                 // NOTE: here we are doing the heavy lifting on defs by our self
                 // to handle out of order decl so we directly query the type table
                 // rather than using lookup_type
-                const auto user_res =  lookup_incomplete_decl(itl,type_node_to_lookup(type_decl,type_lookup_kind::any_t));
+                const auto user_res =  lookup_incomplete_decl(itl,type_node_to_lookup(type_decl,type_lookup_kind::any_t));  
                 if(!user_res)
                 {
                     return user_res.error();
