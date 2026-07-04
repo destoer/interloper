@@ -301,13 +301,58 @@ Option<itl_error> check_generic_constraints(Interloper& itl, const GenericOverlo
     return option::none;
 }
 
-Option<itl_error> deduce_generic_types(Interloper& itl, FuncCallNode* func_call, FuncNode& node, HashTable<String,Generic*>& generic_lookup)
+Option<itl_error> deduce_generic_type(Interloper& itl, HashTable<String,Generic*>& generic_lookup, TypeNode* type_node, AstNode* expr)
+{
+    const auto generic_opt = lookup(generic_lookup,type_node->name);
+
+    if(!generic_opt)
+    {
+        return compile_error(itl,itl_error::undeclared,"Generic type %S does not exist",type_node->name);
+    }
+
+    auto& generic = *generic_opt;
+
+    auto deduced_type_res = cut_generic_compound(itl,expr->expr_type,type_node);
+    if(!deduced_type_res)
+    {
+        return deduced_type_res.error();
+    }
+
+    Type* deduced_type = *deduced_type_res;
+
+    if(!generic->type)
+    {
+        generic->type = deduced_type;
+        return option::none;
+    }
+
+    if(type_equal(generic->type,deduced_type))
+    {
+        return option::none;
+    }
+
+    // Types are not equal attempt to promote them
+    if(!(is_integer(generic->type) && is_integer(deduced_type)))
+    {
+        return compile_error(itl,itl_error::generic,"Mismatched generic types %t and %t",generic->type,deduced_type);
+    }
+    
+    const auto promotion_res = promote_integer_type(itl,generic->type,deduced_type);
+    if(!promotion_res)
+    {
+        return promotion_res.error();
+    }
+
+    generic->type = *promotion_res;
+    return option::none;
+}
+
+Option<itl_error> deduce_generic_func_types(Interloper& itl, FuncCallNode* func_call, FuncNode& node, HashTable<String,Generic*>& generic_lookup)
 {
     // Deduce generic types
     for(u32 a = 0; a < count(node.args); a++)
     {
         DeclNode* decl = node.args[a];
-
         TypeNode* type_node = decl->type;
 
         if(type_node->kind != type_node_kind::generic)
@@ -316,86 +361,50 @@ Option<itl_error> deduce_generic_types(Interloper& itl, FuncCallNode* func_call,
         }
 
         AstNode* expr = func_call->args[a];
-
-        const auto generic_opt = lookup(generic_lookup,type_node->name);
-
-        if(!generic_opt)
+        const auto err = deduce_generic_type(itl,generic_lookup,type_node,expr);
+        if(err)
         {
-            return compile_error(itl,itl_error::undeclared,"Generic type %S does not exist",type_node->name);
+            return err;
         }
-
-        auto& generic = *generic_opt;
-
-        auto deduced_type_res = cut_generic_compound(itl,expr->expr_type,decl->type);
-        if(!deduced_type_res)
-        {
-            return deduced_type_res.error();
-        }
-
-        Type* deduced_type = *deduced_type_res;
-
-
-        if(!generic->type)
-        {
-            generic->type = deduced_type;
-        }
-
-        if(type_equal(generic->type,deduced_type))
-        {
-            continue;
-        }
-
-        // Types are not equal attempt to promote them
-        if(!(is_integer(generic->type) && is_integer(deduced_type)))
-        {
-            return compile_error(itl,itl_error::generic,"Mismatched generic types %t and %t",generic->type,deduced_type);
-        }
-        
-        const auto promotion_res = promote_integer_type(itl,generic->type,deduced_type);
-        if(!promotion_res)
-        {
-            return promotion_res.error();
-        }
-
-        generic->type = *promotion_res;
     }
 
     return option::none;
 }
 
-Result<Array<Generic>,itl_error> deduce_generic_args(Interloper& itl, FuncNode& node, FuncCallNode* func_call)
+Result<HashTable<String,Generic*>,itl_error> make_generic_lookup(Interloper& itl,GenericOverload& generic_overload)
 {
-    auto generic_overload = copy_array(node.generic);
-
-    // TODO: This ideally needs caching.
     auto generic_lookup = make_table<String,Generic*>();
 
-    for(u32 i = 0; i < count(generic_overload); i++)
+    for(auto& generic: generic_overload)
     {
-        const auto& generic = generic_overload[i];
-
         if(contains(generic_lookup,generic.name))
         {
-            destroy_table(generic_lookup);
-            destroy_arr(generic_overload);
             return compile_error(itl,itl_error::redeclaration,"Generic %S is declared twice",generic.name);
         }
 
-        add(generic_lookup,generic.name,&generic_overload[i]);
+        add(generic_lookup,generic.name,&generic);
     }
 
-    for(u32 i = 0; i < count(func_call->generic_args); i++)
+    return generic_lookup;
+}
+
+Option<itl_error> handle_generic_args(Interloper& itl, GenericOverload& generic_overload, const Array<AstNode*>& generic_args)
+{
+    if(count(generic_args) > count(generic_overload))
     {
-        AstNode* arg = func_call->generic_args[i];
+        return compile_error(itl,itl_error::generic,"Generic specifies too many args %d > %d",
+            count(generic_args),count(generic_overload));
+    }
+
+    for(u32 i = 0; i < count(generic_args); i++)
+    {
+        AstNode* arg = generic_args[i];
 
         if(generic_overload[i].constraint != constraint_type::type)
         {
             const auto type_res = get_type(itl,(TypeNode*)arg);
             if(!type_res)
             {
-                destroy_table(generic_lookup);
-                destroy_arr(generic_overload);
-
                 return type_res.error();
             }
 
@@ -407,16 +416,35 @@ Result<Array<Generic>,itl_error> deduce_generic_args(Interloper& itl, FuncNode& 
             const auto err = type_check_generic_known(itl,&generic_overload[i],arg);
             if(err)
             {
-                destroy_table(generic_lookup);
-                destroy_arr(generic_overload);
-
                 return *err;
             }
         }
-        
     }
 
-    const auto type_err = deduce_generic_types(itl,func_call,node,generic_lookup);
+    return option::none;
+}
+
+Result<Array<Generic>,itl_error> deduce_generic_args(Interloper& itl, FuncNode& node, FuncCallNode* func_call)
+{
+    auto generic_overload = copy_array(node.generic);
+
+    const auto arg_err = handle_generic_args(itl,generic_overload,func_call->generic_args);
+    if(arg_err)
+    {
+        destroy_arr(generic_overload);
+        return *arg_err;
+    }
+  
+    const auto generic_lookup_res = make_generic_lookup(itl,generic_overload);
+    if(!generic_lookup_res)
+    {
+        destroy_arr(generic_overload);
+        return generic_lookup_res.error();
+    }
+    auto generic_lookup = *generic_lookup_res;
+
+
+    const auto type_err = deduce_generic_func_types(itl,func_call,node,generic_lookup);
     destroy_table(generic_lookup);
 
     if(type_err)
@@ -436,11 +464,11 @@ Result<Array<Generic>,itl_error> deduce_generic_args(Interloper& itl, FuncNode& 
     return generic_overload;
 }
 
-bool check_overload(const Function* func, const Array<Generic>& generic_overload)
+bool check_overload(const Array<Generic>& args, const Array<Generic>& generic_overload)
 {
     for(u32 a = 0; a < count(generic_overload); a++)
     {
-        if(!type_equal(generic_overload[a].type,func->root->generic[a].type))
+        if(!type_equal(generic_overload[a].type,args[a].type))
         {
             return false;
         }
@@ -453,7 +481,7 @@ Function* find_func_overload(const FuncOverloadTable& overload, const Array<Gene
 {
     for(Function* func : overload)
     {
-        if(check_overload(func,generic_overload))
+        if(check_overload(func->root->generic,generic_overload))
         {
             return func;
         }
@@ -462,6 +490,23 @@ Function* find_func_overload(const FuncOverloadTable& overload, const Array<Gene
     return nullptr;
 
 }
+
+
+
+TypeDecl* find_type_overload(const TypeDef& def, const Array<Generic>& generic_overload)
+{
+    for(TypeDecl* decl : def.generic_overload)
+    {
+        if(check_overload(decl->overload,generic_overload))
+        {
+            return decl;
+        }
+    }
+
+    return nullptr;
+
+}
+
 
 
 TypeResult type_check_generic_var(Interloper& itl, AstNode* expr)

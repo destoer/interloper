@@ -32,7 +32,6 @@ OpcodeNode* lower_reg3_ir(Function& func, Block& block, OpcodeNode* node, const 
         node->value = Opcode(make_reg2_dst<group2>(dst,v2,type),opcode_state::ir);
     }
 
-
     else if(dst == v2)
     {
         // add dst, v1, dst
@@ -62,7 +61,6 @@ OpcodeNode* lower_reg3_ir(Function& func, Block& block, OpcodeNode* node, const 
     else
     {
         insert_mov_reg2_at(block,node,dst,v1,rtype);
-
         node->value = Opcode(make_reg2_dst<group2>(dst,v2,type),opcode_state::ir);
     }
 

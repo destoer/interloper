@@ -1,3 +1,6 @@
+TypeDecl* find_type_overload(const TypeDef& def, const Array<Generic>& generic_overload);
+
+
 NameSpace* alloc_new_scope(ArenaAllocator& arena)
 {
     NameSpace* new_scope = (NameSpace*)allocate(arena,sizeof(NameSpace));
@@ -218,13 +221,22 @@ Result<TypeDecl*,itl_error> lookup_incomplete_decl(Interloper& itl, const TypeLo
     // Check any generics are used correctly
     switch(decl->kind)
     {
-        case type_kind::builtin: break;
-        
+        case type_kind::builtin:
+        {
+            if(info.generic_args)
+            {
+                return compile_error(itl,itl_error::generic,"Cannot use a generic on a builtin type %n%S",
+                    info.name_space,info.name);          
+            }
+
+            break;
+        }
+
         case type_kind::alias_t:
         {
             if(info.generic_args)
             {
-                return compile_error(itl,itl_error::generic,"Cannot use type alias as a generic",
+                return compile_error(itl,itl_error::generic,"Cannot use type alias as a generic %n%S",
                     info.name_space,info.name);          
             }
 
@@ -241,17 +253,21 @@ Result<TypeDecl*,itl_error> lookup_incomplete_decl(Interloper& itl, const TypeLo
             {
                 if(!info.generic_args)
                 {
-                    return compile_error(itl,itl_error::generic,"Generic type %n%s instantiated without args",
+                    return compile_error(itl,itl_error::generic,"Generic type %n%S instantiated without args",
                         info.name_space,info.name);
                 }
 
-                // TODO: Scan for a existing generic
                 assert(false);
+                // const auto concrete_decl = find_type_overload(*def,info.generic_args);
+                // if(concrete_decl)
+                // {
+                //     return concrete_decl;
+                // }
             }
 
             if(!def->generic_base && info.generic_args)
             {
-                return compile_error(itl,itl_error::generic,"Generic instantiation on plain type %n%s",
+                return compile_error(itl,itl_error::generic,"Generic instantiation on plain type %n%S",
                     info.name_space,info.name);
             }
 
