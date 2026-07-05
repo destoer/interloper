@@ -257,6 +257,7 @@ Result<TypeDecl*,itl_error> lookup_incomplete_decl(Interloper& itl, const TypeLo
                         info.name_space,info.name);
                 }
 
+                // TODO: Overload setup should be handled here even if incomplete
                 assert(false);
                 // const auto concrete_decl = find_type_overload(*def,info.generic_args);
                 // if(concrete_decl)

@@ -138,7 +138,7 @@ Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_nam
 
     else
     {
-        return parse_def(itl,(TypeDef*)decl_ptr,info).remap_to_err();
+        return parse_def(itl,decl_ptr).remap_to_err();
     }
 
     return option::none;    
@@ -323,14 +323,10 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
     }
 }
 
-Result<TypeDecl*, itl_error> parse_struct_def(Interloper& itl, TypeDef& def, const TypeLookupInfo& type_info)
+Result<TypeDecl*, itl_error> parse_struct_def(Interloper& itl, TypeDecl& decl)
 {
-    UNUSED(type_info);
-    // TODO: Handle generics
-    assert(!count(def.generic_base));
-
-    auto& decl = def.decl;
-
+    // TODO: Handle adding generic for reference
+    assert(!decl.overload);
     StructNode* node = (StructNode*)decl.root;
 
     // NOTE: we expect the caller to save this
@@ -387,6 +383,6 @@ Result<TypeDecl*, itl_error> parse_struct_def(Interloper& itl, TypeDef& def, con
     }
 
     add_struct(itl,structure,decl);
-    return &def.decl;
+    return &decl;
 }
 

@@ -273,39 +273,37 @@ void declare_compiler_type_aliases(Interloper& itl)
     add_internal_alias(itl,itl.string_type,"string");
 }
 
-Result<TypeDecl*,itl_error> parse_struct_def(Interloper& itl, TypeDef& def, const TypeLookupInfo& type_info);
+Result<TypeDecl*,itl_error> parse_struct_def(Interloper& itl, TypeDecl& decl);
 Result<TypeDecl*,itl_error> parse_alias_def(Interloper& itl, TypeDecl& decl);
 Result<TypeDecl*,itl_error> parse_enum_def(Interloper& itl, TypeDecl& decl, Set<u64>& set);
 
-Result<TypeDecl*,itl_error> parse_def(Interloper& itl, TypeDef* def, const TypeLookupInfo& type_info)
+Result<TypeDecl*,itl_error> parse_def(Interloper& itl, TypeDecl* decl)
 {
-    log(itl.itl_log,"Parse type: %s\n",def->decl.name.buf);
+    log(itl.itl_log,"Parse type: %s\n",decl->name.buf);
     // this node make be from a different context
     // save the current one
     push_context(itl);
 
-    Result<TypeDecl*, itl_error> res = &def->decl;
+    Result<TypeDecl*, itl_error> res = decl;
 
-    auto& decl = def->decl;
-
-    switch(decl.state)
+    switch(decl->state)
     {
         case type_def_state::not_checked:
         {
             // mark as checking to lock this against recursion!
-            decl.state = type_def_state::checking;
+            decl->state = type_def_state::checking;
 
-            switch(decl.kind)
+            switch(decl->kind)
             {
                 case type_kind::struct_t:
                 {
-                    res = parse_struct_def(itl,*def, type_info);
+                    res = parse_struct_def(itl,*decl);
                     break;
                 }
 
                 case type_kind::alias_t:
                 {
-                    res = parse_alias_def(itl,def->decl);
+                    res = parse_alias_def(itl,*decl);
                     break;
                 }
 
@@ -313,7 +311,7 @@ Result<TypeDecl*,itl_error> parse_def(Interloper& itl, TypeDef* def, const TypeL
                 {
                     auto set = make_set<u64>();
 
-                    res = parse_enum_def(itl,def->decl,set);
+                    res = parse_enum_def(itl,*decl,set);
                     destroy_set(set);
                     break;
                 }
@@ -327,7 +325,7 @@ Result<TypeDecl*,itl_error> parse_def(Interloper& itl, TypeDef* def, const TypeL
         case type_def_state::checking:
         {
             // TODO: add heuristics to scan for where!
-            return compile_error(itl,itl_error::black_hole,"Parse def: type %S is recursively defined",def->decl.name);
+            return compile_error(itl,itl_error::black_hole,"Parse def: type %S is recursively defined",decl->name);
         }
 
         // already checked we don't care
@@ -337,7 +335,7 @@ Result<TypeDecl*,itl_error> parse_def(Interloper& itl, TypeDef* def, const TypeL
         }
     }
 
-    log(itl.itl_log,"Finish parsing type: %s\n",decl.name.buf);
+    log(itl.itl_log,"Finish parsing type: %s\n",decl->name.buf);
 
     pop_context(itl);
     return res;

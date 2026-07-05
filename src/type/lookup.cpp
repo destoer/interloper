@@ -107,26 +107,23 @@ Result<TypeDecl*,itl_error> lookup_type(Interloper& itl,const TypeLookupInfo& in
         return res;
     }
 
-    TypeDef* def = (TypeDef*)res.value();
-
-    // TODO: Handle overload resolution
-    assert(!def->generic_base);
+    TypeDecl* decl = res.value();
 
     // currently type does not exist
     // attempt to parse the def
-    if(def->decl.state != type_def_state::checked)
+    if(decl->state != type_def_state::checked)
     {
         // no such definition exists
-        if(!(def->decl.flags & TYPE_DECL_DEF_FLAG))
+        if(!(decl->flags & TYPE_DECL_DEF_FLAG))
         {
             return compile_error(itl,itl_error::undeclared,"Type %n%s does not have a definition",info.name_space,info.name);
         }
 
         // okay attempt to parse the def
-        return parse_def(itl,def,info);
+        return parse_def(itl,decl);
     }
 
-    return &def->decl;
+    return decl;
 }
 
 DefInfo* parser_lookup_definition(Parser& parser, NameSpace* name_space, const String& name)
@@ -288,7 +285,7 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
                     // if this is not currently being checked parse it
                     if(user_type->state == type_def_state::not_checked)
                     {
-                        const auto type_res = parse_def(itl,(TypeDef*)user_type,type_node_to_lookup(type_decl,type_lookup_kind::any_t));
+                        const auto type_res = parse_def(itl,user_type);
                         if(!type_res)
                         {
                             return type_res.error();
