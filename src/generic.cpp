@@ -347,20 +347,20 @@ Option<itl_error> deduce_generic_type(Interloper& itl, HashTable<String,Generic*
     return option::none;
 }
 
-Option<itl_error> deduce_generic_func_types(Interloper& itl, FuncCallNode* func_call, FuncNode& node, HashTable<String,Generic*>& generic_lookup)
+Option<itl_error> deduce_generic_types(Interloper& itl, const Array<AstNode*> args, 
+    const Array<DeclNode*>& decl, HashTable<String,Generic*>& generic_lookup)
 {
     // Deduce generic types
-    for(u32 a = 0; a < count(node.args); a++)
+    for(u32 a = 0; a < count(args); a++)
     {
-        DeclNode* decl = node.args[a];
-        TypeNode* type_node = decl->type;
+        TypeNode* type_node = decl[a]->type;
+        AstNode* expr = args[a];
 
         if(type_node->kind != type_node_kind::generic)
         {
             continue;
         }
 
-        AstNode* expr = func_call->args[a];
         const auto err = deduce_generic_type(itl,generic_lookup,type_node,expr);
         if(err)
         {
@@ -424,11 +424,10 @@ Option<itl_error> handle_generic_args(Interloper& itl, GenericOverload& generic_
     return option::none;
 }
 
-Result<Array<Generic>,itl_error> deduce_generic_args(Interloper& itl, FuncNode& node, FuncCallNode* func_call)
+Result<Array<Generic>,itl_error> deduce_generic(Interloper& itl, GenericOverload& generic_overload, 
+    const Array<AstNode*>& generic_args, const Array<AstNode*>& args, const Array<DeclNode*>& decl)
 {
-    auto generic_overload = copy_array(node.generic);
-
-    const auto arg_err = handle_generic_args(itl,generic_overload,func_call->generic_args);
+    const auto arg_err = handle_generic_args(itl,generic_overload,generic_args);
     if(arg_err)
     {
         destroy_arr(generic_overload);
@@ -444,7 +443,7 @@ Result<Array<Generic>,itl_error> deduce_generic_args(Interloper& itl, FuncNode& 
     auto generic_lookup = *generic_lookup_res;
 
 
-    const auto type_err = deduce_generic_func_types(itl,func_call,node,generic_lookup);
+    const auto type_err = deduce_generic_types(itl,args,decl,generic_lookup);
     destroy_table(generic_lookup);
 
     if(type_err)
@@ -462,6 +461,12 @@ Result<Array<Generic>,itl_error> deduce_generic_args(Interloper& itl, FuncNode& 
     }
 
     return generic_overload;
+}
+
+Result<Array<Generic>,itl_error> deduce_generic_args(Interloper& itl, FuncNode& node, FuncCallNode* func_call)
+{
+    auto generic_overload = copy_array(node.generic);
+    return deduce_generic(itl,generic_overload,func_call->generic_args,func_call->args,node.args);
 }
 
 bool check_overload(const Array<Generic>& args, const Array<Generic>& generic_overload)
