@@ -233,7 +233,7 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
 
     // override that makes entire type constant
     // i.e arrays, structs, pointers, base
-    const u32 flags = type_decl->is_constant? TYPE_FLAG_CONST : 0; 
+    const u32 flags = (type_decl->flags & TYPE_CONSTANT_FLAG)? TYPE_CONST_FLAG : 0;
     b32 is_alias = false;
 
     // struct has checked that just a name without a full type is allready valid
@@ -332,7 +332,7 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
         }
     }
 
-    const u32 const_flag = type_decl->is_const? TYPE_FLAG_CONST : 0;
+    const u32 const_flag = (type_decl->flags & TYPE_CONST_FLAG);
 
     // need const on bottom type
     if(is_alias)

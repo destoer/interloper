@@ -197,13 +197,21 @@ enum class type_node_kind
     generic,
 };
 
+// Current type level is constant
+static constexpr u32 TYPE_CONST_FLAG = (1 << 0);
+// Constant for every part of the type converted to TYPE_CONST_FLAG
+static constexpr u32 TYPE_CONSTANT_FLAG = (1 << 1);
+// Type must be bound from result
+static constexpr u32 TYPE_USE_RESULT_FLAG = (1 << 2);
+// Force declare first in type decl
+static constexpr u32 FORCED_FIRST_FLAG = (1 << 3);
+
 struct TypeNode
 {
     AstNode node;
     String name;
 
-    b32 is_const = false;
-    b32 is_constant = false;
+    u32 flags = 0;
     builtin_type builtin = builtin_type::void_t;
     type_node_kind kind = type_node_kind::builtin;
     
@@ -397,7 +405,7 @@ struct DeclNode
     TypeNode* type = nullptr;
     AstNode* expr = nullptr;
 
-    b32 is_const = false;
+    u32 flags = 0;
 
     NamedSymbol sym;
 };
@@ -418,8 +426,6 @@ struct StructNode
     String name;
     String filename;
     Array<DeclNode*> members;
-    // is there a member forced to be first in the memory layout?
-    DeclNode* forced_first = nullptr;
 
     Array<Generic> generic;
     u32 attr_flags = 0;
@@ -1136,7 +1142,7 @@ AstNode* ast_decl(Parser& parser, const String& name,TypeNode* type, b32 is_cons
 
     decl_node->sym.name = name;
     decl_node->type = type;
-    decl_node->is_const = is_const;
+    decl_node->flags = is_const? TYPE_CONST_FLAG : 0;
 
     return (AstNode*)decl_node;        
 }

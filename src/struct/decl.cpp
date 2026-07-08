@@ -145,17 +145,17 @@ Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_nam
 }
 
 // returns member loc
-Result<u32,itl_error> add_member(Interloper& itl,Struct& structure,DeclNode* m, u32* size_count,b32 forced_first, u32 flags)
+Result<u32,itl_error> add_member(Interloper& itl,Struct& structure,DeclNode* member_decl, u32* size_count, u32 flags)
 {
     Member member;
-    member.name = m->sym.name;
+    member.name = member_decl->sym.name;
 
-    TypeNode* type_decl = m->type;
+    TypeNode* type_decl = member_decl->type;
 
-    itl.ctx.expr = (AstNode*)m; 
+    itl.ctx.expr = (AstNode*)member_decl; 
 
     // copy the init expr
-    member.expr = m->expr;
+    member.expr = member_decl->expr;
 
     u32 type_idx_override = INVALID_TYPE;
 
@@ -206,7 +206,7 @@ Result<u32,itl_error> add_member(Interloper& itl,Struct& structure,DeclNode* m, 
         member.offset = count(structure.members);
     }
 
-    else if(forced_first)
+    else if(member_decl->flags & FORCED_FIRST_FLAG)
     {
         member.offset = OFFSET_FORCED_FIRST;
     }
@@ -248,7 +248,7 @@ Result<u32,itl_error> add_member(Interloper& itl,Struct& structure,DeclNode* m, 
     return loc;
 }
 
-void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count, s32 forced_first, u32 flags)
+void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count, u32 flags)
 {
     // push members in order
     if(flags & ATTR_NO_REORDER)
@@ -272,54 +272,48 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
 
         structure.data_size = offset;
         structure.size = align_val(structure.data_size,GPR_SIZE);
+
+        return;
     }
 
     // default: reorder the struct for size
-    else
+    // handle alignment & get starting zones + total size
+    u32 alloc_start[4];
+    u32 byte_start = 0;
+
+    u32 member_start = 0;
+
+    // insert this as the first set of data in the byte section
+    if(structure.members[0].offset == OFFSET_FORCED_FIRST)
     {
-        // handle alginment & get starting zonnes + total size
-        u32 alloc_start[4];
+        auto& member = structure.members[0];
+        member.offset = 0;
+        const auto [size,count] = compute_member_size(itl,member.type);
+        
+        const u32 bytes = size * count;
 
-        u32 byte_start = 0;
+        // include allocation for this member
+        size_count[0] += bytes;
 
-        // insert this as the first set of data in the byte section
-        if(forced_first != -1)
-        {
-            auto& member = structure.members[forced_first];
-            const auto [size,count] = compute_member_size(itl,member.type);
-            
-            const u32 bytes = size * count;
+        // usual byte start offset by our insertion at front
+        byte_start = bytes;
 
-            // include allocation for this member
-            size_count[0] += bytes;
+        member_start = 1;
+    }
 
-            // usual byte start offset by our insertion at front
-            byte_start = bytes;
-        }
+    // finalise the offsets
+    structure.size = calc_alloc_sections(alloc_start,size_count,byte_start);
+    structure.data_size = structure.size;
 
-        // finalise the offsets
-        structure.size = calc_alloc_sections(alloc_start,size_count,byte_start);
+    // iter back over every member and give its offset
+    for(u32 m = member_start; m < count(structure.members); m++)
+    {
+        auto& member = structure.members[m];
 
-        structure.data_size = structure.size;
+        const auto [size,count] = compute_member_size(itl,member.type);
 
-        // iter back over every member and give its offset
-        for(u32 m = 0; m < count(structure.members); m++)
-        {
-            auto& member = structure.members[m];
-
-            const auto [size,count] = compute_member_size(itl,member.type);
-
-            if(member.offset == OFFSET_FORCED_FIRST)
-            {
-                member.offset = 0;
-            }
-
-            else 
-            {
-                const u32 zone_offset = member.offset;
-                member.offset = alloc_start[log2(size)] + (zone_offset * size);
-            }
-        }
+        const u32 zone_offset = member.offset;
+        member.offset = alloc_start[log2(size)] + (zone_offset * size);
     }
 }
 
@@ -348,34 +342,19 @@ Result<TypeDecl*, itl_error> parse_struct_def(Interloper& itl, TypeDecl& decl)
     // and then we can go back through and align the struct with them
     u32 size_count[4] = {0};
 
-    s32 forced_first_loc = -1;
-
     const u32 flags = node->attr_flags;
-
-    // force this to be at the first location in mem
-    if(node->forced_first)
-    {
-        auto forced_first_loc_res = add_member(itl,structure,node->forced_first,size_count,true,flags);
-
-        if(!forced_first_loc_res)
-        {
-            return forced_first_loc_res.error();
-        }
-
-        forced_first_loc = *forced_first_loc_res;
-    }
 
     // parse out members
     for(u32 i = 0; i < count(node->members); i++)
     {
-        const auto member_res = add_member(itl,structure,node->members[i],size_count,false,flags);
+        const auto member_res = add_member(itl,structure,node->members[i],size_count,flags);
         if(!member_res)
         {
             return member_res.error();
         }
     }
 
-    finalise_member_offsets(itl,structure,size_count,forced_first_loc,flags);
+    finalise_member_offsets(itl,structure,size_count,flags);
     
     if(itl.print_types)
     {

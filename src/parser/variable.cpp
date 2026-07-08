@@ -81,8 +81,8 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser)
         is_template = true;
     }
 
-    type->is_const = is_const;
-    type->is_constant = is_constant;
+    type->flags |= is_const? TYPE_CONST_FLAG : 0;
+    type->flags |= is_constant? TYPE_CONSTANT_FLAG: 0;
 
     if(is_template && plain_tok.type == token_type::symbol)
     {

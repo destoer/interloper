@@ -236,7 +236,9 @@ Option<parse_error> parse_struct_decl(Parser& parser, TypeDef& def)
         {
             return decl_res.error();
         }
-        struct_node->forced_first = (DeclNode*)decl_res.value();
+        DeclNode* forced_first = (DeclNode*)decl_res.value();
+        forced_first->flags |= FORCED_FIRST_FLAG;
+        push_var(struct_node->members,forced_first);
     }
 
     const auto left_c_brace_err = consume(parser,token_type::left_c_brace);

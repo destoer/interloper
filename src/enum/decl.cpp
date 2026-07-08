@@ -230,7 +230,7 @@ Enum enum_from_type(EnumTable& enum_table, const EnumType* enum_type)
 
 Type* make_enum_type(Interloper& itl,Enum& enumeration)
 {
-    const u32 flags = enumeration.use_result? TYPE_USE_RESULT : 0;
+    const u32 flags = enumeration.use_result? TYPE_USE_RESULT_FLAG : 0;
     return make_enum(itl,enumeration.type_idx,flags);
 }
 

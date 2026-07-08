@@ -72,7 +72,7 @@ TypeResult type_check_access_struct_member(Interloper& itl, StructAccessNode* ac
 
                 member_access.member = u32(array_member_access::data);
 
-                const u32 flags = is_fixed? TYPE_FLAG_CONST : 0;
+                const u32 flags = is_fixed? TYPE_CONST_FLAG : 0;
 
                 // This is never considered nullable. Arrays should be checked by size
                 return member_access.expr_type = make_reference(itl,array_type->contained_type,flags);

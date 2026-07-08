@@ -178,7 +178,7 @@ b32 is_string(const Type* type)
 
 b32 is_const(const Type* type)
 {
-    return type->flags & TYPE_FLAG_CONST;
+    return type->flags & TYPE_CONST_FLAG;
 }
 
 b32 is_const_string(const ArrayType* type)

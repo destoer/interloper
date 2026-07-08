@@ -1,4 +1,4 @@
-#include "parser.h"
+#include <parser.h>
 #include <interloper.h>
 #include <unistd.h>
 
@@ -1618,7 +1618,8 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         {
             TypeNode* type = (TypeNode*)root;
 
-            print_itl(itl,"%ntype %s %S %t",type->name_space,type->is_const? "const" : "",type->name,type->node.expr_type);
+            const b32 is_const = type->flags & TYPE_CONST_FLAG;
+            print_itl(itl,"%ntype %s %S %t",type->name_space,is_const? "const" : "",type->name,type->node.expr_type);
 
             for(const auto& compound : type->compound)
             {
@@ -1655,11 +1656,6 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
                 print_internal(itl,(AstNode*)member, depth + 1);
             }
 
-            if(struct_node->forced_first)
-            {
-                print_internal(itl,(AstNode*)struct_node->forced_first, depth + 1);
-            }
-
             break;
         }
 
@@ -1690,8 +1686,9 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         {
             DeclNode* decl = (DeclNode*)root;
             const auto name = named_symbol_name(itl,root,decl->sym);
-
-            print_itl(itl,"%sDecl %S",decl->is_const? "const ": "",name);
+            
+            const b32 is_const = decl->flags & TYPE_CONST_FLAG;
+            print_itl(itl,"%sDecl %S",is_const? "const ": "",name);
 
             print_internal(itl,(AstNode*)decl->type, depth + 1);
 

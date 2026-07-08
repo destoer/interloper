@@ -281,9 +281,6 @@ enum class assign_type
     none,
 };
 
-static constexpr u32 TYPE_FLAG_CONST = (1 << 0);
-static constexpr u32 TYPE_USE_RESULT = (1 << 1);
-
 struct Type
 {
     type_class kind;
