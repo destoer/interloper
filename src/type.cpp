@@ -56,15 +56,6 @@ void add_type_to_scope(NameSpace* name_space, TypeDecl* decl)
     add(name_space->table,decl->name,info);
 }
 
-template<typename T>
-T* alloc_type_decl(Interloper& itl)
-{
-    T* out = (T*)allocate(itl.type_allocator,sizeof(T));
-    *out = {};
-
-    return out;
-}
-
 void add_internal_type_decl(Interloper& itl, u32 type_idx, const String& name, type_kind kind)
 {
     TypeDecl* type_decl = alloc_type_decl<TypeDecl>(itl);

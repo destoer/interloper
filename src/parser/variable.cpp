@@ -147,7 +147,7 @@ Result<TypeNode*,parse_error> parse_type(Parser &parser)
             return *parse_err;
         }
 
-        const auto generic_args_res = parse_generic_args(parser,def->generic_base,plain_tok);
+        const auto generic_args_res = parse_generic_args(parser,def->decl.overload,plain_tok);
         if(!generic_args_res)
         {
             return generic_args_res.error();

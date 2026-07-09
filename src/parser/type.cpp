@@ -226,7 +226,7 @@ Option<parse_error> parse_struct_decl(Parser& parser, TypeDef& def)
     }
 
     // Mark the generic overload early so it can be used in a sub parsing.
-    def.generic_base = struct_node->generic;
+    def.decl.overload = struct_node->generic;
 
     // Does this struct have a forced first member?
     if(consume_match(parser,token_type::left_paren))

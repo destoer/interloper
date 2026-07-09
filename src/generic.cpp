@@ -463,10 +463,19 @@ Result<Array<Generic>,itl_error> deduce_generic(Interloper& itl, GenericOverload
     return generic_overload;
 }
 
-Result<Array<Generic>,itl_error> deduce_generic_args(Interloper& itl, FuncNode& node, FuncCallNode* func_call)
+Result<Array<Generic>,itl_error> deduce_generic_func(Interloper& itl, FuncNode& node, FuncCallNode* func_call)
 {
     auto generic_overload = copy_array(node.generic);
     return deduce_generic(itl,generic_overload,func_call->generic_args,func_call->args,node.args);
+}
+
+Result<Array<Generic>,itl_error> deduce_generic_struct(Interloper& itl, TypeDecl* decl, const TypeLookupInfo& info)
+{
+    StructNode* struct_node = (StructNode*)decl->root;
+    const Array<AstNode*> blank;
+
+    auto generic_overload = copy_array(struct_node->generic);
+    return deduce_generic(itl,generic_overload,info.generic_args,blank,struct_node->members);
 }
 
 bool check_overload(const Array<Generic>& args, const Array<Generic>& generic_overload)

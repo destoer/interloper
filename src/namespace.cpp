@@ -1,5 +1,16 @@
 TypeDecl* find_type_overload(const TypeDef& def, const Array<Generic>& generic_overload);
+Result<Array<Generic>,itl_error> deduce_generic_struct(Interloper& itl, TypeDecl* decl, const TypeLookupInfo& info);
+AstNode* copy_ast(Interloper& itl, AstNode* node);
 
+
+template<typename T>
+T* alloc_type_decl(Interloper& itl)
+{
+    T* out = (T*)allocate(itl.type_allocator,sizeof(T));
+    *out = {};
+
+    return out;
+}
 
 NameSpace* alloc_new_scope(ArenaAllocator& arena)
 {
@@ -249,7 +260,7 @@ Result<TypeDecl*,itl_error> lookup_incomplete_decl(Interloper& itl, const TypeLo
             TypeDef* def = (TypeDef*)decl;
 
             // Check validity on templates
-            if(def->generic_base)
+            if(def->decl.overload)
             {
                 if(!info.generic_args)
                 {
@@ -257,16 +268,34 @@ Result<TypeDecl*,itl_error> lookup_incomplete_decl(Interloper& itl, const TypeLo
                         info.name_space,info.name);
                 }
 
-                // TODO: Overload setup should be handled here even if incomplete
-                assert(false);
-                // const auto concrete_decl = find_type_overload(*def,info.generic_args);
-                // if(concrete_decl)
-                // {
-                //     return concrete_decl;
-                // }
+                // Deduce and attempt to find an overload
+                const auto overload_res = deduce_generic_struct(itl,decl,info);
+                if(!overload_res)
+                {
+                    return overload_res.error();
+                }
+
+                auto overload = *overload_res;
+
+                const auto concrete_decl = find_type_overload(*def,overload);
+                if(concrete_decl)
+                {
+                    destroy_arr(overload);
+                    return concrete_decl;
+                }
+                
+                // Record a new overload and return it ready for parsing
+                TypeDecl* generic_decl = alloc_type_decl<TypeDecl>(itl);
+                *generic_decl = *decl;
+
+                generic_decl->overload = overload;
+                generic_decl->root = copy_ast(itl,decl->root);
+
+                push_var(def->generic_overload,generic_decl);
+                return generic_decl;
             }
 
-            if(!def->generic_base && info.generic_args)
+            else if(!def->decl.overload && info.generic_args)
             {
                 return compile_error(itl,itl_error::generic,"Generic instantiation on plain type %n%S",
                     info.name_space,info.name);

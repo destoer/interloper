@@ -257,8 +257,6 @@ struct TypeDef
     type_def_kind kind;
     TopLevelDefinition type_def;
 
-    // NOTE: This is not owned
-    GenericOverload generic_base;
     TypeOverloadTable generic_overload;
 };
 
