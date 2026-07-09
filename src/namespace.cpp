@@ -208,6 +208,47 @@ TypeDecl* lookup_incomplete_decl_internal(Interloper& itl, const TypeLookupInfo&
     return lookup_incomplete_decl_internal_scoped(info.name_space,info.name);
 }
 
+Result<TypeDecl*,itl_error> find_type_overload(Interloper& itl, TypeDef* def, const TypeLookupInfo& info)
+{
+    Array<Generic> overload;
+
+    TypeDecl* decl = &def->decl;
+
+    if(decl->kind == type_kind::struct_t)
+    {
+        // Deduce and attempt to find an overload
+        const auto overload_res = deduce_generic_struct(itl,decl,info);
+        if(!overload_res)
+        {
+            return overload_res.error();
+        }
+
+        overload = *overload_res;
+    }
+
+    else
+    {
+        unimplemented("Generic enum");
+    }
+
+    const auto concrete_decl = find_type_overload(*def,overload);
+    if(concrete_decl)
+    {
+        destroy_arr(overload);
+        return concrete_decl;
+    }
+    
+    // Record a new overload and return it ready for parsing
+    TypeDecl* generic_decl = alloc_type_decl<TypeDecl>(itl);
+    *generic_decl = *decl;
+
+    generic_decl->overload = overload;
+    generic_decl->root = copy_ast(itl,decl->root);
+
+    push_var(def->generic_overload,generic_decl);
+    return generic_decl;
+}
+
 Result<TypeDecl*,itl_error> lookup_incomplete_decl(Interloper& itl, const TypeLookupInfo& info)
 {
     const auto decl = lookup_incomplete_decl_internal(itl,info);
@@ -268,31 +309,7 @@ Result<TypeDecl*,itl_error> lookup_incomplete_decl(Interloper& itl, const TypeLo
                         info.name_space,info.name);
                 }
 
-                // Deduce and attempt to find an overload
-                const auto overload_res = deduce_generic_struct(itl,decl,info);
-                if(!overload_res)
-                {
-                    return overload_res.error();
-                }
-
-                auto overload = *overload_res;
-
-                const auto concrete_decl = find_type_overload(*def,overload);
-                if(concrete_decl)
-                {
-                    destroy_arr(overload);
-                    return concrete_decl;
-                }
-                
-                // Record a new overload and return it ready for parsing
-                TypeDecl* generic_decl = alloc_type_decl<TypeDecl>(itl);
-                *generic_decl = *decl;
-
-                generic_decl->overload = overload;
-                generic_decl->root = copy_ast(itl,decl->root);
-
-                push_var(def->generic_overload,generic_decl);
-                return generic_decl;
+                return find_type_overload(itl,def,info);
             }
 
             else if(!def->decl.overload && info.generic_args)
