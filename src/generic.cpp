@@ -672,7 +672,15 @@ bool check_overload(const GenericOverload& args, const GenericOverload& generic_
 {
     for(u32 a = 0; a < count(generic_overload); a++)
     {
-        if(!type_equal(generic_overload[a].type,args[a].type))
+        if(generic_overload[a].constraint == constraint_type::type)
+        {
+            if(generic_overload[a].known.value != args[a].known.value)
+            {
+                return false;
+            }
+        }
+
+        else if(!type_equal(generic_overload[a].type,args[a].type))
         {
             return false;
         }

@@ -230,8 +230,25 @@ struct KnownValue
         return type == known_value_type::none_t;
     }
 
+    friend bool operator == (const KnownValue &t1, const KnownValue &t2);
+
     known_value_type type = known_value_type::none_t;
 };
+
+inline bool operator == (const KnownValue &t1, const KnownValue &t2)
+{
+    if(t1.type != t2.type)
+    {
+        return false;
+    }
+
+    switch(t1.type)
+    {
+        case known_value_type::fpr_t: return t1.fpr == t2.fpr;
+        case known_value_type::gpr_t: return t1.gpr == t2.gpr;
+        case known_value_type::none_t: return true;
+    }
+}
 
 struct GenericKnown
 {

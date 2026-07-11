@@ -320,11 +320,11 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
 Result<TypeDecl*, itl_error> parse_struct_def(Interloper& itl, TypeDecl& decl)
 {
     // TODO: Handle adding generic for reference
-    const auto generic_guard = switch_generic_context(itl,decl.overload);
     StructNode* node = (StructNode*)decl.root;
 
     // NOTE: we expect the caller to save this
     trash_context(itl,node->filename,decl.name_space,decl.root);
+    const auto generic_guard = switch_generic_context(itl,decl.overload);
 
     Struct structure;
     
