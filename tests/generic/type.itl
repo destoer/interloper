@@ -7,14 +7,16 @@ struct FixedArray<T: Sized, SIZE: usize>
 
 type_alias FixedU32Five = FixedArray<u32,5>;
 
-func sum_fixed<T: Sized,SIZE: usize>(fixed: const FixedArray<$T,$SIZE>@)
+func sum_fixed<T: Sized,SIZE: usize>(fixed: const FixedArray<$T,$SIZE>@) $T
 {
-	ans: u32 = 0;
+	ans: $T;
 
 	for i in 0 < $SIZE
 	{
 		ans += fixed.buffer[i];
 	}
+
+	return ans;
 } 
 
 func main() s32
@@ -31,7 +33,10 @@ func main() s32
 
 	sum2 := sum_fixed(&fixed4);
 
-	ans := sum1 == 15 && sum2 == 10;
+	// Manually specifying the same types is fine.
+	sum3 := sum_fixed$<s32>(&fixed4);
+
+	ans := sum1 == 15 && sum2 == 10 && sum3 == 10;
 
 	return cast(s32,ans);
 }

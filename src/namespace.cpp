@@ -244,9 +244,30 @@ Result<TypeDecl*,itl_error> find_type_overload(Interloper& itl, TypeDef* def, co
 
     generic_decl->overload = overload;
     generic_decl->root = copy_ast(itl,decl->root);
+    generic_decl->base = decl;
 
     push_var(def->generic_overload,generic_decl);
     return generic_decl;
+}
+
+Result<TypeDecl*,itl_error> lookup_base_decl(Interloper& itl, const TypeLookupInfo& info)
+{
+    const auto decl = lookup_incomplete_decl_internal(itl,info);
+
+    // Check the type decl event exists?
+    if(!decl)
+    {
+        return compile_error(itl,itl_error::undeclared,"Base Type %n%s is not declared",info.name_space,info.name);
+    }
+
+    // TODO: Handle generics other than structs
+    assert(info.kind == type_lookup_kind::struct_t);
+    if(decl->kind != type_kind::struct_t)
+    {
+        return compile_error(itl,itl_error::struct_error,"Base type %n%s is not a struct",info.name_space,info.name);
+    }
+
+    return decl;
 }
 
 Result<TypeDecl*,itl_error> lookup_incomplete_decl(Interloper& itl, const TypeLookupInfo& info)

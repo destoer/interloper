@@ -338,6 +338,7 @@ Result<TypeDecl*, itl_error> parse_struct_def(Interloper& itl, TypeDecl& decl)
     structure.name_space = decl.name_space;
     structure.member_map = make_table<String,u32>();
     structure.overload = decl.overload;
+    structure.base = decl.base;
 
     // we want to get how many sizes of each we have
     // and then we can go back through and align the struct with them

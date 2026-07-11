@@ -195,31 +195,61 @@ enum class constraint_type
 
 struct TypeNode;
 
-struct GenericKnown
+
+enum class known_value_type
 {
-    // TODO: For now this only supports fixed types
+    gpr_t,
+    fpr_t,
+    none_t,
+};
+
+static const char* KNOWN_VALUE_TYPE_NAMES[] = 
+{
+    "integer",
+    "float",
+    "none"
+};
+
+struct KnownValue
+{
     union
     {
-        u64 integer;
-        f64 decimal = 0.0;
+        u64 gpr = 0;
+        f64 fpr;
     };
 
+    KnownValue() : gpr(0), type(known_value_type::none_t) {}
+    KnownValue(u32 v) : gpr(v), type(known_value_type::gpr_t) {}
+    KnownValue(u64 v) : gpr(v), type(known_value_type::gpr_t) {}
+    KnownValue(s64 v) : gpr(v), type(known_value_type::gpr_t) {}
+    KnownValue(bool v) : gpr(v), type(known_value_type::gpr_t) {}
+    KnownValue(f64 v) : fpr(v), type(known_value_type::fpr_t) {}
+
+    bool operator !() 
+    {
+        return type == known_value_type::none_t;
+    }
+
+    known_value_type type = known_value_type::none_t;
+};
+
+struct GenericKnown
+{
+    KnownValue value;
     TypeNode* type_decl = nullptr;
 };
 
 struct Generic
 {
     String name;
-    constraint_type constraint;
+    constraint_type constraint = constraint_type::type;
 
-    union
-    {
-        // Filled in during deduction
-        Type* type = nullptr;
+    // constraint_type::type
+    GenericKnown known = {};
 
-        // constraint_type::type
-        GenericKnown known;
-    };
+    // Filled in during deduction
+    Type* type = nullptr;
+    b32 fixed = false;
 };
 
 struct TypeDecl;
@@ -243,6 +273,9 @@ struct TypeDecl
     AstNode* root = nullptr;
     GenericOverload overload;
     u32 flags = 0;
+
+    // NOTE: Not to be copied
+    TypeDecl* base = nullptr;
 };
 
 static constexpr u32 TYPE_DECL_DEF_FLAG = (1 << 0);
@@ -490,6 +523,7 @@ struct Struct
 
     // What generic overload produced this struct?
     GenericOverload overload;
+    TypeDecl* base = nullptr;
 };
 
 enum class struct_state 

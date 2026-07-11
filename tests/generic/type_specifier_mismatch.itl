@@ -1,0 +1,30 @@
+// Expected itl_error::generic
+
+struct FixedArray<T: Sized, SIZE: usize>
+{
+	buffer: $T[$SIZE];
+};
+
+
+func sum_fixed<T: Sized,SIZE: usize>(fixed: const FixedArray<$T,$SIZE>@) $T
+{
+	ans: $T;
+
+	for i in 0 < $SIZE
+	{
+		ans += fixed.buffer[i];
+	}
+
+	return ans;
+} 
+
+func main() s32
+{
+	fixed4: FixedArray<s32,4> = {{
+		1,2,3,4
+	}};
+
+	sum := sum_fixed$<s16>(&fixed4);
+
+	return sum;
+}
