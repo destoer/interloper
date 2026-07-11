@@ -25,13 +25,13 @@ func main() s32
 
 	sum1 := std::sum(fixed5.buffer);
 
-	// FixedArray<s32,4> fixed4 = {{
-	// 	1,2,3,4
-	// }};
+	fixed4: FixedArray<s32,4> = {{
+		1,2,3,4
+	}};
 
-	// sum2 := sum_fixed(&fixed4);
+	sum2 := sum_fixed(&fixed4);
 
-	ans := sum1 == 18;
+	ans := sum1 == 15 && sum2 == 10;
 
 	return cast(s32,ans);
 }

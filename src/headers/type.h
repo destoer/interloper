@@ -487,6 +487,9 @@ struct Struct
 
     u32 type_idx = 0;
     bool holds_refs = false;
+
+    // What generic overload produced this struct?
+    GenericOverload overload;
 };
 
 enum class struct_state 

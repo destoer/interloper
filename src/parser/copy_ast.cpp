@@ -298,6 +298,33 @@ StructAccessNode* copy_ast_struct_access(Interloper& itl, StructAccessNode* acce
     return copy;
 }
 
+    AstNode node;
+
+    String name;
+    String filename;
+    Array<DeclNode*> members;
+
+    Array<Generic> generic;
+    u32 attr_flags = 0;
+
+StructNode* copy_ast_struct(Interloper& itl, StructNode* struct_node)
+{
+    StructNode* copy = alloc_node_copy(itl,struct_node);
+    *copy = *struct_node;
+    
+    copy->generic = copy_array(struct_node->generic);
+    add_copy_data_pointer(itl,&copy->generic.data);
+
+    copy->members = {};
+    for(DeclNode* member : struct_node->members)
+    {
+        push_var(copy->members,copy_ast_decl(itl,member));
+    }
+    add_copy_data_pointer(itl,&copy->members.data);
+
+    return copy;
+}
+
 
 AstNode* copy_ast(Interloper& itl, AstNode* node)
 {
@@ -431,6 +458,11 @@ AstNode* copy_ast(Interloper& itl, AstNode* node)
         case ast_type::for_range:
         {
             return (AstNode*)copy_ast_for_range(itl,(ForRangeNode*)node);
+        }
+
+        case ast_type::struct_t:
+        {
+            return (AstNode*)copy_ast_struct(itl,(StructNode*)node);
         }
 
         default: break;

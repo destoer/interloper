@@ -320,7 +320,7 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
 Result<TypeDecl*, itl_error> parse_struct_def(Interloper& itl, TypeDecl& decl)
 {
     // TODO: Handle adding generic for reference
-    assert(!decl.overload);
+    const auto generic_guard = switch_generic_context(itl,decl.overload);
     StructNode* node = (StructNode*)decl.root;
 
     // NOTE: we expect the caller to save this
@@ -337,6 +337,7 @@ Result<TypeDecl*, itl_error> parse_struct_def(Interloper& itl, TypeDecl& decl)
     structure.filename = node->filename;
     structure.name_space = decl.name_space;
     structure.member_map = make_table<String,u32>();
+    structure.overload = decl.overload;
 
     // we want to get how many sizes of each we have
     // and then we can go back through and align the struct with them
