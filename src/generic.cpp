@@ -268,7 +268,7 @@ Option<itl_error> type_check_generic_known(Interloper& itl, Generic* generic, As
         return err;
     }
 
-    generic->type = arg->expr_type;
+    generic->type = expected_type;
     return assign_generic_known_value(itl,arg->known_value,generic);
 }
 
