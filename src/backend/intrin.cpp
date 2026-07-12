@@ -72,7 +72,7 @@ void call_intrin_func(Interloper& itl, Function& func, const Function& func_call
         compile_move(itl,func,dst,src);
     }
 
-    unlock_reg_set(itl,func,func_call.sig.locked_set);
+    unlock_reg_set(itl,func,func_call.sig.locked_regs);
 }
 
 void call_intrin_func_no_return(Interloper& itl, Function& func, const Function& func_call, const ConstSpan<TypedReg>& regs)

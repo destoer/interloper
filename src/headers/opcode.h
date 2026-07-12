@@ -139,6 +139,11 @@ enum class spec_reg
     a2 = SPECIAL_REG_START + 17,
 };
 
+inline b32 spec_reg_is_gpr(spec_reg reg)
+{
+    return reg >= spec_reg::rv_gpr && reg <= spec_reg::r10;
+}
+
 static constexpr u32 SPECIAL_REG_SIZE = (u32(spec_reg::a2) - SPECIAL_REG_START) + 1;
 static constexpr u32 SPECIAL_REG_END = (SPECIAL_REG_START + SPECIAL_REG_SIZE) - 1;
 

@@ -261,11 +261,14 @@ struct Generic
     String name;
     constraint_type constraint = constraint_type::type;
 
-    // constraint_type::type
-    GenericKnown known = {};
+    union
+    {
+        // constraint_type::type
+        GenericKnown known = {};
 
-    // Filled in during deduction
-    Type* type = nullptr;
+        Type* type;
+    };
+   
     b32 fixed = false;
 };
 

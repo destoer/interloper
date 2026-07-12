@@ -427,7 +427,6 @@ Option<itl_error> check_generic_sub_expr_const(Interloper& itl, AstNode* sub_exp
     auto& generic = *generic_opt;
     
     // If this is a correct they should now have the same type
-    generic->type = overload->type;
     generic->known.type_decl->node.expr_type = overload->known.type_decl->node.expr_type;
 
     return assign_generic_known_value(itl,overload->known.value,generic);

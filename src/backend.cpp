@@ -390,7 +390,6 @@ void compile_function(Interloper& itl, Function& func)
     }
 
     new_basic_block(itl,func);
-    setup_passing_convention(itl,func);
 
     compile_block(itl,func,func.root->block);
 }
@@ -476,12 +475,6 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
         }
     }
 
-    if(itl.print_ir)
-    {
-        dump_itl_ir(itl);
-    }
-
-
     // perform register allocation on used functions
     for(auto& func : itl.func_table.used)
     {
@@ -491,11 +484,6 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
         {
             putchar('\n');
         }
-    }
-
-    if(itl.print_ir)
-    {
-        dump_itl_ir(itl);
     }
 
     // emit the actual target asm

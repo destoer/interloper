@@ -29,6 +29,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/basic/invalid_compare",itl_error::out_of_bounds},
     {"tests/basic/invalid_literal",itl_error::lexer_error},
     {"tests/basic/const_assert_fail",itl_error::const_assert},
+    {"tests/basic/auto_void",itl_error::undefined_type_oper},
 
     // type
     {"tests/type/byte_invalid",itl_error::pointer_type_error},

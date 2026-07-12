@@ -47,6 +47,14 @@ struct Label
 
 struct FuncNode;
 
+
+struct FixedArg
+{
+    spec_reg spec;
+    RegSlot slot;
+};
+
+
 // NOTE: this is everything required to describe an abstract function
 // so it can be used for function pointers
 struct FuncSig
@@ -55,9 +63,12 @@ struct FuncSig
 
     // gives slots into the main symbol table
     Array<SymSlot> args;
+    Array<FixedArg> fixed_args; 
     Array<u32> pass_as_reg;
+    
     u32 max_reg_pass = 0;
-    u32 locked_set = 0;
+    u32 locked_regs = 0;
+    u32 locked_args = 0;
 
     b32 va_args = false;
     u32 hidden_args = 0;
@@ -70,8 +81,9 @@ struct FuncSig
 struct ArgPass
 {
     Array<RegSlot> args;
-    Array<u32> pass_as_reg;
     u32 arg_clean = 0;
+    ConstSpan<u32> pass_as_reg;
+    ConstSpan<FixedArg> fixed_args;
 };
 
 ArgPass make_arg_pass(const FuncSig& sig);

@@ -194,7 +194,7 @@ void alloc_args(Function &func, StackAlloc& alloc, SymbolTable& table, u32 saved
 
     for(u32 a = 0; a < count(func.sig.args); a++)
     {
-        if(func.sig.pass_as_reg[a] != NON_ARG)
+        if(is_set(func.sig.locked_args,a))
         {
             continue;
         }

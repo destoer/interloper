@@ -82,7 +82,7 @@ Type* copy_type(Interloper& itl, const Type* type)
                 push_var(copy->sig.return_type,copy_type(itl,sig.return_type[r]));
             }
 
-            copy->sig.pass_as_reg = copy_array(sig.pass_as_reg);
+            copy->sig.fixed_args = copy_array(sig.fixed_args);
             push_var(itl.func_pointer,&copy->sig);
 
             return (Type*)copy;

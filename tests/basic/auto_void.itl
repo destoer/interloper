@@ -1,0 +1,10 @@
+
+func void_ret() {
+
+}
+
+func main() s32 {
+	x := void_ret();
+
+	return x;
+}

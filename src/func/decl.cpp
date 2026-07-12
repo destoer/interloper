@@ -362,18 +362,28 @@ void print_func_decl(Interloper& itl,const Function &func)
 
 void add_sig_arg(Interloper& itl, FuncSig& sig, const String& name, Type* type, u32* arg_offset)
 {
-    if(is_trivial_copy(type) && !is_float(type) && count(sig.args) < 2)
+    if(is_trivial_copy(type) && !is_float(type) && count(sig.pass_as_reg) < 2)
     {
+        const auto spec = spec_reg(SPECIAL_REG_ARG_START + sig.max_reg_pass);
+        const u32 location = special_reg_to_reg(itl.arch,spec);
+
+        sig.locked_regs = set_bit(sig.locked_regs,location);
+        sig.locked_args = set_bit(sig.locked_args,count(sig.pass_as_reg));
+
         Symbol sym = make_sym(itl,name,type);
+        
+        // Make symbol likely to be directly allocated
+        sym.reg.hint = (1 << location);
+
         add_var(itl.symbol_table,sym);
         push_var(sig.args,sym.reg.slot.sym_slot);
 
+        // Note which args are fixed
+        const FixedArg fixed = {spec,sym.reg.slot};
+        push_var(sig.fixed_args,fixed);
+
+        // Reverse lookup to fixed_args
         push_var(sig.pass_as_reg,sig.max_reg_pass);
-
-        const u32 location = special_reg_to_reg(itl.arch,spec_reg(SPECIAL_REG_ARG_START + sig.max_reg_pass));
-
-        sig.locked_set = set_bit(sig.locked_set,location);
-
         sig.max_reg_pass += 1;
     }   
 
@@ -384,8 +394,8 @@ void add_sig_arg(Interloper& itl, FuncSig& sig, const String& name, Type* type, 
 
         push_var(sig.args,sym.reg.slot.sym_slot);
 
-        push_var(sig.pass_as_reg,NON_ARG);
         *arg_offset += promote_size(type_size(itl,type));
+        push_var(sig.pass_as_reg,NON_ARG);
     }
 }
 
