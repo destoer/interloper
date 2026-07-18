@@ -111,8 +111,7 @@ TypeResult type_check_access_struct_member(Interloper& itl, StructAccessNode* ac
 TypeResult type_check_struct_initializer(Interloper& itl, StructInitializerNode* init)
 {
     // Get structure
-    const auto info = type_lookup_from_parts(init->struct_name,init->name_space,type_lookup_kind::struct_t);
-    auto struct_res = lookup_struct(itl,info);
+    auto struct_res = lookup_struct(itl,init->type_info);
     if(!struct_res)
     {
         return struct_res.error();

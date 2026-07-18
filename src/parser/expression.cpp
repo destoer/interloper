@@ -320,8 +320,10 @@ ParserResult parse_sym(Parser& parser,NameSpace* name_space, const Token& cur)
 
         default:
         {
+            TypeDecl* decl = parser_lookup_type(parser,name_space,cur.literal);
+
             // Read out struct initializer
-            if(next.type == token_type::left_c_brace && parser_type_kind_exists(parser,name_space,cur.literal,type_kind::struct_t))
+            if(next.type == token_type::left_c_brace && decl)
             {
                 const auto struct_name = cur;
                 const auto start = next;
@@ -333,7 +335,8 @@ ParserResult parse_sym(Parser& parser,NameSpace* name_space, const Token& cur)
                     return list_res;
                 }
 
-                return ast_struct_initializer(parser,struct_name.literal,*list_res,name_space,struct_name);
+                const auto type_info = type_lookup_from_parts(decl->name,decl->name_space,type_lookup_kind::any_t);
+                return ast_struct_initializer(parser,type_info,*list_res,struct_name);
             }
 
             return var(parser,name_space,cur,true);
@@ -488,7 +491,8 @@ ParserResult parse_designated_initializers(Parser& parser, const Token& t)
                 return list_res;
             }
 
-            auto struct_initializer = ast_struct_initializer(parser,struct_name.literal,*list_res,nullptr,struct_name);
+            const auto type_info = type_lookup_from_parts(struct_name.literal,nullptr,type_lookup_kind::any_t);
+            auto struct_initializer = ast_struct_initializer(parser,type_info,*list_res,struct_name);
 
             const DesignatedInitializer init = {struct_initializer,name};
             push_var(list->initializer,init);

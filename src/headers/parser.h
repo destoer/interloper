@@ -323,7 +323,7 @@ struct StructInitializerNode
     AstNode node;
 
     NameSpace* name_space = nullptr;
-    String struct_name;
+    TypeLookupInfo type_info;
 
     // Initializer list or designated initializer
     AstNode* initializer = nullptr;
@@ -988,13 +988,13 @@ DesignatedListNode* ast_designated_initializer_list(Parser& parser, const Token&
     return list;
 }
 
-AstNode* ast_struct_initializer(Parser& parser,const String& literal, AstNode* initializer, NameSpace* name_space, const Token& token)
+AstNode* ast_struct_initializer(Parser& parser, const TypeLookupInfo& type_info, AstNode* initializer, const Token& token)
 {
     StructInitializerNode* struct_initializer_node = alloc_node<StructInitializerNode>(parser,ast_type::struct_initializer,token);
 
-    struct_initializer_node->struct_name = literal;
+    struct_initializer_node->type_info = type_info;
     struct_initializer_node->initializer = initializer;
-    struct_initializer_node->name_space = name_space;
+    add_ast_pointer(parser,&struct_initializer_node->type_info.generic_args.data);
 
     return (AstNode*)struct_initializer_node;
 }

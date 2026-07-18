@@ -98,6 +98,9 @@ Result<StructType*,itl_error> lookup_struct(Interloper& itl, const TypeLookupInf
     }
 
     const auto struct_decl = *struct_decl_res;
+    // This could be an alias we need a way to pull this
+    assert(struct_decl->kind == type_kind::struct_t);
+
     return (StructType*)make_struct(itl,struct_decl->type_idx);   
 }
 

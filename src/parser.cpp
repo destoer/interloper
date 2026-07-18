@@ -1516,7 +1516,8 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::struct_initializer:
         {
             StructInitializerNode* initializer = (StructInitializerNode*)root;
-            print_itl(itl,"Struct initializer %s %n%S",initializer->is_return? "return" : "",initializer->name_space,initializer->struct_name);
+            print_itl(itl,"Struct initializer %s %n%S",initializer->is_return? "return" : "",
+                initializer->type_info.name_space,initializer->type_info.name);
             print_internal(itl,initializer->initializer, depth + 1);
             break;
         }
