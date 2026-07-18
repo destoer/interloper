@@ -115,6 +115,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    printf("Compiled %d lines\n",itl.lines);
     printf("Parsing time %.2lf ms\n",itl.parsing_time);
     printf("Type checking time %.02lf ms\n",itl.type_checking_time);
     printf("Code gen %0.2lf ms\n",itl.code_gen_time);

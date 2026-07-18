@@ -984,12 +984,15 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
     const u32 cur = count(itl.file_tokens);
     resize(itl.file_tokens,cur + 1);
 
-    if(tokenize(file,filename,&parser.alloc->string_allocator,itl.file_tokens[cur]))
+    const s32 lines = tokenize(file,filename,&parser.alloc->string_allocator,itl.file_tokens[cur]);
+    if(lines < 0)
     {
         itl.first_error_code = itl_error::lexer_error;
         return parse_error::lexer_error;
     }
     
+    itl.lines += lines;
+
     // Give it a complete file span
     parser.ctx.tokens = make_const_span(itl.file_tokens[cur],0 , count(itl.file_tokens[cur]));
 

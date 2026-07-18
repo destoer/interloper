@@ -5,6 +5,7 @@
 struct Lexer
 {
     u32 idx = 0;
+    u32 lines = 0;
     Array<Token> tokens;
 
     ArenaAllocator* string_allocator;

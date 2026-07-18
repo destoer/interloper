@@ -133,6 +133,8 @@ struct Interloper
     double optimise_time = 0.0;
     double type_checking_time = 0.0;
 
+    u32 lines = 0;
+
     // Startup functions
     Function* memcpy = nullptr;
     Function* zero_mem = nullptr;
