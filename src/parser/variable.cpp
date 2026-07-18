@@ -248,7 +248,7 @@ ParserResult parse_struct_initializer(Parser &parser)
         return parser_error(parser,parse_error::malformed_stmt,struct_name,"Expected initializer list for struct initializer");
     }
 
-    const auto type_info = type_lookup_from_parts(struct_name.literal,nullptr,type_lookup_kind::any_t);
+    const auto type_info = type_lookup_from_parts(struct_name.literal,parser.ctx.cur_namespace,type_lookup_kind::any_t);
     return ast_struct_initializer(parser,type_info,list,struct_name); 
 }
 

@@ -97,11 +97,20 @@ Result<StructType*,itl_error> lookup_struct(Interloper& itl, const TypeLookupInf
         return struct_decl_res.error();
     }
 
-    const auto struct_decl = *struct_decl_res;
-    // This could be an alias we need a way to pull this
-    assert(struct_decl->kind == type_kind::struct_t);
+    const auto type_res = get_base_user_type(itl,nullptr,*struct_decl_res,0);
+    if(!type_res)
+    {
+        return type_res.error();
+    }
 
-    return (StructType*)make_struct(itl,struct_decl->type_idx);   
+    auto type = *type_res;
+
+    if(!is_struct(type))
+    {
+        return compile_error(itl,itl_error::struct_error,"Type %t is not a struct",type);
+    }
+
+    return (StructType*)type;
 }
 
 Option<itl_error> handle_recursive_type(Interloper& itl,const String& struct_name, TypeNode* type_decl, u32* type_idx_override)

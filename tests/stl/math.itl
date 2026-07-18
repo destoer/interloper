@@ -58,8 +58,8 @@ func test_mat2()
         {10.0,12.0},
     }};
 
-    calc := std::mul_mat2(&v1,&scale_2);
-    std::test_mat2d(calc,ans,"v1 * scale_2");
+    calc := std::mul_mat(&v1,&scale_2);
+    std::test_mat(calc,ans,"v1 * scale_2");
 
     ans_transpose := std::Mat2F {{
         {1.0,5.0},
@@ -67,8 +67,8 @@ func test_mat2()
     }};
 
 
-    transpose := std::transpose_mat2(&v1);
-    std::test_mat2d(transpose,ans_transpose,"transpose(v1)");
+    transpose := std::transpose_mat(&v1);
+    std::test_mat(transpose,ans_transpose,"transpose(v1)");
 }
 
 func test_mat3()
@@ -91,8 +91,8 @@ func test_mat3()
         {18.0,20.0,22.0},
     }};
 
-    calc := std::mul_mat3(&v1,&scale_2);
-    std::test_mat3d(calc,ans,"v1 * scale_2");
+    calc := std::mul_mat(&v1,&scale_2);
+    std::test_mat(calc,ans,"v1 * scale_2");
 
 
     ans_transpose := std::Mat3F {{
@@ -102,8 +102,8 @@ func test_mat3()
     }};
 
 
-    transpose := std::transpose_mat3(&v1);
-    std::test_mat3d(transpose,ans_transpose,"transpose(v1)");
+    transpose := std::transpose_mat(&v1);
+    std::test_mat(transpose,ans_transpose,"transpose(v1)");
 }
 
 
@@ -130,8 +130,8 @@ func test_mat4()
         {26.0,28.0,30.0,32.0}        
     }};
 
-    calc := std::mul_mat4(&v1,&scale_2);
-    std::test_mat4d(calc,ans_mul,"v1 * scale_2");
+    calc := std::mul_mat(&v1,&scale_2);
+    std::test_mat(calc,ans_mul,"v1 * scale_2");
 
     ans_transpose := std::Mat4F {{
         {1.0,5.0,9.0,13.0},
@@ -141,8 +141,8 @@ func test_mat4()
     }};
 
 
-    transpose := std::transpose_mat4(&v1);
-    std::test_mat4d(transpose,ans_transpose,"transpose(v1)");
+    transpose := std::transpose_mat(&v1);
+    std::test_mat(transpose,ans_transpose,"transpose(v1)");
 }
 
 func test_mat()

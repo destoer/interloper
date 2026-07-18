@@ -6,7 +6,7 @@ void print_func_decl(Interloper& itl,const Function &func);
 Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock &block);
 
 GenericScopeGuard switch_generic_context(Interloper& itl, const GenericOverload& overload);
-Result<Array<Generic>,itl_error> deduce_generic_func(Interloper& itl, FuncNode& node, FuncCallNode* func_call);
+Result<Array<Generic>,itl_error> deduce_generic_func(Interloper& itl, FuncNode& node, NameSpace* name_space, FuncCallNode* func_call);
 Function* find_func_overload(const FuncOverloadTable& overload, const Array<Generic>& generic_overload);
 
 FunctionTable make_func_table()
@@ -134,12 +134,13 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
         }
 
         func.from_generic = true;
-
-        const auto res = deduce_generic_func(itl,*func.root,func_call);
+        
+        const auto res = deduce_generic_func(itl,*func.root,func.name_space,func_call);
         if(!res)
         {
             return res.error();
         }
+        
 
         Array<Generic> generic_overload = *res;
 

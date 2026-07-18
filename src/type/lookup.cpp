@@ -222,6 +222,34 @@ b32 def_has_indirection(const TypeNode *type_decl)
 }
 
 
+TypeResult get_base_user_type(Interloper& itl, TypeNode* type_decl, TypeDecl* user_type, u32 flags)
+{
+    // user type does not exist yet
+    if(user_type->state != type_def_state::checked)
+    {
+        // if this is not currently being checked parse it
+        if(user_type->state == type_def_state::not_checked)
+        {
+            const auto type_res = parse_def(itl,user_type);
+            if(!type_res)
+            {
+                return type_res.error();
+            }
+        }
+
+        // type is being currently checked? 
+        // we might have a potential black hole
+        else if(type_decl && !def_has_indirection(type_decl))
+        {
+            // TODO: add heuristics to scan for where!
+            return compile_error(itl,itl_error::black_hole,"Lookup type: type %S is recursively defined",user_type->name);     
+        }
+    }
+
+    // okay now we have a complete type build it!
+    return make_base_type(itl,user_type->type_idx,user_type->kind,flags);
+}
+
 TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override = INVALID_TYPE, b32 complete_type = false)
 {
     if(type_decl->node.expr_type)
@@ -279,30 +307,13 @@ TypeResult get_type(Interloper& itl, TypeNode* type_decl,u32 struct_idx_override
 
                 is_alias = user_type->kind == type_kind::alias_t;   
 
-                // user type does not exist yet
-                if(user_type->state != type_def_state::checked)
+                const auto type_res = get_base_user_type(itl,type_decl,user_type,flags);
+                if(!type_res)
                 {
-                    // if this is not currently being checked parse it
-                    if(user_type->state == type_def_state::not_checked)
-                    {
-                        const auto type_res = parse_def(itl,user_type);
-                        if(!type_res)
-                        {
-                            return type_res.error();
-                        }
-                    }
-
-                    // type is being currently checked? 
-                    // we might have a potential black hole
-                    else if(!def_has_indirection(type_decl))
-                    {
-                        // TODO: add heuristics to scan for where!
-                        return compile_error(itl,itl_error::black_hole,"Lookup type: type %S is recursively defined",user_type->name);     
-                    }
+                    return type_res.error();
                 }
 
-                // okay now we have a complete type build it!
-                type = make_base_type(itl,user_type->type_idx,user_type->kind,flags);
+                type = *type_res;
                 break;
             }
         

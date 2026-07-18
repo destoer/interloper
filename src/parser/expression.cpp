@@ -491,7 +491,7 @@ ParserResult parse_designated_initializers(Parser& parser, const Token& t)
                 return list_res;
             }
 
-            const auto type_info = type_lookup_from_parts(struct_name.literal,nullptr,type_lookup_kind::any_t);
+            const auto type_info = type_lookup_from_parts(struct_name.literal,parser.ctx.cur_namespace,type_lookup_kind::any_t);
             auto struct_initializer = ast_struct_initializer(parser,type_info,*list_res,struct_name);
 
             const DesignatedInitializer init = {struct_initializer,name};

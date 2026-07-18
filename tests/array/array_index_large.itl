@@ -43,7 +43,7 @@ func main() s32
     }};
 
     calc := mul_mat4(&v1,&scale);
-    std::test_mat4d(calc,ans,"v1 * scale");
+    std::test_mat(calc,ans,"v1 * scale");
 
     return 0;
 }
