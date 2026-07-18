@@ -66,7 +66,7 @@ Option<itl_error> func_graph_pass(Interloper& itl, Function& func)
         auto& label = label_from_slot(itl.symbol_table.label_lookup,start_block.label_slot);
 
         itl.ctx.expr = (AstNode*)func.root;
-        return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %S",label.name); 
+        return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function %S at: %S",func.name,label.name); 
     }
 
     for(BlockSlot slot : start_block.links)
@@ -78,8 +78,7 @@ Option<itl_error> func_graph_pass(Interloper& itl, Function& func)
             auto& label = label_from_slot(itl.symbol_table.label_lookup,block.label_slot);
 
             itl.ctx.expr = (AstNode*)func.root;   
-            dump_ir(itl,func,itl.symbol_table);
-            return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function at: %S",label.name);
+            return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function %S at: %S",func.name,label.name);
         }
     }
 

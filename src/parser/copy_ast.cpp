@@ -325,6 +325,22 @@ StructNode* copy_ast_struct(Interloper& itl, StructNode* struct_node)
     return copy;
 }
 
+AstNode* copy_ast_index(Interloper& itl, IndexNode* index)
+{
+    IndexNode* copy = alloc_node_copy(itl,index);
+    *copy = *index;
+
+    copy->indexes = {};
+
+    for(AstNode* expr : index->indexes)
+    {
+        push_var(copy->indexes,copy_ast(itl,expr));
+    }
+
+    add_copy_data_pointer(itl,&copy->indexes.data);
+
+    return (AstNode*)copy;
+}
 
 AstNode* copy_ast(Interloper& itl, AstNode* node)
 {
@@ -338,6 +354,11 @@ AstNode* copy_ast(Interloper& itl, AstNode* node)
         case ast_type::no_init:
         {
             return copy_ast_plain(itl,node);
+        }
+
+        case ast_type::index:
+        {
+            return copy_ast_index(itl,(IndexNode*)node);
         }
 
         case ast_type::function:
@@ -408,6 +429,16 @@ AstNode* copy_ast(Interloper& itl, AstNode* node)
         case ast_type::value:
         {
             return (AstNode*)copy_pod_node(itl,(ValueNode*)node);
+        }
+
+        case ast_type::float_t:
+        {
+            return (AstNode*)copy_pod_node(itl,(FloatNode*)node);
+        }
+
+        case ast_type::string:
+        {
+            return (AstNode*)copy_pod_node(itl,(StringNode*)node);
         }
 
         case ast_type::arith_unary:

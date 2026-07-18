@@ -41,7 +41,7 @@ func mul_mat<M: usize,N: usize>(m1: const Matrix<$M,$N>@,m2: const Matrix<$M,$N>
 
             // TODO: How tricky is it to make something to unroll a single block?
             // If we unroll the innermost first here will we manage to unroll the entire function?
-            for n in 0 < M 
+            for n in 0 < $M 
             {
                 v += row[n] * m2.mat[n][c];
             }
@@ -76,24 +76,26 @@ func mul_vec3_mat4(v1: const Vec3F@,m1: const Mat4F@) Vec3F
     };
 }
 
-func transpose_mat<M: usize,N: usize>(m1: const Matrix<$N,$M>@) Matrix<$M,$N>
+func transpose_mat<M: usize,N: usize>(m1: const Matrix<$M,$N>@) Matrix<$N,$M>
 {
-    ans: Matrix<$M,$N> = {?};
+    ans: Matrix<$N,$M> = {?};
 
     for [row, r] in m1.mat
     {
-        for [@cell, c] in ans.mat[r]
+        for [cell, c] in row
         {
-            @cell = m1.mat[c][r];
+            ans.mat[c][r] = cell;
         }
     }   
+
+    return ans;
 }
 
-func test_mat<M: usize, N: usize>(m1: const Matrix<$M,$N>@,ans: const Matrix<$M,$N>@, name: const string)
+func test_mat<M: usize, N: usize>(m1: const Matrix<$M,$N>, ans: const Matrix<$M,$N>, name: const string)
 {
     for [row, r] in m1.mat
     {
-        for [cell, c] in m1.mat[r]
+        for [cell, c] in row
         {
             if !float_eq(cell,ans.mat[r][c],0.01)
             {

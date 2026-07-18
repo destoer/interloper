@@ -654,8 +654,8 @@ Result<Array<Generic>,itl_error> deduce_generic(Interloper& itl, GenericOverload
 
 Result<Array<Generic>,itl_error> deduce_generic_func(Interloper& itl, FuncNode& node, NameSpace* name_space, FuncCallNode* func_call)
 {
-    const auto context_guard = switch_context(itl,node.filename,name_space,(AstNode*)&node);
-
+    // TODO: This causes some less than ideal error reporting
+    const auto context_guard = switch_context(itl,itl.ctx.filename,name_space,itl.ctx.expr);
 
     auto generic_overload = copy_array(node.generic);
     return deduce_generic(itl,generic_overload,func_call->generic_args,func_call->args,node.args);
