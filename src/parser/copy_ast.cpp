@@ -92,6 +92,7 @@ IfStmt copy_ast_if_stmt(Interloper& itl, const IfStmt& stmt)
 
     out.block = (AstBlock*)allocate(itl.parser_alloc.ast_allocator,sizeof(AstBlock));
     *out.block = copy_ast_block(itl,*stmt.block);
+    add_copy_data_pointer(itl,&out.block->statement.data);
 
     out.type = stmt.type;
 
@@ -109,7 +110,6 @@ IfNode* copy_ast_if(Interloper& itl, IfNode* if_node)
     *copy = *if_node;
 
     copy->if_stmt = copy_ast_if_stmt(itl,if_node->if_stmt);
-    add_copy_data_pointer(itl,&copy->if_stmt.block->statement.data);    
 
     copy->else_if_stmt = {};
     for(auto& stmt : if_node->else_if_stmt)
@@ -120,8 +120,6 @@ IfNode* copy_ast_if(Interloper& itl, IfNode* if_node)
     add_copy_data_pointer(itl,&copy->else_if_stmt.data);
 
     copy->else_stmt = copy_ast_block(itl,if_node->else_stmt);
-    add_copy_data_pointer(itl,&copy->else_stmt.statement.data);
-
 
     return copy;
 }

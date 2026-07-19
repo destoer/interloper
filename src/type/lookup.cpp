@@ -75,6 +75,7 @@ Type* copy_type(Interloper& itl, const Type* type)
             copy->sig = sig;
 
             copy->sig.args = copy_array(sig.args);
+            copy->sig.pass_as_reg = copy_array(sig.pass_as_reg);
 
             copy->sig.return_type = {};
             for(u32 r = 0; r < count(sig.return_type); r++)
