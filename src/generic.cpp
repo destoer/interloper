@@ -1,4 +1,33 @@
 
+
+void print_generic_overload(Interloper& itl, const ConstSpan<Generic>& generic_overload)
+{
+    for(const auto& generic : generic_overload)
+    {   
+        if(generic.constraint != constraint_type::type)
+        {
+            print_itl(itl,"%S = %t",generic.name,generic.type);
+        }
+
+        else
+        { 
+            const auto& value = generic.known.value;
+
+            if(value.type == known_value_type::gpr_t)
+            {
+                print_itl(itl,"%S = %d",generic.name,value.gpr);
+            }
+
+            else
+            {
+                print_itl(itl,"%S = %f",generic.name,value.fpr);
+            }
+        }
+    }
+
+    putchar('\n');
+}
+
 // TODO: This should probably be a hash table
 Result<Generic,itl_error> find_generic_param(Interloper& itl, const String& name)
 {
@@ -46,13 +75,13 @@ Result<Array<AstNode*>,parse_error> parse_generic_args(Parser& parser, const Gen
         if(generic_arg >= count(overload))
         {
             return parser_error(parser,parse_error::itl_error,tok,
-                "Generic has too many args got %d expected: %d\n",count(overload),generic_arg);
+                "Generic has too many args got %d expected: %d",count(overload),generic_arg);
         }
 
         const auto& generic = overload[generic_arg];
         AstNode* arg = nullptr;
 
-        if(generic.constraint != constraint_type::builtin)
+        if(generic.constraint != constraint_type::type)
         {
             const auto res = parse_type(parser);
 
@@ -63,6 +92,15 @@ Result<Array<AstNode*>,parse_error> parse_generic_args(Parser& parser, const Gen
             }
 
             arg = (AstNode*)res.value();
+
+            if(!match(parser,token_type::logical_gt))
+            {
+                const auto err = consume(parser,token_type::comma);
+                if(err)
+                {
+                    return *err;
+                }
+            }
         }
 
         else
@@ -162,34 +200,76 @@ TypeResult cut_generic_compound(Interloper& itl, Type* type, TypeNode* decl)
     return type;
 }
 
-Option<itl_error> type_check_generic_builtin(Interloper& itl, Generic* generic, AstNode* arg)
+Option<itl_error> assign_generic_known_value(Interloper& itl, const KnownValue& arg, Generic* generic)
 {
-    // Handle builtin type
+    if(arg.type == known_value_type::none_t)
+    {
+        return compile_error(itl,itl_error::generic,"Builtin generic arg expression is not known at compile time");
+    }
+
+    auto& generic_value = generic->known.value;
+
+    switch(generic_value.type)
+    {
+        case known_value_type::gpr_t:
+        {
+            if(generic_value.gpr != arg.gpr)
+            {
+                return compile_error(itl,itl_error::generic,"Generic %S has inconsistent value %l != %l",
+                    generic->name,generic_value.gpr,arg.gpr);
+            }
+            break;
+        }
+
+        case known_value_type::fpr_t:
+        {
+            if(generic_value.fpr != arg.fpr)
+            {
+                return compile_error(itl,itl_error::generic,"Generic %S has inconsistent value %f != %f",
+                    generic->name,generic_value.fpr,arg.fpr);
+            }
+            break;
+        }
+
+        case known_value_type::none_t:
+        {
+            generic_value = arg;
+            break;
+        }
+    }
+
+    return option::none;
+}
+
+Option<itl_error> type_check_generic_known(Interloper& itl, Generic* generic, AstNode* arg)
+{
+    const auto expected_type_res = get_type(itl,generic->known.type_decl);
+    if(!expected_type_res)
+    {
+        return expected_type_res.error();
+    }
+
+    Type* expected_type = *expected_type_res;
+
+    if(!is_builtin(expected_type))
+    {
+        return compile_error(itl,itl_error::generic,"Generic known values only support builtin types");
+    }
+
     const auto res = type_check_expr(itl,arg);
     if(!res)
     {
         return res.error();
     }
 
-    switch(arg->known_value.type)
+    const auto err = check_assign_arg(itl,expected_type,*res);
+    if(err)
     {
-        case known_value_type::gpr_t:
-        {
-            generic->builtin.integer = arg->known_value.gpr;
-            break;
-        }
-
-        case known_value_type::fpr_t:
-            generic->builtin.decimal = arg->known_value.fpr;
-            break;
-
-        case known_value_type::none_t:
-        {
-            return compile_error(itl,itl_error::generic,"Builtin generic arg expression is not known at compile time");
-        }
+        return err;
     }
 
-    return option::none;
+    generic->type = expected_type;
+    return assign_generic_known_value(itl,arg->known_value,generic);
 }
 
 Option<itl_error> check_generic_constraints(Interloper& itl, const GenericOverload& generic_overload)
@@ -234,129 +314,325 @@ Option<itl_error> check_generic_constraints(Interloper& itl, const GenericOverlo
                 break;
             }
 
-            case constraint_type::builtin: break;
+            case constraint_type::type: break;
         }
     }
 
     return option::none;
 }
 
-Option<itl_error> deduce_generic_types(Interloper& itl, FuncCallNode* func_call, FuncNode& node, HashTable<String,Generic*>& generic_lookup)
+Option<itl_error> deduce_generic_type(Interloper& itl, HashTable<String,Generic*>& generic_lookup, TypeNode* type_node, Type* expr_type)
 {
-    // Deduce generic types
-    for(u32 a = 0; a < count(node.args); a++)
+    const auto generic_opt = lookup(generic_lookup,type_node->name);
+
+    if(!generic_opt)
     {
-        DeclNode* decl = node.args[a];
+        return compile_error(itl,itl_error::undeclared,"Generic type %S does not exist",type_node->name);
+    }
 
-        TypeNode* type_node = decl->type;
+    auto& generic = *generic_opt;
 
-        if(type_node->kind != type_node_kind::generic)
+    auto deduced_type_res = cut_generic_compound(itl,expr_type,type_node);
+    if(!deduced_type_res)
+    {
+        return deduced_type_res.error();
+    }
+
+    Type* deduced_type = *deduced_type_res;
+
+    if(!generic->type)
+    {
+        generic->type = deduced_type;
+        return option::none;
+    }
+
+    if(type_equal(generic->type,deduced_type))
+    {
+        return option::none;
+    }
+
+    // Types are not equal attempt to promote them if its not specifed in arg list
+    if(generic->fixed || !is_integer(generic->type) || !is_integer(deduced_type))
+    {
+        return compile_error(itl,itl_error::generic,"Mismatched generic types %t and %t",generic->type,deduced_type);
+    }
+    
+    const auto promotion_res = promote_integer_type(itl,generic->type,deduced_type);
+    if(!promotion_res)
+    {
+        return promotion_res.error();
+    }
+
+    generic->type = *promotion_res;
+    return option::none;
+}
+
+Option<itl_error> check_generic_sub_expr_const(Interloper& itl, AstNode* sub_expr,const Generic* overload, HashTable<String,Generic*>& generic_lookup)
+{
+    // Hardcoded in some other way just check for consistency
+    if(sub_expr->type != ast_type::generic_var)
+    {
+        auto& sub_known = sub_expr->known_value;
+        auto& known = overload->known.value;
+
+        Type* overload_type = overload->known.type_decl->node.expr_type;
+
+        const auto assign_err = check_assign(itl,sub_expr->expr_type,overload_type);
+        if(assign_err)
         {
+            return assign_err;
+        }
+
+        switch(sub_known.type)
+        {
+            case known_value_type::gpr_t:
+            {
+                if(known.gpr == sub_expr->known_value.gpr)
+                {
+                    return option::none;
+                }
+
+                return compile_error(itl,itl_error::generic,"Generic %S has inconsistent value %l != %l",
+                    overload->name,known.gpr,sub_known.gpr);
+            }
+
+            case known_value_type::fpr_t:
+            {
+                if(known.gpr == sub_known.fpr)
+                {
+                    return option::none;
+                }
+
+                return compile_error(itl,itl_error::generic,"Generic %S has inconsistent value %f != %f",
+                    overload->name,known.fpr,sub_known.gpr);  
+            }
+
+            case known_value_type::none_t:
+            {
+                return compile_error(itl,itl_error::generic,"Builtin generic arg expression is not known at compile time");
+            }
+        }
+    }
+
+    // Generic var attempt to verify constraints
+    GenericVarNode* generic_var = (GenericVarNode*)sub_expr;
+
+    const auto generic_opt = lookup(generic_lookup,generic_var->name);
+
+    if(!generic_opt)
+    {
+        return compile_error(itl,itl_error::undeclared,"Generic type %S does not exist",generic_var->name);
+    }
+
+    auto& generic = *generic_opt;
+    
+    // If this is a correct they should now have the same type
+    generic->known.type_decl->node.expr_type = overload->known.type_decl->node.expr_type;
+
+    return assign_generic_known_value(itl,overload->known.value,generic);
+}
+
+Option<itl_error> check_generic_sub_expr(Interloper& itl, const GenericOverload& overload_base, const Array<AstNode*> generic_args, 
+    const GenericOverload& overload_arg, HashTable<String,Generic*>& generic_lookup)
+{
+    for(u32 g = 0; g < count(generic_args); g++)
+    {
+        // Need to know what constraints we are dealing with
+        const auto& base_generic = overload_base[g];
+        AstNode* sub_expr = generic_args[g];
+
+        // Builtin value
+        if(base_generic.constraint == constraint_type::type)
+        {
+            const auto err = check_generic_sub_expr_const(itl,sub_expr,&overload_arg[g],generic_lookup);
+            if(err)
+            {
+                return err;
+            }
+
             continue;
-        }
-
-        AstNode* expr = func_call->args[a];
-
-        const auto generic_opt = lookup(generic_lookup,type_node->name);
-
-        if(!generic_opt)
-        {
-            return compile_error(itl,itl_error::undeclared,"Generic type %S does not exist",type_node->name);
-        }
-
-        auto& generic = *generic_opt;
-
-        auto deduced_type_res = cut_generic_compound(itl,expr->expr_type,decl->type);
-        if(!deduced_type_res)
-        {
-            return deduced_type_res.error();
-        }
-
-        Type* deduced_type = *deduced_type_res;
-
-
-        if(!generic->type)
-        {
-            generic->type = deduced_type;
-        }
-
-        if(type_equal(generic->type,deduced_type))
-        {
-            continue;
-        }
-
-        // Types are not equal attempt to promote them
-        if(!(is_integer(generic->type) && is_integer(deduced_type)))
-        {
-            return compile_error(itl,itl_error::generic,"Mismatched generic types %t and %t",generic->type,deduced_type);
         }
         
-        const auto promotion_res = promote_integer_type(itl,generic->type,deduced_type);
-        if(!promotion_res)
+        TypeNode* sub_type = (TypeNode*)sub_expr;
+        if(sub_type->kind != type_node_kind::generic)
         {
-            return promotion_res.error();
+            Type* hard_type = sub_type->node.expr_type;            
+
+            if(!type_equal(hard_type,overload_arg[g].type))
+            {
+                return compile_error(itl,itl_error::generic,"Generic %S is inconsistent %t != %t",
+                    base_generic.name,hard_type,overload_arg[g].type);
+            }
+
+            // TODO: I think we just pass this back through 
+            // handle_nested_generic_type with the relevant instance sub type?
+            if(sub_type->generic_args)
+            {
+                unimplemented("Doubly nested generic");
+            }
+
+            continue;
         }
 
-        generic->type = *promotion_res;
+        const auto err = deduce_generic_type(itl,generic_lookup,sub_type,overload_arg[g].type);
+        if(err)
+        {
+            return err;
+        }
     }
 
     return option::none;
 }
 
-Result<Array<Generic>,itl_error> deduce_generic_args(Interloper& itl, FuncNode& node, FuncCallNode* func_call)
+Option<itl_error> handle_nested_generic_type(Interloper& itl, TypeNode* type_node, Type* expr_type, HashTable<String,Generic*>& generic_lookup)
 {
-    auto generic_overload = copy_array(node.generic);
+    auto cut_generic_res = cut_generic_compound(itl,expr_type,type_node);
+    if(!cut_generic_res)
+    {
+        return cut_generic_res.error();
+    }
 
-    // TODO: This ideally needs caching.
+    Type* cut_generic_type = *cut_generic_res;
+
+    if(!is_struct(cut_generic_type))
+    {
+        return compile_error(itl,itl_error::generic,"Type %t as arg to nested generic is not a struct",cut_generic_type);
+    }
+
+    // Determine base types match
+    auto& structure = struct_from_type(itl.struct_table,(StructType*)cut_generic_type);
+
+    // Lookup the base type with no generic resolution to determine if they are based upon the same generic
+    const auto base_res = lookup_base_decl(itl,type_node_to_lookup(type_node,type_lookup_kind::struct_t));  
+    if(!base_res)
+    {
+        return base_res.error();
+    }
+
+    TypeDecl* base_decl = *base_res;
+
+    if(base_decl != structure.base)
+    {
+        return compile_error(itl,itl_error::generic,"Expr type for generic does not match base type %n%S != %n%S",
+            base_decl->name_space,base_decl->name,structure.name_space,structure.name);
+    }
+
+    if(count(base_decl->overload) != count(type_node->generic_args))
+    {
+        return compile_error(itl,itl_error::generic,"Nested generic specifies invalid number of args %d != %d",
+            count(base_decl->overload),count(type_node->generic_args));
+    }
+
+    return check_generic_sub_expr(itl,base_decl->overload,type_node->generic_args,structure.overload,generic_lookup);
+}
+
+Option<itl_error> deduce_generic_types(Interloper& itl, const Array<AstNode*> args, 
+    const Array<DeclNode*>& decl, HashTable<String,Generic*>& generic_lookup)
+{
+    // Deduce generic types
+    for(u32 a = 0; a < count(args); a++)
+    {
+        TypeNode* type_node = decl[a]->type;
+        AstNode* expr = args[a];
+
+        // nested generic
+        if(type_node->kind != type_node_kind::generic)
+        {
+            if(type_node->generic_args)
+            {
+                const auto err = handle_nested_generic_type(itl,type_node,expr->expr_type,generic_lookup);
+                if(err)
+                {
+                    return err;
+                }
+            }
+            continue;
+        }
+
+        const auto err = deduce_generic_type(itl,generic_lookup,type_node,expr->expr_type);
+        if(err)
+        {
+            return err;
+        }
+    }
+
+    return option::none;
+}
+
+Result<HashTable<String,Generic*>,itl_error> make_generic_lookup(Interloper& itl,GenericOverload& generic_overload)
+{
     auto generic_lookup = make_table<String,Generic*>();
 
-    for(u32 i = 0; i < count(generic_overload); i++)
+    for(auto& generic: generic_overload)
     {
-        const auto& generic = generic_overload[i];
-
         if(contains(generic_lookup,generic.name))
         {
-            destroy_table(generic_lookup);
-            destroy_arr(generic_overload);
             return compile_error(itl,itl_error::redeclaration,"Generic %S is declared twice",generic.name);
         }
 
-        add(generic_lookup,generic.name,&generic_overload[i]);
+        add(generic_lookup,generic.name,&generic);
     }
 
-    for(u32 i = 0; i < count(func_call->generic_args); i++)
-    {
-        AstNode* arg = func_call->generic_args[i];
+    return generic_lookup;
+}
 
-        if(generic_overload[i].constraint != constraint_type::builtin)
+Option<itl_error> handle_generic_args(Interloper& itl, GenericOverload& generic_overload, const Array<AstNode*>& generic_args)
+{
+    if(count(generic_args) > count(generic_overload))
+    {
+        return compile_error(itl,itl_error::generic,"Generic specifies too many args %d > %d",
+            count(generic_args),count(generic_overload));
+    }
+
+    for(u32 i = 0; i < count(generic_args); i++)
+    {
+        AstNode* arg = generic_args[i];
+
+        if(generic_overload[i].constraint != constraint_type::type)
         {
             const auto type_res = get_type(itl,(TypeNode*)arg);
             if(!type_res)
             {
-                destroy_table(generic_lookup);
-                destroy_arr(generic_overload);
-
                 return type_res.error();
             }
 
             generic_overload[i].type = *type_res;
+            generic_overload[i].fixed = true;
         }
 
         else
         {
-            const auto err = type_check_generic_builtin(itl,&generic_overload[i],arg);
+            const auto err = type_check_generic_known(itl,&generic_overload[i],arg);
             if(err)
             {
-                destroy_table(generic_lookup);
-                destroy_arr(generic_overload);
-
                 return *err;
             }
         }
-        
     }
 
-    const auto type_err = deduce_generic_types(itl,func_call,node,generic_lookup);
+    return option::none;
+}
+
+Result<Array<Generic>,itl_error> deduce_generic(Interloper& itl, GenericOverload& generic_overload, 
+    const Array<AstNode*>& generic_args, const Array<AstNode*>& args, const Array<DeclNode*>& decl)
+{
+    const auto arg_err = handle_generic_args(itl,generic_overload,generic_args);
+    if(arg_err)
+    {
+        destroy_arr(generic_overload);
+        return *arg_err;
+    }
+  
+    const auto generic_lookup_res = make_generic_lookup(itl,generic_overload);
+    if(!generic_lookup_res)
+    {
+        destroy_arr(generic_overload);
+        return generic_lookup_res.error();
+    }
+    auto generic_lookup = *generic_lookup_res;
+
+
+    const auto type_err = deduce_generic_types(itl,args,decl,generic_lookup);
     destroy_table(generic_lookup);
 
     if(type_err)
@@ -376,11 +652,37 @@ Result<Array<Generic>,itl_error> deduce_generic_args(Interloper& itl, FuncNode& 
     return generic_overload;
 }
 
-bool check_overload(const Function* func, const Array<Generic>& generic_overload)
+Result<Array<Generic>,itl_error> deduce_generic_func(Interloper& itl, FuncNode& node, NameSpace* name_space, FuncCallNode* func_call)
+{
+    // TODO: This causes some less than ideal error reporting
+    const auto context_guard = switch_context(itl,itl.ctx.filename,name_space,itl.ctx.expr);
+
+    auto generic_overload = copy_array(node.generic);
+    return deduce_generic(itl,generic_overload,func_call->generic_args,func_call->args,node.args);
+}
+
+Result<Array<Generic>,itl_error> deduce_generic_struct(Interloper& itl, TypeDecl* decl, const TypeLookupInfo& info)
+{
+    StructNode* struct_node = (StructNode*)decl->root;
+    const Array<AstNode*> blank;
+
+    auto generic_overload = copy_array(struct_node->generic);
+    return deduce_generic(itl,generic_overload,info.generic_args,blank,struct_node->members);
+}
+
+bool check_overload(const GenericOverload& args, const GenericOverload& generic_overload)
 {
     for(u32 a = 0; a < count(generic_overload); a++)
     {
-        if(!type_equal(generic_overload[a].type,func->root->generic[a].type))
+        if(generic_overload[a].constraint == constraint_type::type)
+        {
+            if(generic_overload[a].known.value != args[a].known.value)
+            {
+                return false;
+            }
+        }
+
+        else if(!type_equal(generic_overload[a].type,args[a].type))
         {
             return false;
         }
@@ -389,19 +691,34 @@ bool check_overload(const Function* func, const Array<Generic>& generic_overload
     return true;
 }
 
-Function* find_overload(const OverloadTable& overload, const Array<Generic>& generic_overload)
+Function* find_func_overload(const FuncOverloadTable& overload, const GenericOverload& generic_overload)
 {
     for(Function* func : overload)
     {
-        if(check_overload(func,generic_overload))
+        if(check_overload(func->root->generic,generic_overload))
         {
             return func;
         }
     }
 
     return nullptr;
-
 }
+
+
+
+TypeDecl* find_type_overload(const TypeDef& def, const GenericOverload& generic_overload)
+{
+    for(TypeDecl* decl : def.generic_overload)
+    {
+        if(check_overload(decl->overload,generic_overload))
+        {
+            return decl;
+        }
+    }
+
+    return nullptr;
+}
+
 
 
 TypeResult type_check_generic_var(Interloper& itl, AstNode* expr)
@@ -416,17 +733,8 @@ TypeResult type_check_generic_var(Interloper& itl, AstNode* expr)
 
     const auto& generic = *res;
 
-    if(generic.builtin.type == builtin_type::f64_t)
-    {
-        var->node.known_value.type = known_value_type::fpr_t;
-        var->node.known_value.fpr = generic.builtin.decimal;
-    }
+    expr->known_value = generic.known.value;
+    expr->expr_type = generic.known.type_decl->node.expr_type;
 
-    else
-    {
-        var->node.known_value.type = known_value_type::gpr_t;
-        var->node.known_value.gpr = generic.builtin.integer;
-    }
-
-    return make_builtin(itl,generic.builtin.type);
+    return expr->expr_type;
 }

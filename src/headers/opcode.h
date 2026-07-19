@@ -139,6 +139,11 @@ enum class spec_reg
     a2 = SPECIAL_REG_START + 17,
 };
 
+inline b32 spec_reg_is_gpr(spec_reg reg)
+{
+    return reg >= spec_reg::rv_gpr && reg <= spec_reg::r10;
+}
+
 static constexpr u32 SPECIAL_REG_SIZE = (u32(spec_reg::a2) - SPECIAL_REG_START) + 1;
 static constexpr u32 SPECIAL_REG_END = (SPECIAL_REG_START + SPECIAL_REG_SIZE) - 1;
 
@@ -187,11 +192,11 @@ struct RegSlot
     union 
     {
         TmpSlot tmp_slot;
-        SymSlot sym_slot = {INVALID_HANDLE};
+        SymSlot sym_slot;
         spec_reg spec;
     };
 
-    reg_kind kind = reg_kind::sym;
+    reg_kind kind;
 };
 
 
@@ -811,7 +816,7 @@ struct IrRegister
 {
     union
     {
-        RegSlot ir = {};
+        RegSlot ir;
         lowered_reg_t reg;
     };
 };

@@ -261,11 +261,17 @@ void spill_slot(Interloper& itl, Function& func, const Reg& reg)
     emit_directive_reg1(itl,func,directive_type::spill_slot,v1);
 }
 
-void mov_unlock(Interloper& itl, Function& func, RegSlot dst, spec_reg spec)
+Opcode make_mov_unlock(RegSlot dst, spec_reg spec)
 {
     const DirectiveReg v1 = {dst,ir_reg_type::dst};
     const DirectiveReg v2 = {make_spec_reg_slot(spec),ir_reg_type::src};
-    emit_directive_reg2(itl,func,directive_type::mov_unlock,v1,v2);
+    return make_directive_two(directive_type::mov_unlock,make_reg_operand(v1.slot,v1.type),make_reg_operand(v2.slot,v2.type));
+}
+
+
+void mov_unlock(Interloper& itl, Function& func, RegSlot dst, spec_reg spec)
+{
+    emit_block_func(itl,func,make_mov_unlock(dst,spec));
 }
 
 void pool_addr(Interloper& itl, Function& func, RegSlot dst, PoolSlot pool_slot, u32 offset)

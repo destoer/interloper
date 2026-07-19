@@ -72,7 +72,7 @@ TypeResult type_check_access_struct_member(Interloper& itl, StructAccessNode* ac
 
                 member_access.member = u32(array_member_access::data);
 
-                const u32 flags = is_fixed? TYPE_FLAG_CONST : 0;
+                const u32 flags = is_fixed? TYPE_CONST_FLAG : 0;
 
                 // This is never considered nullable. Arrays should be checked by size
                 return member_access.expr_type = make_reference(itl,array_type->contained_type,flags);
@@ -111,7 +111,7 @@ TypeResult type_check_access_struct_member(Interloper& itl, StructAccessNode* ac
 TypeResult type_check_struct_initializer(Interloper& itl, StructInitializerNode* init)
 {
     // Get structure
-    auto struct_res = lookup_struct(itl,init->name_space,init->struct_name);
+    auto struct_res = lookup_struct(itl,init->type_info);
     if(!struct_res)
     {
         return struct_res.error();
@@ -197,8 +197,6 @@ TypeResult type_check_access_index_member(Interloper& itl, Type* ltype, AccessMe
     {
         return *access_err;
     }
-
-
 
     const auto index_res = type_check_index_internal(itl,index,member_access.expr_type);
     if(!index_res)

@@ -92,6 +92,7 @@ IfStmt copy_ast_if_stmt(Interloper& itl, const IfStmt& stmt)
 
     out.block = (AstBlock*)allocate(itl.parser_alloc.ast_allocator,sizeof(AstBlock));
     *out.block = copy_ast_block(itl,*stmt.block);
+    add_copy_data_pointer(itl,&out.block->statement.data);
 
     out.type = stmt.type;
 
@@ -109,7 +110,6 @@ IfNode* copy_ast_if(Interloper& itl, IfNode* if_node)
     *copy = *if_node;
 
     copy->if_stmt = copy_ast_if_stmt(itl,if_node->if_stmt);
-    add_copy_data_pointer(itl,&copy->if_stmt.block->statement.data);    
 
     copy->else_if_stmt = {};
     for(auto& stmt : if_node->else_if_stmt)
@@ -120,8 +120,6 @@ IfNode* copy_ast_if(Interloper& itl, IfNode* if_node)
     add_copy_data_pointer(itl,&copy->else_if_stmt.data);
 
     copy->else_stmt = copy_ast_block(itl,if_node->else_stmt);
-    add_copy_data_pointer(itl,&copy->else_stmt.statement.data);
-
 
     return copy;
 }
@@ -250,23 +248,6 @@ ForRangeNode* copy_ast_for_range(Interloper& itl, ForRangeNode* range)
     return copy;    
 }
 
-// struct FuncCallNode
-// {
-//     AstNode node;
-
-//     AstNode* expr = nullptr;
-//     func_call_type type = func_call_type::call;
-
-//     union
-//     {
-//         FuncCall call = {};
-//         size_t intrinsic_idx;
-//     };
-
-//     Array<TypeNode*> generic_args;
-//     Array<AstNode*> args;
-// };
-
 FuncCallNode* copy_ast_function_call(Interloper& itl, FuncCallNode* call)
 {
     FuncCallNode* copy = alloc_node_copy(itl,call);
@@ -307,7 +288,14 @@ StructAccessNode* copy_ast_struct_access(Interloper& itl, StructAccessNode* acce
     copy->members = {};
     for(const auto& member : access->members)
     {
-        push_var(copy->members,member);
+        auto member_copy = member;
+
+        if(member.type >= member_access_type::index_t)
+        {
+            member_copy.expr = copy_ast(itl,member.expr);
+        }
+
+        push_var(copy->members,member_copy);
     }
 
     add_copy_data_pointer(itl,&copy->members.data);
@@ -315,6 +303,49 @@ StructAccessNode* copy_ast_struct_access(Interloper& itl, StructAccessNode* acce
     return copy;
 }
 
+    AstNode node;
+
+    String name;
+    String filename;
+    Array<DeclNode*> members;
+
+    Array<Generic> generic;
+    u32 attr_flags = 0;
+
+StructNode* copy_ast_struct(Interloper& itl, StructNode* struct_node)
+{
+    StructNode* copy = alloc_node_copy(itl,struct_node);
+    *copy = *struct_node;
+    
+    copy->generic = copy_array(struct_node->generic);
+    add_copy_data_pointer(itl,&copy->generic.data);
+
+    copy->members = {};
+    for(DeclNode* member : struct_node->members)
+    {
+        push_var(copy->members,copy_ast_decl(itl,member));
+    }
+    add_copy_data_pointer(itl,&copy->members.data);
+
+    return copy;
+}
+
+AstNode* copy_ast_index(Interloper& itl, IndexNode* index)
+{
+    IndexNode* copy = alloc_node_copy(itl,index);
+    *copy = *index;
+
+    copy->indexes = {};
+
+    for(AstNode* expr : index->indexes)
+    {
+        push_var(copy->indexes,copy_ast(itl,expr));
+    }
+
+    add_copy_data_pointer(itl,&copy->indexes.data);
+
+    return (AstNode*)copy;
+}
 
 AstNode* copy_ast(Interloper& itl, AstNode* node)
 {
@@ -328,6 +359,11 @@ AstNode* copy_ast(Interloper& itl, AstNode* node)
         case ast_type::no_init:
         {
             return copy_ast_plain(itl,node);
+        }
+
+        case ast_type::index:
+        {
+            return copy_ast_index(itl,(IndexNode*)node);
         }
 
         case ast_type::function:
@@ -400,6 +436,16 @@ AstNode* copy_ast(Interloper& itl, AstNode* node)
             return (AstNode*)copy_pod_node(itl,(ValueNode*)node);
         }
 
+        case ast_type::float_t:
+        {
+            return (AstNode*)copy_pod_node(itl,(FloatNode*)node);
+        }
+
+        case ast_type::string:
+        {
+            return (AstNode*)copy_pod_node(itl,(StringNode*)node);
+        }
+
         case ast_type::arith_unary:
         {
             return (AstNode*)copy_arith_unary(itl,(ArithUnaryNode*)node);
@@ -448,6 +494,11 @@ AstNode* copy_ast(Interloper& itl, AstNode* node)
         case ast_type::for_range:
         {
             return (AstNode*)copy_ast_for_range(itl,(ForRangeNode*)node);
+        }
+
+        case ast_type::struct_t:
+        {
+            return (AstNode*)copy_ast_struct(itl,(StructNode*)node);
         }
 
         default: break;

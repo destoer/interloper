@@ -80,7 +80,8 @@ void gen_table(const char* key[][2],const char* name, const char* type, const ch
 
     printf("static constexpr u32 %s_TABLE_SIZE = %d;\n",name,table_size);
 
-    u32 hash_table[table_size];
+    Array<u32> hash_table;
+    resize(hash_table,table_size);
 
 
     for(u32 i = 0; i < table_size; i++)
@@ -131,6 +132,8 @@ void gen_table(const char* key[][2],const char* name, const char* type, const ch
     }
 
     printf("};\n");    
+
+    destroy_arr(hash_table);
 }
 
 int main()

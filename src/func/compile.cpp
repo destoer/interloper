@@ -5,7 +5,9 @@ ArgPass make_arg_pass(const FuncSig& sig)
     ArgPass pass;
 
     resize(pass.args,sig.max_reg_pass);
-    pass.pass_as_reg = sig.pass_as_reg;
+
+    pass.pass_as_reg = make_const_span(sig.pass_as_reg,0,count(sig.pass_as_reg));
+    pass.fixed_args = make_const_span(sig.fixed_args,0,count(sig.fixed_args));
     return pass;
 }
 
@@ -16,14 +18,14 @@ void destroy_arg_pass(ArgPass& pass)
 
 void pass_arg(Interloper& itl, Function& func, ArgPass& pass,const TypedReg& reg, u32 arg_idx)
 {
-    if(pass.pass_as_reg[arg_idx] == NON_ARG)
+    if(pass.pass_as_reg[arg_idx] != NON_ARG)
     {
-        is_float(reg.type)? push_float_arg(itl,func,pass,reg.slot) : push_arg(itl,func,pass,reg.slot);
+        pass.args[pass.pass_as_reg[arg_idx]] = reg.slot;
     }
 
     else
     {
-        pass.args[pass.pass_as_reg[arg_idx]] = reg.slot;
+        is_float(reg.type)? push_float_arg(itl,func,pass,reg.slot) : push_arg(itl,func,pass,reg.slot);
     }
 }
 
@@ -33,7 +35,7 @@ u32 pass_args(Interloper& itl, Function& func, ArgPass& pass)
     // Move the passed args into place
     for(u32 a = 0; a < count(pass.args); a++)
     {
-        const RegSlot arg_slot = make_spec_reg_slot(spec_reg(SPECIAL_REG_ARG_START + a));
+        const RegSlot arg_slot = make_spec_reg_slot(pass.fixed_args[a].spec);
         mov_reg(itl,func,arg_slot,pass.args[a]);
     }
 
@@ -437,7 +439,7 @@ void handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Reg
         compile_move(itl,func,dst,src);
     }
 
-    unlock_reg_set(itl,func,sig.locked_set);
+    unlock_reg_set(itl,func,sig.locked_regs);
 }
 
 void compile_function_call(Interloper& itl, Function& func, AstNode* call_node_ast, RegSlot dst_slot)
@@ -487,22 +489,4 @@ void compile_function_call_stmt(Interloper& itl, Function& func, AstNode* stmt)
 void compile_tuple_assign_stmt(Interloper& itl, Function& func, AstNode* stmt)
 {
     compile_function_call(itl,func,stmt,make_spec_reg_slot(spec_reg::null));
-}
-
-void setup_passing_convention(Interloper& itl, Function& func)
-{
-    lock_reg_set(itl,func,func.sig.locked_set);
-
-    // Setup calling convention
-    for(u32 a = 0; a < count(func.sig.args); a++)
-    {
-        const SymSlot slot = func.sig.args[a];
-        const u32 arg_reg = func.sig.pass_as_reg[a];
-
-        if(arg_reg != NON_ARG)
-        {
-            const spec_reg arg = spec_reg(SPECIAL_REG_ARG_START + arg_reg);
-            mov_unlock(itl,func,make_sym_reg_slot(slot),arg);
-        }
-    }
 }

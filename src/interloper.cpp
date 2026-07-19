@@ -115,6 +115,13 @@ void destroy_itl(Interloper &itl)
     for(auto& decl : itl.type_decl)
     {
         destroy_attribute(decl->type_def.attr);
+
+        for(const auto& generic_overload : decl->generic_overload)
+        {
+            destroy_arr(generic_overload->overload);
+        }
+
+        destroy_arr(decl->generic_overload);
     }
 
     destroy_arr(itl.type_decl);
@@ -157,7 +164,7 @@ void print_itl(Interloper& itl)
     // print type defs
     for(u32 t = 0; t < count(itl.type_decl); t++)
     {
-        print(itl, itl.type_decl[t]->root);
+        print(itl, itl.type_decl[t]->decl.root);
     }
 
     // print function defs
@@ -208,11 +215,11 @@ Option<parse_error> parsing(Interloper& itl, const String& initial_filename)
 
 Option<itl_error> compile(Interloper &itl,const String& initial_filename, const String& executable_path)
 {
-    UNUSED(executable_path);
     printf("compiling file: %s\n",initial_filename.buf);
 
     itl.first_error_code = itl_error::unimplemented;
     itl.error_count = 0;
+    itl.lines = 0;
 
     itl.string_allocator = make_allocator(STRING_INITIAL_SIZE);
     itl.list_allocator = make_allocator(LIST_INITIAL_SIZE);

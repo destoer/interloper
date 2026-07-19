@@ -157,6 +157,13 @@ enum class type_def_kind
     alias_t,
 };
 
+enum class type_lookup_kind
+{
+    enum_t,
+    struct_t,
+    any_t
+};
+
 
 enum class type_def_state
 {
@@ -167,6 +174,108 @@ enum class type_def_state
 
 struct AstNode;
 struct NameSpace;
+
+static constexpr u32 CONSTRAINT_SIZE = 4;
+
+const char* CONSTRAINT_NAMES[CONSTRAINT_SIZE] =
+{
+    "Integer",
+    "Real",
+    "Sized",
+    "builtin"
+};
+
+enum class constraint_type
+{
+    integer,
+    real,
+    sized,
+    type,
+};
+
+struct TypeNode;
+
+
+enum class known_value_type
+{
+    gpr_t,
+    fpr_t,
+    none_t,
+};
+
+static const char* KNOWN_VALUE_TYPE_NAMES[] = 
+{
+    "integer",
+    "float",
+    "none"
+};
+
+struct KnownValue
+{
+    union
+    {
+        u64 gpr = 0;
+        f64 fpr;
+    };
+
+    KnownValue() : gpr(0), type(known_value_type::none_t) {}
+    KnownValue(u32 v) : gpr(v), type(known_value_type::gpr_t) {}
+    KnownValue(u64 v) : gpr(v), type(known_value_type::gpr_t) {}
+    KnownValue(s64 v) : gpr(v), type(known_value_type::gpr_t) {}
+    KnownValue(bool v) : gpr(v), type(known_value_type::gpr_t) {}
+    KnownValue(f64 v) : fpr(v), type(known_value_type::fpr_t) {}
+
+    bool operator !() 
+    {
+        return type == known_value_type::none_t;
+    }
+
+    friend bool operator == (const KnownValue &t1, const KnownValue &t2);
+
+    known_value_type type = known_value_type::none_t;
+};
+
+inline bool operator == (const KnownValue &t1, const KnownValue &t2)
+{
+    if(t1.type != t2.type)
+    {
+        return false;
+    }
+
+    switch(t1.type)
+    {
+        case known_value_type::fpr_t: return t1.fpr == t2.fpr;
+        case known_value_type::gpr_t: return t1.gpr == t2.gpr;
+        case known_value_type::none_t: return true;
+    }
+}
+
+struct GenericKnown
+{
+    KnownValue value;
+    TypeNode* type_decl = nullptr;
+};
+
+struct Generic
+{
+    String name;
+    constraint_type constraint = constraint_type::type;
+
+    union
+    {
+        // constraint_type::type
+        GenericKnown known = {};
+
+        Type* type;
+    };
+   
+    b32 fixed = false;
+};
+
+struct TypeDecl;
+using TypeOverloadTable = Array<TypeDecl*>;
+using GenericOverload = Array<Generic>;
+
 
 struct TypeDecl
 {
@@ -180,10 +289,18 @@ struct TypeDecl
     type_def_state state = type_def_state::not_checked;
     NameSpace* name_space = nullptr;
 
+    // the definition root -> depends on the type!
+    AstNode* root = nullptr;
+    GenericOverload overload;
     u32 flags = 0;
+
+    // NOTE: Not to be copied
+    TypeDecl* base = nullptr;
 };
 
 static constexpr u32 TYPE_DECL_DEF_FLAG = (1 << 0);
+
+
 
 struct TypeDef
 {
@@ -193,8 +310,17 @@ struct TypeDef
     type_def_kind kind;
     TopLevelDefinition type_def;
 
-    // the definition root -> depends on the type!
-    AstNode* root = nullptr;
+    TypeOverloadTable generic_overload;
+};
+
+struct TypeLookupInfo
+{
+    NameSpace* name_space;
+    String name;
+
+    // NOTE: Non owning
+    Array<AstNode*> generic_args;
+    type_lookup_kind kind;
 };
 
 enum class assign_type
@@ -205,9 +331,6 @@ enum class assign_type
     no_const,
     none,
 };
-
-static constexpr u32 TYPE_FLAG_CONST = (1 << 0);
-static constexpr u32 TYPE_USE_RESULT = (1 << 1);
 
 struct Type
 {
@@ -417,6 +540,10 @@ struct Struct
 
     u32 type_idx = 0;
     bool holds_refs = false;
+
+    // What generic overload produced this struct?
+    GenericOverload overload;
+    TypeDecl* base = nullptr;
 };
 
 enum class struct_state 

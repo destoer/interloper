@@ -6,8 +6,8 @@ void print_func_decl(Interloper& itl,const Function &func);
 Option<itl_error> type_check_block(Interloper& itl,Function& func, AstBlock &block);
 
 GenericScopeGuard switch_generic_context(Interloper& itl, const GenericOverload& overload);
-Result<Array<Generic>,itl_error> deduce_generic_args(Interloper& itl, FuncNode& node, FuncCallNode* func_call);
-Function* find_overload(const OverloadTable& overload, const Array<Generic>& generic_overload);
+Result<Array<Generic>,itl_error> deduce_generic_func(Interloper& itl, FuncNode& node, NameSpace* name_space, FuncCallNode* func_call);
+Function* find_func_overload(const FuncOverloadTable& overload, const Array<Generic>& generic_overload);
 
 FunctionTable make_func_table()
 {
@@ -61,34 +61,8 @@ void add_func(Interloper& itl, const String& name, NameSpace* name_space, const 
     const auto handle = count(itl.func_table.table);
     push_var(itl.func_table.table,func_def);
 
-    const DefInfo info = {definition_type::function,handle};
+    const DefInfo info = {definition_type::function,{handle}};
     add(name_space->table,copy_string(itl.string_allocator,name), info);  
-}
-
-void print_generic_overload(Interloper& itl, const ConstSpan<Generic>& generic_overload)
-{
-    for(const auto& generic : generic_overload)
-    {   
-        if(generic.constraint != constraint_type::builtin)
-        {
-            print_itl(itl,"%S = %t",generic.name,generic.type);
-        }
-
-        else
-        {
-            if(generic.builtin.type != builtin_type::f64_t)
-            {
-                print_itl(itl,"%S = %d",generic.name,generic.builtin.integer);
-            }
-
-            else
-            {
-                print_itl(itl,"%S = %f",generic.name,generic.builtin.decimal);
-            }
-        }
-    }
-
-    putchar('\n');
 }
 
 Option<itl_error> type_check_function(Interloper& itl, Function& func)
@@ -160,19 +134,20 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
         }
 
         func.from_generic = true;
-
-        const auto res = deduce_generic_args(itl,*func.root,func_call);
+        
+        const auto res = deduce_generic_func(itl,*func.root,func.name_space,func_call);
         if(!res)
         {
             return res.error();
         }
+        
 
         Array<Generic> generic_overload = *res;
 
         // Scan and see if overload already exists
         if(func_def.generic_overload)
         {
-            Function* func = find_overload(func_def.generic_overload,generic_overload);
+            Function* func = find_func_overload(func_def.generic_overload,generic_overload);
 
             if(func)
             {
@@ -388,18 +363,28 @@ void print_func_decl(Interloper& itl,const Function &func)
 
 void add_sig_arg(Interloper& itl, FuncSig& sig, const String& name, Type* type, u32* arg_offset)
 {
-    if(is_trivial_copy(type) && !is_float(type) && count(sig.args) < 2)
+    if(is_trivial_copy(type) && !is_float(type) && count(sig.pass_as_reg) < 2)
     {
+        const auto spec = spec_reg(SPECIAL_REG_ARG_START + sig.max_reg_pass);
+        const u32 location = special_reg_to_reg(itl.arch,spec);
+
+        sig.locked_regs = set_bit(sig.locked_regs,location);
+        sig.locked_args = set_bit(sig.locked_args,count(sig.pass_as_reg));
+
         Symbol sym = make_sym(itl,name,type);
+        
+        // Make symbol likely to be directly allocated
+        sym.reg.hint = (1 << location);
+
         add_var(itl.symbol_table,sym);
         push_var(sig.args,sym.reg.slot.sym_slot);
 
+        // Note which args are fixed
+        const FixedArg fixed = {spec,sym.reg.slot};
+        push_var(sig.fixed_args,fixed);
+
+        // Reverse lookup to fixed_args
         push_var(sig.pass_as_reg,sig.max_reg_pass);
-
-        const u32 location = special_reg_to_reg(itl.arch,spec_reg(SPECIAL_REG_ARG_START + sig.max_reg_pass));
-
-        sig.locked_set = set_bit(sig.locked_set,location);
-
         sig.max_reg_pass += 1;
     }   
 
@@ -410,8 +395,8 @@ void add_sig_arg(Interloper& itl, FuncSig& sig, const String& name, Type* type, 
 
         push_var(sig.args,sym.reg.slot.sym_slot);
 
-        push_var(sig.pass_as_reg,NON_ARG);
         *arg_offset += promote_size(type_size(itl,type));
+        push_var(sig.pass_as_reg,NON_ARG);
     }
 }
 

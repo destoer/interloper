@@ -335,8 +335,6 @@ ConstDataResult read_const_data(Interloper& itl, Type* type, PoolSlot slot, u32 
     {
         case type_class::builtin_t:
         {
-            ConstData data;
-
             auto data_res = builtin_from_const(itl,type,slot,offset);
             if(!data_res)
             {

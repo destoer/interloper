@@ -145,29 +145,25 @@ std::pair<Value,b32> parse_value(const char** src_ptr)
             v = 10 + (c - 'A');
         }
 
-        else
+        // alpha in this context is an error
+        else if(isalpha(c))
         {
-            // alpha in this context is an error
-            if(isalpha(c))
-            {
-                return std::pair{value,true};
-            }
-
-            else
-            {
-                done = true;
-                break;                
-            }
+            return std::pair{value,true};
         }
 
-        // acummulate digit
+        else
+        {
+            done = true;
+            break;                
+        }
+
+        // accumulate digit
         value.v *= base;
         value.v += v;
 
         src++;
     }
 
-    //printf("parsed value: %s0x%lx\n",value.sign? "-" : "",value.v);
 
     // make twos complement
     if(value.sign)
@@ -182,7 +178,7 @@ std::pair<Value,b32> parse_value(const char** src_ptr)
 #include "lexer_lut.cpp"
 
 // based upon https://nothings.org/computer/lexing.html
-b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_allocator, Array<Token>& tokens_out)
+s32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_allocator, Array<Token>& tokens_out)
 {
     Lexer lexer;
 
@@ -204,6 +200,7 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
             const char c = *src++;
             lex_class lc = LEX_CLASS[u32(c)];
             state = LEX_ACTIVE_STATES[active_idx][u32(lc)];
+            lexer.lines += c == '\n';
         }
 
         const char* start = (src - (len + 1));
@@ -217,7 +214,7 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                 src--;
                 panic(lexer,file_name,"Invalid char '%c' : %d\n",*src,*src);
                 destroy_lexer(lexer);
-                return true;
+                return -1;
             }
 
             case LEX_STATE_STRING_FIN:
@@ -239,7 +236,7 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                         if(lexer.error)
                         {
                             destroy_lexer(lexer);
-                            return true;
+                            return -1;
                         }
                     }
 
@@ -254,7 +251,7 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                 // null term the string
                 push_char(*lexer.string_allocator,buffer,'\0');
 
-                // create string fomr the array
+                // create string form the array
                 String literal = make_string(buffer);
 
                 insert_token(lexer,token_type::string,literal);
@@ -367,7 +364,7 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                     {
                         panic(lexer,file_name,"Invalid integer literal\n");
                         destroy_lexer(lexer);
-                        return true;
+                        return -1;
                     }
 
                     insert_token_value(lexer,value);
@@ -396,7 +393,6 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                 {
                     // need to copy literal as we ditch the file later
                     const String literal = copy_string(*lexer.string_allocator,literal_file);
-                    //printf("%s\n",literal.buf);
                     insert_token(lexer,token_type::symbol,literal);
                 }
                 break;
@@ -425,7 +421,7 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                 {
                     destroy_lexer(lexer);
                     panic(lexer,file_name,"eof hit in middle of char literal");
-                    return true;
+                    return -1;
                 }
 
                 // potential escape char
@@ -436,14 +432,14 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                     if(lexer.error)
                     {
                         destroy_lexer(lexer);
-                        return true;
+                        return -1;
                     }
                     
                     if(src[2] != '\'')
                     {
                         panic(lexer,file_name,"unterminated char literal");
                         destroy_lexer(lexer);
-                        return true;
+                        return -1;
                     }
 
                     insert_token_char(lexer,e);
@@ -457,7 +453,7 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
                     {
                         panic(lexer,file_name,"unterminated char literal");
                         destroy_lexer(lexer);
-                        return true;
+                        return -1;
                     }
 
                     insert_token_char(lexer,peek);
@@ -469,7 +465,7 @@ b32 tokenize(const String& file,const String& file_name,ArenaAllocator* string_a
             case LEX_STATE_EOF:
             {
                 tokens_out = lexer.tokens;
-                return false;            
+                return lexer.lines;            
             }
 
             default:

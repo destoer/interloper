@@ -197,19 +197,28 @@ enum class type_node_kind
     generic,
 };
 
+// Current type level is constant
+static constexpr u32 TYPE_CONST_FLAG = (1 << 0);
+// Constant for every part of the type converted to TYPE_CONST_FLAG
+static constexpr u32 TYPE_CONSTANT_FLAG = (1 << 1);
+// Type must be bound from result
+static constexpr u32 TYPE_USE_RESULT_FLAG = (1 << 2);
+// Force declare first in type decl
+static constexpr u32 FORCED_FIRST_FLAG = (1 << 3);
+
 struct TypeNode
 {
     AstNode node;
     String name;
 
-    b32 is_const = false;
-    b32 is_constant = false;
+    u32 flags = 0;
     builtin_type builtin = builtin_type::void_t;
     type_node_kind kind = type_node_kind::builtin;
     
     FuncNode* func_type = nullptr;
     NameSpace* name_space = nullptr;
 
+    Array<AstNode*> generic_args;
     Array<CompoundType> compound;
 };
 
@@ -314,7 +323,7 @@ struct StructInitializerNode
     AstNode node;
 
     NameSpace* name_space = nullptr;
-    String struct_name;
+    TypeLookupInfo type_info;
 
     // Initializer list or designated initializer
     AstNode* initializer = nullptr;
@@ -396,7 +405,7 @@ struct DeclNode
     TypeNode* type = nullptr;
     AstNode* expr = nullptr;
 
-    b32 is_const = false;
+    u32 flags = 0;
 
     NamedSymbol sym;
 };
@@ -417,9 +426,8 @@ struct StructNode
     String name;
     String filename;
     Array<DeclNode*> members;
-    // is there a member forced to be first in the memory layout?
-    DeclNode* forced_first = nullptr;
 
+    Array<Generic> generic;
     u32 attr_flags = 0;
 };
 
@@ -739,25 +747,33 @@ enum class parser_mode
     parse,
 };
 
+
 struct Parser
 {
     ParserAllocator* alloc;
-    ParserContext context;
+    ParserContext ctx;
 
     parser_mode mode;
-
-    // what is our current token?
-    u32 tok_idx = 0;
-    ConstSpan<Token> tokens;
 
     // itl.func_table.table
     FunctionTable* func_table;
 
-    // error handling
-    u32 error_count = 0;
-    u32 idx = 0;
-    u32 line = 0;
-    u32 col = 0;
+    Array<ParserContext> saved_ctx;
+};
+
+struct ParserContextScopeGuard
+{
+    ParserContextScopeGuard(Parser& parser) : parser(parser)
+    {
+        push_var(parser.saved_ctx,parser.ctx);
+    }
+
+    ~ParserContextScopeGuard() 
+    {
+        parser.ctx = pop(parser.saved_ctx);
+    }
+
+    Parser& parser;
 };
 
 const u32 EXPR_TERMINATED_FLAG_BIT = 0;
@@ -767,6 +783,7 @@ const u32 EXPR_TERMINATED_FLAG = (1 << EXPR_TERMINATED_FLAG_BIT);
 const u32 EXPR_HIT_TERMINATOR = (1 << EXPR_HIT_TERMINATOR_FLAG_BIT); 
 const u32 EXPR_MUST_TERMINATE_FLAG = (1 << 2);
 const u32 EXPR_TERM_LIST_FLAG = (1 << 3);
+const u32 EXPR_TERM_ENUM_INIT = (1 << 4);
 
 
 // Current state of the expression parser
@@ -776,10 +793,9 @@ struct ExprCtx
     // NOTE: this is only used for error messaging
     String expression_name = "";
 
-    // current token
-    Token expr_tok;
-
     u32 expr_flags = 0;
+
+    Token term_tok;
 
     // make pratt parser terminate as soon as it sees
     // this token
@@ -972,13 +988,13 @@ DesignatedListNode* ast_designated_initializer_list(Parser& parser, const Token&
     return list;
 }
 
-AstNode* ast_struct_initializer(Parser& parser,const String& literal, AstNode* initializer, NameSpace* name_space, const Token& token)
+AstNode* ast_struct_initializer(Parser& parser, const TypeLookupInfo& type_info, AstNode* initializer, const Token& token)
 {
     StructInitializerNode* struct_initializer_node = alloc_node<StructInitializerNode>(parser,ast_type::struct_initializer,token);
 
-    struct_initializer_node->struct_name = literal;
+    struct_initializer_node->type_info = type_info;
     struct_initializer_node->initializer = initializer;
-    struct_initializer_node->name_space = name_space;
+    add_ast_pointer(parser,&struct_initializer_node->type_info.generic_args.data);
 
     return (AstNode*)struct_initializer_node;
 }
@@ -1078,6 +1094,7 @@ TypeNode* ast_type_decl(Parser& parser, NameSpace* name_space, const String& nam
     type_node->name_space = name_space;
 
     add_ast_pointer(parser,&type_node->compound.data);
+    add_ast_pointer(parser,&type_node->generic_args.data);
 
     return type_node;   
 }
@@ -1099,6 +1116,7 @@ AstNode *ast_struct(Parser& parser,const String &name, const String& filename, c
     StructNode* struct_node = alloc_node<StructNode>(parser,ast_type::struct_t,token);
 
     add_ast_pointer(parser,&struct_node->members.data);
+    add_ast_pointer(parser,&struct_node->generic.data);
 
     struct_node->name = name;
     struct_node->filename = filename;
@@ -1124,7 +1142,7 @@ AstNode* ast_decl(Parser& parser, const String& name,TypeNode* type, b32 is_cons
 
     decl_node->sym.name = name;
     decl_node->type = type;
-    decl_node->is_const = is_const;
+    decl_node->flags = is_const? TYPE_CONST_FLAG : 0;
 
     return (AstNode*)decl_node;        
 }
@@ -1276,27 +1294,36 @@ BlockNode* ast_block(Parser& parser, const Token& token)
 std::pair<u32,u32> get_line_info(const String& filename, u32 idx);
 
 
-inline parse_error parser_error(Parser &parser,parse_error error ,const Token &token,const char *fmt, ...)
+inline parse_error parser_verror(Parser &parser,parse_error error ,const Token &token,const char *fmt, va_list args)
 {
-    parser.error_count += 1;
+    parser.ctx.error_count += 1;
 
     // further reporting becomes pointless past a single parser error
-    if(parser.error_count > 1)
+    if(parser.ctx.error_count > 1)
     {
         return error;
     }
 
+    vprintf(fmt,args);
+    putchar('\n');
+
+    const auto [line,col] = get_line_info(parser.ctx.cur_file,token.idx);
+    printf("At: %s line %d col %d\n\n",parser.ctx.cur_file.buf,line,col);
+
+    parser.ctx.line = line;
+    parser.ctx.col = col;
+    parser.ctx.idx = token.idx;
+    return error;
+}
+
+inline parse_error parser_error(Parser &parser,parse_error error ,const Token &token,const char *fmt, ...)
+{
     va_list args; 
     va_start(args, fmt);
-    vprintf(fmt,args);
+    const auto err = parser_verror(parser,error,token,fmt,args);
     va_end(args);
-    const auto [line,col] = get_line_info(parser.context.cur_file,token.idx);
-    printf("At: %s line %d col %d\n\n",parser.context.cur_file.buf,line,col);
-
-    parser.line = line;
-    parser.col = col;
-    parser.idx = token.idx;
-    return error;
+    
+    return err;
 }
 
 void print_depth(int depth);

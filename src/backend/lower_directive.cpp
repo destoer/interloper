@@ -31,12 +31,6 @@ void lower_directive_regs(Directive& directive, const ConstLoweredRegSpan& regs)
     }
 }
 
-OpcodeNode* lower_directive_pass2(Interloper& itl, LinearAlloc& alloc,Block& block, OpcodeNode* node)
-{
-    UNUSED(itl); UNUSED(alloc); UNUSED(block); UNUSED(node);
-    assert(false);
-}
-
 
 OpcodeNode* lower_directive_addr_pass(Interloper& itl, LinearAlloc& alloc,Block& block, OpcodeNode* node)
 {
@@ -185,7 +179,6 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, LinearAlloc& alloc,Block& 
             const auto reg = directive.operand[1].ir_reg;
             const auto dst = directive.operand[0].ir_reg;
             unlock_special_reg(alloc,reg.spec);
-
             node->value = mov_reg_ir(dst,reg,reg_type::gpr);
 
             allocate_and_rewrite_opcode(alloc,block,node);

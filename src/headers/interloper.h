@@ -133,6 +133,8 @@ struct Interloper
     double optimise_time = 0.0;
     double type_checking_time = 0.0;
 
+    u32 lines = 0;
+
     // Startup functions
     Function* memcpy = nullptr;
     Function* zero_mem = nullptr;
@@ -157,8 +159,8 @@ struct [[nodiscard]] FileContextGuard
     Interloper& itl;
 };
 
-void vprint_itl(Interloper& itl, const String& fmt, va_list args);
-void print_itl(Interloper& itl, const String& fmt, ...);
+void vprint_itl(Interloper& itl, const String fmt, va_list args);
+void print_itl(Interloper& itl, const String fmt, ...);
 
 inline itl_error compile_verror(Interloper &itl,itl_error error,const char *fmt, va_list args)
 {

@@ -2,7 +2,7 @@ struct LinearRange
 {
     u32 start = 0xffff'ffff;
     u32 end = 0;
-    RegSlot slot = {INVALID_HANDLE};
+    RegSlot slot;
     u32 global_reg = REG_FREE;
     OpcodeNode* node = nullptr;
     BlockSlot block_slot = {INVALID_HANDLE};
@@ -205,7 +205,6 @@ void update_regs_range(Interloper& itl, Function& func, HashTable<RegSlot,Linear
 
 Array<LinearRange> find_range(Interloper& itl, Function& func)
 {
-
     auto table = make_table<RegSlot,LinearRange>();
 
     u32 pc = 0;
@@ -238,8 +237,9 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
             {
                 const auto live_op = make_directive_one(directive_type::live_var,make_reg_operand(slot,ir_reg_type::directive));
                 node = insert_at(block.list,node,live_op);
-                update_range(itl,func,table,slot,block,node,pc);
             }
+
+            update_range(itl,func,table,slot,block,node,pc);
         }
 
         // for each opcode
@@ -247,23 +247,34 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
         {
             const auto& opcode = node->value;
 
-            if(opcode.group == op_group::directive)
+            if(opcode.group == op_group::unary_reg2)
             {
-                const auto& directive = opcode.directive;
-                switch(directive.type)
+                const auto& unary = opcode.unary_reg2;
+                switch(unary.type)
                 {
-                    case directive_type::mov_unlock:
+                    case unary_reg2_op::mov_gpr_reg:
                     {
-                        const auto src = directive.operand[1].ir_reg;
-                        const auto dst = directive.operand[0].ir_reg;
-                        const u32 location = special_reg_to_reg(itl.arch,src.spec);
-                        auto& ir_reg = reg_from_slot(itl,func,dst);
-                        ir_reg.hint |= (1 << location);
+                        const auto src = unary.src.ir;
+                        const auto dst = unary.dst.ir;
+                        if(!is_special_reg(src) && is_special_reg(dst) && spec_reg_is_gpr(dst.spec))
+                        {
+                            const u32 location = special_reg_to_reg(itl.arch,dst.spec);
+                            auto& ir_reg = reg_from_slot(itl,func,src);
+                            ir_reg.hint |= (1 << location);
+                        }
+                        
+                        else if(!is_special_reg(dst) && is_special_reg(src) && spec_reg_is_gpr(src.spec))
+                        {
+                            const u32 location = special_reg_to_reg(itl.arch,src.spec);
+                            auto& ir_reg = reg_from_slot(itl,func,dst);
+                            ir_reg.hint |= (1 << location);
+                        }
+
+                        break;
                     }
 
                     default: break;
                 }
-
             }
 
             const auto regs = opcode_ir_reg_span(opcode,itl.reg_span);
@@ -309,7 +320,8 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
         return v1.start > v2.start;
     });
 
-    destroy_table(table); 
+    destroy_table(table);
+
     return range;
 }
 
@@ -382,6 +394,19 @@ u32 find_free_register(u32 set, u32 used, u32 pref)
     }
 
     return reg;
+}
+
+u32 alloc_fixed_reg(RegisterFile& regs, u32 fixed)
+{
+    if(!is_reg_free(regs,fixed))
+    {
+        return FFS_EMPTY;
+    }
+
+    remove_reg(regs,fixed);
+    mark_used(regs,fixed);
+
+    return fixed;
 }
 
 u32 alloc_reg(RegisterFile& regs, u32 pref)
@@ -530,45 +555,47 @@ void spill(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, inser
 // We may have to have a look back over our local allocator
 void acquire_local_reg(LinearAlloc& alloc, Reg& ir_reg, RegisterFile& regs,Block& block, OpcodeNode* node)
 {
-    // Spill a register for room
-    if(!alloc_ir_reg(regs,ir_reg))
+    if(alloc_ir_reg(regs,ir_reg))
     {
-        u32 furthest_use = 0;
-        RegSlot reg = INVALID_SYM_REG_SLOT;
+        return;
+    }
 
-        for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+    // Spill a register for room
+    u32 furthest_use = 0;
+    RegSlot reg = INVALID_SYM_REG_SLOT;
+
+    for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
+    {
+        if(is_locked(regs,r))
         {
-            if(is_locked(regs,r))
-            {
-                continue;
-            }
-
-            const auto slot = regs.allocated[r];
-            auto& candidate = reg_from_slot(slot,alloc);
-
-            if(candidate.cur_local_uses >= count(candidate.local_uses))
-            {
-                furthest_use = 0xffff'ffff;
-                reg = slot;
-            }
-
-            else
-            {
-                const u32 next_use = candidate.local_uses[candidate.cur_local_uses];
-                if(next_use > furthest_use)
-                {
-                    furthest_use = next_use;
-                    reg = slot;
-                }
-            }
+            continue;
         }
 
-        // We should have been able to find a register
-        assert(furthest_use != 0);
+        const auto slot = regs.allocated[r];
+        auto& candidate = reg_from_slot(slot,alloc);
 
-        spill(alloc,block,node,reg,insertion_type::before);
-        assert(alloc_ir_reg(regs,ir_reg));
+        if(candidate.cur_local_uses >= count(candidate.local_uses))
+        {
+            furthest_use = 0xffff'ffff;
+            reg = slot;
+        }
+
+        else
+        {
+            const u32 next_use = candidate.local_uses[candidate.cur_local_uses];
+            if(next_use > furthest_use)
+            {
+                furthest_use = next_use;
+                reg = slot;
+            }
+        }
     }
+
+    // We should have been able to find a register
+    assert(furthest_use != 0);
+
+    spill(alloc,block,node,reg,insertion_type::before);
+    assert(alloc_ir_reg(regs,ir_reg));
 }
 
 // TODO: we need to dynamically lock the registers for each function
@@ -702,6 +729,46 @@ void add_active(ActiveReg &active, const LinearRange& cur)
     active.size += 1;
 }
 
+void alloc_range(LinearAlloc& alloc,Interloper& itl, Function& func, ActiveReg& active, LinearRange& cur)
+{
+    // actually run the allocation
+    auto& ir_reg = reg_from_slot(itl,func,cur.slot);
+
+    // Pre allocated
+    if(ir_reg.global_reg != REG_FREE)
+    {
+        return;
+    }  
+
+    // expire any dead sets
+    clean_dead_reg(itl,func,alloc,active,cur);
+
+    // check which register file to use
+    auto& reg_file = get_register_file(alloc,ir_reg);
+
+    u32 reg = alloc_reg(reg_file,ir_reg.hint);
+
+    // we have a register
+    if(reg != FFS_EMPTY)
+    {
+        // set location
+        cur.global_reg = reg;
+        ir_reg.global_reg = cur.global_reg;
+
+        log_reg(alloc.print,*alloc.table,"%r globally allocated to %s\n",cur.slot,X86_NAMES[reg]);
+
+        // add to active register set 
+        add_active(active,cur);
+    }
+
+    // TODO: do a spill of a existing reg, for now we just default
+    // it into memory
+    else
+    {
+
+    }
+}
+
 void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
 {
     // Don't need to calculate the ranges if doing stack allocation.
@@ -713,41 +780,13 @@ void linear_allocate(LinearAlloc& alloc,Interloper& itl, Function& func)
     auto range = find_range(itl,func);
     ActiveReg active;
 
-
     // init our register set
     init_regs(alloc);
 
     // perform the allocation
     for(auto& cur : range)
     {
-        // actually run the allocation
-        auto& ir_reg = reg_from_slot(itl,func,cur.slot);
-
-        // expire any dead sets
-        clean_dead_reg(itl,func,alloc,active,cur);
-
-        // check which register file to use
-        auto& reg_file = get_register_file(alloc,ir_reg);
-
-        const u32 reg = alloc_reg(reg_file,ir_reg.hint);
-
-        // we have a register
-        if(reg != FFS_EMPTY)
-        {
-            // set location
-            cur.global_reg = reg;
-            ir_reg.global_reg = cur.global_reg;
-
-            // add to active register set 
-            add_active(active,cur);
-        }
-
-        // TODO: do a spill of a existing reg, for now we just default
-        // it into memory
-        else
-        {
-
-        }
+        alloc_range(alloc,itl,func,active,cur);
     }
 
     destroy_arr(range);
@@ -757,8 +796,6 @@ void destroy_linear_alloc(LinearAlloc& alloc)
 {
     destroy_stack_alloc(alloc.stack_alloc);
 }
-
-
 
 void reload_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg,insertion_type type)
 {
@@ -1357,7 +1394,7 @@ void unlock_special_reg(LinearAlloc& alloc, spec_reg reg)
 
     log_reg(alloc.print,*alloc.table,"Unlocking special register %s\n",spec_reg_name(reg));
 
-    release_register(reg_file,location);
+    unlock_reg(reg_file,location);
 }
 
 void lock_special_reg(LinearAlloc& alloc,Block& block, OpcodeNode* node, spec_reg reg)

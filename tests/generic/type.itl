@@ -1,0 +1,42 @@
+
+
+struct FixedArray<T: Sized, SIZE: usize>
+{
+	buffer: $T[$SIZE];
+};
+
+type_alias FixedU32Five = FixedArray<u32,5>;
+
+func sum_fixed<T: Sized,SIZE: usize>(fixed: const FixedArray<$T,$SIZE>@) $T
+{
+	ans: $T;
+
+	for i in 0 < $SIZE
+	{
+		ans += fixed.buffer[i];
+	}
+
+	return ans;
+} 
+
+func main() s32
+{
+	fixed5: FixedU32Five = {{
+		1,2,3,4,5
+	}};
+
+	sum1 := std::sum(fixed5.buffer);
+
+	fixed4: FixedArray<s32,4> = {{
+		1,2,3,4
+	}};
+
+	sum2 := sum_fixed(&fixed4);
+
+	// Manually specifying the same types is fine.
+	sum3 := sum_fixed$<s32>(&fixed4);
+
+	ans := sum1 == 15 && sum2 == 10 && sum3 == 10;
+
+	return cast(s32,ans);
+}

@@ -362,8 +362,8 @@ Option<itl_error> compile_constant_decl(Interloper& itl, DeclNode* decl_node, b3
     const auto name = decl_node->sym.name;
 
     // force constant
-    decl_node->is_const = true;
-    decl_node->type->is_constant = true;
+    decl_node->flags |= TYPE_CONST_FLAG;
+    decl_node->type->flags |= TYPE_CONSTANT_FLAG;
 
     // build the typing info
     auto type_res = get_type(itl,decl_node->type);

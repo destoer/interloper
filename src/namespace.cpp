@@ -1,3 +1,17 @@
+TypeDecl* find_type_overload(const TypeDef& def, const Array<Generic>& generic_overload);
+Result<Array<Generic>,itl_error> deduce_generic_struct(Interloper& itl, TypeDecl* decl, const TypeLookupInfo& info);
+AstNode* copy_ast(Interloper& itl, AstNode* node);
+
+
+template<typename T>
+T* alloc_type_decl(Interloper& itl)
+{
+    T* out = (T*)allocate(itl.type_allocator,sizeof(T));
+    *out = {};
+
+    return out;
+}
+
 NameSpace* alloc_new_scope(ArenaAllocator& arena)
 {
     NameSpace* new_scope = (NameSpace*)allocate(arena,sizeof(NameSpace));
@@ -81,7 +95,7 @@ NameSpace* new_named_scope(ArenaAllocator& arena,ArenaAllocator& string_allocato
 
 NameSpace* scan_namespace(Parser& parser, const Array<String>& name_space)
 {
-    NameSpace* root = parser.context.global_namespace;
+    NameSpace* root = parser.ctx.global_namespace;
 
     u32 name_idx = 0;
 
@@ -163,7 +177,7 @@ void print_namespace_tree(NameSpace* root, u32 depth)
     }
 }
 
-TypeDecl* lookup_incomplete_decl_scoped(NameSpace* name_space, const String& name)
+TypeDecl* lookup_incomplete_decl_internal_scoped(NameSpace* name_space, const String& name)
 {
     DefInfo* info = lookup_typed_definition_scoped(name_space,name,definition_type::type);
 
@@ -175,42 +189,162 @@ TypeDecl* lookup_incomplete_decl_scoped(NameSpace* name_space, const String& nam
     return nullptr;
 }
 
-TypeDecl* lookup_incomplete_decl(Interloper& itl, const String& name)
+TypeDecl* lookup_incomplete_decl_internal(Interloper& itl, const TypeLookupInfo& info)
 {
-    DefInfo* info = lookup_typed_definition(itl.symbol_table.ctx->name_space,name,definition_type::type);
-
-    if(info)
+    DefInfo* def = nullptr;
+    
+    if(!info.name_space)
     {
-        return info->type_decl;
-    }
+        def = lookup_typed_definition(itl.symbol_table.ctx->name_space,info.name,definition_type::type);
 
-    return nullptr;
-}
+        if(def)
+        {
+            return def->type_decl;
+        }
 
-TypeDecl* lookup_complete_decl(Interloper& itl, const String& name)
-{
-    TypeDecl* type_decl = lookup_incomplete_decl(itl,name);
-
-    if (!type_decl || type_decl->state != type_def_state::checked)
-    {
         return nullptr;
     }
 
-    return type_decl;
+    return lookup_incomplete_decl_internal_scoped(info.name_space,info.name);
 }
 
-TypeDef* lookup_type_def(Interloper& itl, const String& name)
+Result<TypeDecl*,itl_error> find_type_overload(Interloper& itl, TypeDef* def, const TypeLookupInfo& info)
 {
-    TypeDecl* type_decl = lookup_incomplete_decl(itl,name);
+    Array<Generic> overload;
 
-    if(!type_decl || !(type_decl->flags & TYPE_DECL_DEF_FLAG))
+    TypeDecl* decl = &def->decl;
+
+    if(decl->kind == type_kind::struct_t)
     {
-        return nullptr;
+        // Deduce and attempt to find an overload
+        const auto overload_res = deduce_generic_struct(itl,decl,info);
+        if(!overload_res)
+        {
+            return overload_res.error();
+        }
+
+        overload = *overload_res;
     }
 
-    return (TypeDef*)type_decl;
+    else
+    {
+        unimplemented("Generic enum");
+    }
+
+    const auto concrete_decl = find_type_overload(*def,overload);
+    if(concrete_decl)
+    {
+        destroy_arr(overload);
+        return concrete_decl;
+    }
+    
+    // Record a new overload and return it ready for parsing
+    TypeDecl* generic_decl = alloc_type_decl<TypeDecl>(itl);
+    *generic_decl = *decl;
+
+    generic_decl->overload = overload;
+    generic_decl->root = copy_ast(itl,decl->root);
+    generic_decl->base = decl;
+
+    push_var(def->generic_overload,generic_decl);
+    return generic_decl;
 }
 
+Result<TypeDecl*,itl_error> lookup_base_decl(Interloper& itl, const TypeLookupInfo& info)
+{
+    const auto decl = lookup_incomplete_decl_internal(itl,info);
+
+    // Check the type decl event exists?
+    if(!decl)
+    {
+        return compile_error(itl,itl_error::undeclared,"Base Type %n%s is not declared",info.name_space,info.name);
+    }
+
+    // TODO: Handle generics other than structs
+    assert(info.kind == type_lookup_kind::struct_t);
+    if(decl->kind != type_kind::struct_t)
+    {
+        return compile_error(itl,itl_error::struct_error,"Base type %n%s is not a struct",info.name_space,info.name);
+    }
+
+    return decl;
+}
+
+Result<TypeDecl*,itl_error> lookup_incomplete_decl(Interloper& itl, const TypeLookupInfo& info)
+{
+    const auto decl = lookup_incomplete_decl_internal(itl,info);
+
+    // Check the type decl event exists?
+    if(!decl)
+    {
+        return compile_error(itl,itl_error::undeclared,"Type %n%s is not declared",info.name_space,info.name);
+    }
+
+    // Check we got back the kind of type we requested
+    if(info.kind == type_lookup_kind::struct_t && decl->kind != type_kind::struct_t)
+    {
+        return compile_error(itl,itl_error::struct_error,"Type %n%s is not a struct",info.name_space,info.name);
+    }
+
+    else if(info.kind == type_lookup_kind::enum_t && decl->kind != type_kind::enum_t)
+    {
+        return compile_error(itl,itl_error::enum_type_error,"Type %n%s is not an enum",info.name_space,info.name);
+    }
+
+    // Check any generics are used correctly
+    switch(decl->kind)
+    {
+        case type_kind::builtin:
+        {
+            if(info.generic_args)
+            {
+                return compile_error(itl,itl_error::generic,"Cannot use a generic on a builtin type %n%S",
+                    info.name_space,info.name);          
+            }
+
+            break;
+        }
+
+        case type_kind::alias_t:
+        {
+            if(info.generic_args)
+            {
+                return compile_error(itl,itl_error::generic,"Cannot use type alias as a generic %n%S",
+                    info.name_space,info.name);          
+            }
+
+            break;
+        }
+
+        case type_kind::enum_t: 
+        case type_kind::struct_t:
+        {
+            TypeDef* def = (TypeDef*)decl;
+
+            // Check validity on templates
+            if(def->decl.overload)
+            {
+                if(!info.generic_args)
+                {
+                    return compile_error(itl,itl_error::generic,"Generic type %n%S instantiated without args",
+                        info.name_space,info.name);
+                }
+
+                return find_type_overload(itl,def,info);
+            }
+
+            else if(!def->decl.overload && info.generic_args)
+            {
+                return compile_error(itl,itl_error::generic,"Generic instantiation on plain type %n%S",
+                    info.name_space,info.name);
+            }
+
+            break;
+        }
+    }
+
+    return decl;
+}
 
 // NOTE: this gets a function ONLY in the requested scope
 FunctionDef* lookup_func_def_scope(Interloper& itl, NameSpace* name_space, const String& name)

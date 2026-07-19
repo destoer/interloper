@@ -132,8 +132,6 @@ OpcodeNode* allocate_opcode_addr_pass(Interloper& itl,Function &func, LinearAllo
 
 void allocation_reg_pass(Interloper& itl,Function &func, LinearAlloc& alloc)
 {
-    log(alloc.print,"allocating registers for %s:\n",func.name.buf);
-
     for(auto& block : func.emitter.program)
     {
         log(alloc.print,"\nprocessing L%d:\n\n",block.label_slot.handle);
@@ -263,12 +261,48 @@ void allocation_addr_pass(Interloper& itl,Function &func, LinearAlloc& alloc)
     destroy_linear_alloc(alloc);
 }
 
+void setup_passing_constraints(Function& func)
+{
+    if(!func.sig.locked_regs)
+    {
+        return;
+    }
+
+    auto &entry = func.emitter.program[0];
+    const auto lock_set = make_directive_one(directive_type::lock_reg_set, make_reg_set_operand(func.sig.locked_regs));
+    
+    OpcodeNode* node = insert_at(entry.list,entry.list.start,lock_set);
+
+    // Setup calling convention
+    for(auto& fixed : func.sig.fixed_args)
+    {
+        const auto mov_unlock = make_mov_unlock(fixed.slot,fixed.spec);
+        node = insert_after(entry.list,node,mov_unlock);
+    }
+}
+
 void allocate_registers(Interloper& itl,Function &func)
 {
     auto alloc = make_linear_alloc(itl.print_reg_allocation,itl.print_stack_allocation,itl.stack_alloc,itl.debug,func.registers,&itl.symbol_table,itl.arch);
 
+    log(alloc.print,"allocating registers for %s\n",func.name.buf);
+
     linear_allocate(alloc,itl,func);
+
+    // Done after allocation pass to ensure these instructions are first!
+    setup_passing_constraints(func);
+
+    if(itl.print_ir)
+    {
+        putchar('\n');
+        dump_ir(itl,func,itl.symbol_table);
+    }
 
     allocation_reg_pass(itl,func,alloc);
     allocation_addr_pass(itl,func,alloc);
+
+    if(itl.print_ir)
+    {
+        dump_ir(itl,func,itl.symbol_table);
+    }
 }

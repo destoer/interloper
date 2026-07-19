@@ -245,7 +245,7 @@ func look_at(eye: const std::Vec3F@, centre: const std::Vec3F@, up: const std::V
         {0.0,0.0,0.0,1.0}
     }};
 
-    return std::mul_mat4(&m1, &m2);
+    return std::mul_mat(&m1, &m2);
 }
 
 func render(win: gfx::Window@, model: const Model@, angle: f64)
@@ -270,10 +270,10 @@ func render(win: gfx::Window@, model: const Model@, angle: f64)
     eye_to_centre := std::vec3f_sub(&eye,&centre);
     persp := perspective(std::vec3f_norm(&eye_to_centre));
 
-    v2 := std::mul_mat4(&persp,&view);
+    v2 := std::mul_mat(&persp,&view);
 
     proj := project(win);
-    transform := std::mul_mat4(&proj,&v2);
+    transform := std::mul_mat(&proj,&v2);
 
 
     for @tri in model.faces
@@ -305,6 +305,8 @@ func main() s32
     {
         return -1;
     }
+
+    defer destroy_model(&model);
 
     TAG := "Render";
 

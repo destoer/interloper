@@ -1,23 +1,13 @@
 Result<u32,itl_error> cache_struct_index(Interloper& itl, NameSpace* name_space, const String& name)
 {
-    auto type_opt = lookup_type_scoped(itl,name_space,name);
-    if(!type_opt)
-    {
-        return compile_error(itl,itl_error::struct_error,"No such type %s",name.buf);
-    }
-
-    TypeDecl* type_decl = *type_opt; 
-
-    if(!type_decl)
+    const auto info = type_lookup_from_parts(name,name_space,type_lookup_kind::struct_t);
+    auto type_res = lookup_type(itl,info);
+    if(!type_res)
     {
         return compile_error(itl,itl_error::struct_error,"could not find struct %s for rtti",name.buf);
     }
 
-    if(type_decl->kind != type_kind::struct_t)
-    {
-        return compile_error(itl,itl_error::struct_error,"%s is a %s and not a struct for rtti",name.buf,TYPE_KIND_NAMES[u32(type_decl->kind)]);
-    }
-
+    TypeDecl* type_decl = *type_res; 
     return type_decl->type_idx;
 }
 

@@ -19,11 +19,55 @@ void push_const_name(Interloper& itl, StringBuffer& buffer, const Type* type, co
     }
 }
 
+
+String type_name(Interloper& itl,const Type *type);
+
+void format_generic(Interloper& itl, StringBuffer& buffer, const GenericOverload& overload)
+{
+    push_char(itl.string_allocator,buffer,'<');
+    char tmp_buffer[64] = {0};
+
+    for(u32 g = 0; g < count(overload); g++)
+    {
+        const auto& generic = overload[g];
+
+        if(generic.constraint == constraint_type::type)
+        {
+            u32 len = 0;
+
+            const auto& known = generic.known.value;
+            if(known.type == known_value_type::gpr_t)
+            {
+                len = sprintf(tmp_buffer,"%ld",known.gpr);
+            }
+
+            else
+            {
+                len = sprintf(tmp_buffer,"%lf",known.fpr);
+            }
+
+            push_string(itl.string_allocator,buffer,make_static_string(tmp_buffer,len));
+        }
+
+        else
+        {
+            push_string(itl.string_allocator,buffer,type_name(itl,generic.type));
+        }
+
+        if(g != count(overload) - 1)
+        {
+            push_char(itl.string_allocator,buffer,',');
+        }
+    }
+
+    push_char(itl.string_allocator,buffer,'>');
+}
+
 String type_name(Interloper& itl,const Type *type)
 {
     StringBuffer prefix;
-
     StringBuffer compound;
+    StringBuffer generic;
 
     String plain;
 
@@ -50,6 +94,11 @@ String type_name(Interloper& itl,const Type *type)
 
                 const auto structure =  struct_from_type(itl.struct_table,(StructType*)type);
                 plain = structure.name;
+                if(structure.overload)
+                {
+                    format_generic(itl,generic,structure.overload);
+                }
+
                 done = true;
                 break;                
             }
@@ -146,6 +195,11 @@ String type_name(Interloper& itl,const Type *type)
     }
 
     push_string(itl.string_allocator,prefix,plain);
+    if(generic)
+    {
+        push_char(itl.string_allocator,generic,'\0');
+        push_string(itl.string_allocator,prefix,make_string(generic));
+    }
 
     // null term both strings
     push_char(itl.string_allocator,prefix,'\0');

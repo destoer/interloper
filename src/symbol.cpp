@@ -143,7 +143,7 @@ void add_var(SymbolTable &sym_table,Symbol &sym)
 // add symbol to the scope table
 void add_sym_to_scope(SymbolTable &sym_table, Symbol &sym)
 {
-    const DefInfo info = {definition_type::variable,handle_from_sym(sym)};
+    const DefInfo info = {definition_type::variable,{handle_from_sym(sym)}};
     add(sym_table.ctx->name_space->table,sym.name, info);
 }    
 
@@ -188,7 +188,7 @@ Result<SymSlot,itl_error> add_global(Interloper& itl,const String &name, Type *t
     }
 
     // add this into the top level scope
-    const DefInfo info = {definition_type::variable,handle_from_sym(sym)};
+    const DefInfo info = {definition_type::variable,{handle_from_sym(sym)}};
     add(itl.global_namespace->table,sym.name, info);    
 
     return slot;

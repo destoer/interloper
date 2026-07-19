@@ -10,36 +10,6 @@ struct FileContext
 };
 
 
-enum class known_value_type
-{
-    gpr_t,
-    fpr_t,
-    none_t,
-};
-
-struct KnownValue
-{
-    union
-    {
-        u64 gpr = 0;
-        f64 fpr;
-    };
-
-    KnownValue() : gpr(0), type(known_value_type::none_t) {}
-    KnownValue(u32 v) : gpr(v), type(known_value_type::gpr_t) {}
-    KnownValue(u64 v) : gpr(v), type(known_value_type::gpr_t) {}
-    KnownValue(s64 v) : gpr(v), type(known_value_type::gpr_t) {}
-    KnownValue(bool v) : gpr(v), type(known_value_type::gpr_t) {}
-    KnownValue(f64 v) : fpr(v), type(known_value_type::fpr_t) {}
-
-    bool operator !() 
-    {
-        return type == known_value_type::none_t;
-    }
-
-    known_value_type type = known_value_type::none_t;
-};
-
 
 // NOTE: this may move during expression compilation
 // prefer holding a slot to a reference
@@ -77,6 +47,14 @@ struct Label
 
 struct FuncNode;
 
+
+struct FixedArg
+{
+    spec_reg spec;
+    RegSlot slot;
+};
+
+
 // NOTE: this is everything required to describe an abstract function
 // so it can be used for function pointers
 struct FuncSig
@@ -85,9 +63,12 @@ struct FuncSig
 
     // gives slots into the main symbol table
     Array<SymSlot> args;
+    Array<FixedArg> fixed_args; 
     Array<u32> pass_as_reg;
+    
     u32 max_reg_pass = 0;
-    u32 locked_set = 0;
+    u32 locked_regs = 0;
+    u32 locked_args = 0;
 
     b32 va_args = false;
     u32 hidden_args = 0;
@@ -100,8 +81,9 @@ struct FuncSig
 struct ArgPass
 {
     Array<RegSlot> args;
-    Array<u32> pass_as_reg;
     u32 arg_clean = 0;
+    ConstSpan<u32> pass_as_reg;
+    ConstSpan<FixedArg> fixed_args;
 };
 
 ArgPass make_arg_pass(const FuncSig& sig);
@@ -119,52 +101,6 @@ struct FuncPointerType
 
 const u32 FUNC_CALL_FUNC_POINTER_FLAG = (1 << 0);
 const u32 FUNC_CALL_FUNC_POINTER_EXPR_FLAG = (1 << 1);
-
-
-static constexpr u32 CONSTRAINT_SIZE = 4;
-
-const char* CONSTRAINT_NAMES[CONSTRAINT_SIZE] =
-{
-    "Integer",
-    "Real",
-    "Sized",
-    "builtin"
-};
-
-enum class constraint_type
-{
-    integer,
-    real,
-    sized,
-    // builtin type
-    builtin,
-};
-
-struct GenericBuiltin
-{
-    union
-    {
-        u64 integer;
-        f64 decimal = 0.0;
-    };
-
-    builtin_type type = builtin_type::void_t;
-};
-
-struct Generic
-{
-    String name;
-    constraint_type constraint;
-
-    union
-    {
-        // Filled in during deduction
-        Type* type = nullptr;
-
-        // constraint_type::builtin
-        GenericBuiltin builtin;
-    };
-};
 
 
 struct FuncCall
@@ -206,8 +142,7 @@ struct Function
     FuncCall call_info;
 };
 
-using OverloadTable = Array<Function*>;
-using GenericOverload = Array<Generic>;
+using FuncOverloadTable = Array<Function*>;
 
 
 struct GenericOverloadContext
@@ -251,7 +186,7 @@ struct FunctionDef
     String name;
 
     GenericOverload generic_base;
-    OverloadTable generic_overload;
+    FuncOverloadTable generic_overload;
 };
 
 struct FunctionTable

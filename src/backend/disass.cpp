@@ -166,7 +166,7 @@ void vprint_disass(const Opcode& opcode, const Disass& disass, const String& fmt
     }
 }
 
-void print_disass(const Opcode& opcode, const Disass& disass, const String& fmt, ...)
+void print_disass(const Opcode& opcode, const Disass& disass, const String fmt, ...)
 {
     va_list args;
     va_start(args,fmt);

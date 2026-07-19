@@ -1,4 +1,4 @@
-#include "parser.h"
+#include <parser.h>
 #include <interloper.h>
 #include <unistd.h>
 
@@ -18,8 +18,8 @@ Parser make_parser(FunctionTable* func_table,NameSpace* root, ParserAllocator* a
     parser.alloc = alloc;
 
     // NOTE: this relies on get_program_name to allocate the string correctly
-    parser.context.global_namespace = root;
-    parser.context.cur_namespace = parser.context.global_namespace;
+    parser.ctx.global_namespace = root;
+    parser.ctx.cur_namespace = parser.ctx.global_namespace;
     parser.func_table = func_table;
 
     return parser;
@@ -32,55 +32,61 @@ void add_ast_pointer(Parser& parser, void* pointer)
 
 Token next_token(Parser &parser)
 {
-    if(parser.tok_idx >= parser.tokens.size)
+    if(parser.ctx.tok_idx >= parser.ctx.tokens.size)
     {
         // TODO: make this return the actual file end
         // for row and col
         return token_plain(token_type::eof,0);
     }
 
-    return parser.tokens[parser.tok_idx++];  
+    return parser.ctx.tokens[parser.ctx.tok_idx++];  
 }
 
 void prev_token(Parser &parser)
 {
-    if(parser.tok_idx != 0)
+    if(parser.ctx.tok_idx != 0)
     {
-        parser.tok_idx -= 1;
+        parser.ctx.tok_idx -= 1;
     }
 }
 
 
 Token peek(Parser &parser,u32 v)
 {
-    const auto idx = parser.tok_idx + v;
-    if(idx >= parser.tokens.size)
+    const auto idx = parser.ctx.tok_idx + v;
+    if(idx >= parser.ctx.tokens.size)
     {
         return token_plain(token_type::eof,0);
     }
 
-    return parser.tokens[idx];
+    return parser.ctx.tokens[idx];
 }
 
 
 Option<parse_error> consume(Parser &parser,token_type type)
 {
-    const auto t = parser.tok_idx >= parser.tokens.size? token_type::eof : parser.tokens[parser.tok_idx].type;
+    token_type cur = token_type::eof;
 
-    if(t != type)
+    if(parser.ctx.tok_idx < parser.ctx.tokens.size)
+    {
+        cur = parser.ctx.tokens[parser.ctx.tok_idx].type;
+    }
+
+    if(cur != type)
     {
         const auto tok = next_token(parser);
-        return parser_error(parser,parse_error::unexpected_token,tok,"expected '%s' got %s\n", tok_name(type),tok_name(t));
+        return parser_error(parser,parse_error::unexpected_token,tok,"expected '%s' got %s", tok_name(type),tok_name(cur));
     }
-    parser.tok_idx += 1;
+
+    parser.ctx.tok_idx += 1;
     return option::none;
 }
 
 
 bool match(Parser &parser,token_type type, u32 offset)
 {
-    const u32 idx = parser.tok_idx + offset;
-    const auto t = idx >= parser.tokens.size? token_type::eof : parser.tokens[idx].type;
+    const u32 idx = parser.ctx.tok_idx + offset;
+    const auto t = idx >= parser.ctx.tokens.size? token_type::eof : parser.ctx.tokens[idx].type;
 
     return t == type;
 }
@@ -90,7 +96,7 @@ bool consume_match(Parser &parser,token_type type)
 {
     if(match(parser,type))
     {
-        parser.tok_idx += 1;
+        parser.ctx.tok_idx += 1;
         return true;
     }
 
@@ -119,8 +125,9 @@ TopLevelDefinition make_top_level_def(Parser& parser, const ConstSpan<Token>& to
 {
     TopLevelDefinition def;
     def.parsed = false;
-    def.tokens = tokens;
-    def.context = parser.context;
+    def.context = parser.ctx;
+    def.context.tokens = tokens;
+    def.context.tok_idx = 0;
     def.attr = attr;
 
     return def;
@@ -136,7 +143,7 @@ Result<ConstSpan<Token>,parse_error> scan_colon_stmt(Parser& parser, const Strin
         {
             case token_type::semi_colon:
             {
-                parser.tok_idx += t;
+                parser.ctx.tok_idx += t;
                 return make_const_span(start_span,0, t + 1);
             }
 
@@ -147,7 +154,7 @@ Result<ConstSpan<Token>,parse_error> scan_colon_stmt(Parser& parser, const Strin
         }
     }
 
-    return parser_error(parser,parse_error::malformed_stmt,start_span[0],"%s %s is not terminated by a ;\n",type.buf, name.buf);     
+    return parser_error(parser,parse_error::malformed_stmt,start_span[0],"%s %s is not terminated by a ;",type.buf, name.buf);     
 }
 
 Result<ConstSpan<Token>,parse_error> scan_brace_stmt(Parser& parser, const String& type, const String& name, const ConstSpan<Token>& start_span)
@@ -179,7 +186,7 @@ Result<ConstSpan<Token>,parse_error> scan_brace_stmt(Parser& parser, const Strin
                         t += 1;
                     }
 
-                    parser.tok_idx += t;
+                    parser.ctx.tok_idx += t;
                     return make_const_span(start_span,0, t + 1);
                 }
                 break;
@@ -192,7 +199,7 @@ Result<ConstSpan<Token>,parse_error> scan_brace_stmt(Parser& parser, const Strin
         }
     }
 
-    return parser_error(parser,parse_error::malformed_stmt,start,"%s %s is not closed by a }\n",type.buf, name.buf);    
+    return parser_error(parser,parse_error::malformed_stmt,start,"%s %s is not closed by a }",type.buf, name.buf);    
 }
 
 #include "parser/expression.cpp"
@@ -398,7 +405,7 @@ ParserResult statement(Parser &parser)
 
                 default:
                 {
-                    return parser_error(parser,parse_error::unexpected_token,t2,"statement: unhandled symbol expr: %s\n",tok_name(t2.type));
+                    return parser_error(parser,parse_error::unexpected_token,t2,"statement: unhandled symbol expr: %s",tok_name(t2.type));
                 }
             }
             break;
@@ -461,7 +468,7 @@ ParserResult statement(Parser &parser)
 
         default:
         {
-            return parser_error(parser,parse_error::unexpected_token,t,"statement: unexpected token '%s' : %d\n",tok_name(t.type),u32(t.type));
+            return parser_error(parser,parse_error::unexpected_token,t,"statement: unexpected token '%s' : %d",tok_name(t.type),u32(t.type));
         }
     }
 
@@ -512,8 +519,8 @@ String get_program_name(ArenaAllocator& allocator,const String& filename)
 
 
 void destroy_parser(Parser& parser)
-{
-    UNUSED(parser);
+{   
+    destroy_arr(parser.saved_ctx);
 }
 
 
@@ -542,7 +549,7 @@ Option<parse_error> parse_attr_internal(Parser& parser, const Token& tok, Parsed
 
     if(attr_name_tok.type != token_type::symbol)
     {
-        return parser_error(parser,parse_error::unexpected_token,tok,"Expected name for attr got %s\n",tok_name(attr_name_tok.type));
+        return parser_error(parser,parse_error::unexpected_token,tok,"Expected name for attr got %s",tok_name(attr_name_tok.type));
     }
 
     const auto attr_name = attr_name_tok.literal;
@@ -586,7 +593,7 @@ Option<parse_error> parse_attr_internal(Parser& parser, const Token& tok, Parsed
 
     else
     {
-        return parser_error(parser,parse_error::malformed_stmt,tok,"Unknown attr %s\n",attr_name.buf);
+        return parser_error(parser,parse_error::malformed_stmt,tok,"Unknown attr %s",attr_name.buf);
     }
 
     return consume(parser,token_type::right_paren);
@@ -618,7 +625,7 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
 
     if(next.type != token_type::symbol)
     {
-        return parser_error(parser,parse_error::missing_expr,next,"Expected name for directive got %s\n",tok_name(next.type));
+        return parser_error(parser,parse_error::missing_expr,next,"Expected name for directive got %s",tok_name(next.type));
     }
 
     // TODO: move this lookup to a hashtable if it starts getting large
@@ -682,14 +689,14 @@ Option<parse_error> parse_directive(Interloper& itl,Parser& parser)
             default:
             {
                 destroy_attribute(attr);
-                return parser_error(parser,parse_error::malformed_stmt,stmt,"Attribute is not legal on stmt: %s\n",tok_name(stmt.type));
+                return parser_error(parser,parse_error::malformed_stmt,stmt,"Attribute is not legal on stmt: %s",tok_name(stmt.type));
             }
         }
     }
 
     else
     {
-        return parser_error(parser,parse_error::unexpected_token,next,"Unknown directive %s\n",name.buf);
+        return parser_error(parser,parse_error::unexpected_token,next,"Unknown directive %s",name.buf);
     }
 
     return option::none;
@@ -705,7 +712,7 @@ Result<Array<String>,parse_error> split_namespace_internal(Parser& parser, const
 
         if(name.type != token_type::symbol)
         {
-            const auto res = parser_error(parser,parse_error::unexpected_token,name,"Expected name for namespace got: %s\n",tok_name(name.type));
+            const auto res = parser_error(parser,parse_error::unexpected_token,name,"Expected name for namespace got: %s",tok_name(name.type));
             destroy_arr(name_space);
             return res;
         }   
@@ -820,7 +827,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
             {
                 const auto name_tok = next_token(parser);
 
-                const auto full_path = cat_string(itl.string_allocator,parser.context.cur_path,get_program_name(itl.string_allocator,name_tok.literal));
+                const auto full_path = cat_string(itl.string_allocator,parser.ctx.cur_path,get_program_name(itl.string_allocator,name_tok.literal));
 
                 add_file(queue,full_path);
             }
@@ -828,7 +835,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
             // unk
             else
             {
-                return parser_error(parser,parse_error::missing_expr,next_token(parser),"expected string for import got %s : %s\n",
+                return parser_error(parser,parse_error::missing_expr,next_token(parser),"expected string for import got %s : %s",
                     tok_name(t.type),t.literal.buf);
             }
             break;
@@ -886,7 +893,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
 
             DeclNode* decl = (DeclNode*)decl_res.value();
 
-            GlobalDeclNode* const_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.context.cur_file,parser.context.cur_namespace,t);
+            GlobalDeclNode* const_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.ctx.cur_file,parser.ctx.cur_namespace,t);
 
             push_var(itl.constant_decl,const_decl);
             break; 
@@ -903,7 +910,7 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
 
             DeclNode* decl = (DeclNode*)decl_res.value();
 
-            GlobalDeclNode* global_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.context.cur_file,parser.context.cur_namespace,t);
+            GlobalDeclNode* global_decl = (GlobalDeclNode*)ast_global_decl(parser,decl,parser.ctx.cur_file,parser.ctx.cur_namespace,t);
 
             push_var(itl.global_decl,global_decl);
             break; 
@@ -919,14 +926,11 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
 
             auto name_space = *name_space_res;
 
-            parser.context.cur_namespace = scan_namespace(parser,name_space);
+            parser.ctx.cur_namespace = scan_namespace(parser,name_space);
 
             destroy_arr(name_space);
 
-            if(match(parser,token_type::semi_colon))
-            {
-                (void)consume(parser,token_type::semi_colon);
-            }
+            consume_match(parser,token_type::semi_colon);
             break;
         }
 
@@ -935,12 +939,12 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
         {
             if(t.type == token_type::symbol)
             {
-                return parser_error(parser,parse_error::unexpected_token,t,"unexpected top level symbol '%s'\n",t.literal.buf);
+                return parser_error(parser,parse_error::unexpected_token,t,"unexpected top level symbol '%s'",t.literal.buf);
             }
 
             else
             {
-                return parser_error(parser,parse_error::unexpected_token,t,"unexpected top level token '%s' : (%d)\n",tok_name(t.type),u32(t.type));
+                return parser_error(parser,parse_error::unexpected_token,t,"unexpected top level token '%s' : (%d)",tok_name(t.type),u32(t.type));
             }
 
             break;
@@ -952,28 +956,24 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
 
 void reset_parser(Parser& parser, const String& filename)
 {
-    parser.context.cur_file = filename;
-    parser.context.cur_path = extract_path(parser.context.cur_file);
+    parser.ctx.cur_file = filename;
+    parser.ctx.cur_path = extract_path(parser.ctx.cur_file);
 
-    parser.context.cur_namespace = parser.context.global_namespace;
+    parser.ctx.cur_namespace = parser.ctx.global_namespace;
 
-    parser.tok_idx = 0;
-    parser.error_count = 0;
-    parser.idx = 0;
-    parser.line = 0;
-    parser.col = 0;
+    parser.ctx.tok_idx = 0;
+    parser.ctx.error_count = 0;
+    parser.ctx.idx = 0;
+    parser.ctx.line = 0;
+    parser.ctx.col = 0;
 }
 
-void switch_parse_def(Parser& parser, TopLevelDefinition& def)
-{
-    parser.tokens = def.tokens;
-    parser.context = def.context;
+ParserContextScopeGuard switch_parse_def(Parser& parser, TopLevelDefinition& def)
+{   
+    const auto guard = ParserContextScopeGuard(parser); 
+    parser.ctx = def.context;
 
-    parser.tok_idx = 0;
-    parser.error_count = 0;
-    parser.idx = 0;
-    parser.line = 0;
-    parser.col = 0;    
+    return guard;
 }
 
 Option<parse_error> parse_file(Interloper& itl,const String& file, const String& filename,FileQueue& queue)
@@ -984,31 +984,32 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
     const u32 cur = count(itl.file_tokens);
     resize(itl.file_tokens,cur + 1);
 
-    if(tokenize(file,filename,&parser.alloc->string_allocator,itl.file_tokens[cur]))
+    const s32 lines = tokenize(file,filename,&parser.alloc->string_allocator,itl.file_tokens[cur]);
+    if(lines < 0)
     {
         itl.first_error_code = itl_error::lexer_error;
         return parse_error::lexer_error;
     }
     
+    itl.lines += lines;
+
     // Give it a complete file span
-    parser.tokens = make_const_span(itl.file_tokens[cur],0 , count(itl.file_tokens[cur]));
+    parser.ctx.tokens = make_const_span(itl.file_tokens[cur],0 , count(itl.file_tokens[cur]));
 
 
     if(itl.print_tokens)
     {
         printf("tokens for file: %s\n",filename.buf);
-        print_tokens(parser.tokens);
+        print_tokens(parser.ctx.tokens);
     }
     
-    const auto size = parser.tokens.size;
+    const auto size = parser.ctx.tokens.size;
 
-    while(parser.tok_idx < size)
+    while(parser.ctx.tok_idx < size)
     {
         // check for a directive
-        if(match(parser,token_type::hash))
+        if(consume_match(parser,token_type::hash))
         {
-            (void)consume(parser,token_type::hash);
-
             const auto directive_err = parse_directive(itl,parser);
             if(directive_err)
             {
@@ -1031,6 +1032,50 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
 }
 
 void destroy_file_tokens(Interloper& itl);
+
+Option<parse_error> parse_type_def(Parser& parser, TypeDef* type_def)
+{
+    if(type_def->decl.root)
+    {
+        return option::none;
+    }
+
+    const auto ctx_scope = switch_parse_def(parser,type_def->type_def);
+
+    switch(type_def->kind)
+    {
+        case type_def_kind::enum_t:
+        {
+            const auto parse_res = parse_enum_decl(parser,type_def->type_def.attr);
+            if(!parse_res)
+            {
+                return parse_res.error();
+            }
+
+            type_def->decl.root = (AstNode*)parse_res.value();
+            break;
+        }
+        
+        case type_def_kind::struct_t:
+        {
+            return parse_struct_decl(parser,*type_def);
+        }
+
+        case type_def_kind::alias_t:
+        {
+            const auto parse_res = parse_alias_decl(parser);
+            if(!parse_res)
+            {
+                return parse_res.error();
+            }
+
+            type_def->decl.root = (AstNode*)parse_res.value();
+            break;
+        }
+    }
+
+    return option::none;
+}
 
 Option<parse_error> parse(Interloper& itl, const String& initial_filename)
 {
@@ -1110,7 +1155,7 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
     // Now parse in all the functions
     for(auto& func_def : itl.func_table.table)
     {
-        switch_parse_def(itl.parser,func_def.parser_def);
+        const auto ctx = switch_parse_def(itl.parser,func_def.parser_def);
         const auto parse_err = parse_func_decl(itl.parser,func_def);
         if(parse_err)
         {
@@ -1121,45 +1166,10 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
     // Parse in all types
     for(TypeDef* type_def : itl.type_decl)
     {
-        switch_parse_def(itl.parser,type_def->type_def);
-
-        switch(type_def->kind)
+        const auto err = parse_type_def(itl.parser,type_def);
+        if(err)
         {
-            case type_def_kind::enum_t:
-            {
-                const auto parse_res = parse_enum_decl(itl.parser,type_def->type_def.attr);
-                if(!parse_res)
-                {
-                    return parse_res.error();
-                }
-
-                type_def->root = (AstNode*)parse_res.value();
-                break;
-            }
-            
-            case type_def_kind::struct_t:
-            {
-                const auto parse_res = parse_struct_decl(itl.parser,type_def->type_def.attr);
-                if(!parse_res)
-                {
-                    return parse_res.error();
-                }
-
-                type_def->root = (AstNode*)parse_res.value();
-                break;
-            }
-
-            case type_def_kind::alias_t:
-            {
-                const auto parse_res = parse_alias_decl(itl.parser);
-                if(!parse_res)
-                {
-                    return parse_res.error();
-                }
-
-                type_def->root = (AstNode*)parse_res.value();
-                break;
-            }
+            return err;
         }
     }
 
@@ -1212,7 +1222,7 @@ void print_if_stmt(Interloper& itl,const IfStmt& stmt, const char* name, int dep
 }
 
 
-void vprint_itl(Interloper& itl, const String& fmt, va_list args)
+void vprint_itl(Interloper& itl, const String fmt, va_list args)
 {
     // %S  String
     // %s  string
@@ -1323,7 +1333,7 @@ void vprint_itl(Interloper& itl, const String& fmt, va_list args)
     }
 }
 
-void print_itl(Interloper& itl, const String& fmt, ...)
+void print_itl(Interloper& itl, const String fmt, ...)
 {
     va_list args;
     va_start(args,fmt);
@@ -1509,7 +1519,8 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         case ast_type::struct_initializer:
         {
             StructInitializerNode* initializer = (StructInitializerNode*)root;
-            print_itl(itl,"Struct initializer %s %n%S",initializer->is_return? "return" : "",initializer->name_space,initializer->struct_name);
+            print_itl(itl,"Struct initializer %s %n%S",initializer->is_return? "return" : "",
+                initializer->type_info.name_space,initializer->type_info.name);
             print_internal(itl,initializer->initializer, depth + 1);
             break;
         }
@@ -1611,7 +1622,8 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         {
             TypeNode* type = (TypeNode*)root;
 
-            print_itl(itl,"%ntype %s %S %t",type->name_space,type->is_const? "const" : "",type->name,type->node.expr_type);
+            const b32 is_const = type->flags & TYPE_CONST_FLAG;
+            print_itl(itl,"%ntype %s %S %t",type->name_space,is_const? "const" : "",type->name,type->node.expr_type);
 
             for(const auto& compound : type->compound)
             {
@@ -1648,11 +1660,6 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
                 print_internal(itl,(AstNode*)member, depth + 1);
             }
 
-            if(struct_node->forced_first)
-            {
-                print_internal(itl,(AstNode*)struct_node->forced_first, depth + 1);
-            }
-
             break;
         }
 
@@ -1683,8 +1690,9 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
         {
             DeclNode* decl = (DeclNode*)root;
             const auto name = named_symbol_name(itl,root,decl->sym);
-
-            print_itl(itl,"%sDecl %S",decl->is_const? "const ": "",name);
+            
+            const b32 is_const = decl->flags & TYPE_CONST_FLAG;
+            print_itl(itl,"%sDecl %S",is_const? "const ": "",name);
 
             print_internal(itl,(AstNode*)decl->type, depth + 1);
 
@@ -1904,7 +1912,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
                 print_itl(itl,"%D Generic",depth + 1);
                 for(const auto& generic : func->generic)
                 {
-                    if(generic.constraint != constraint_type::builtin)
+                    if(generic.constraint != constraint_type::type)
                     {
                         print_itl(itl,"%D %S(%s): %t",depth + 2, generic.name,CONSTRAINT_NAMES[u32(generic.constraint)],generic.type);
                     }

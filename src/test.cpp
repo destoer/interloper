@@ -29,6 +29,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     {"tests/basic/invalid_compare",itl_error::out_of_bounds},
     {"tests/basic/invalid_literal",itl_error::lexer_error},
     {"tests/basic/const_assert_fail",itl_error::const_assert},
+    {"tests/basic/auto_void",itl_error::undefined_type_oper},
 
     // type
     {"tests/type/byte_invalid",itl_error::pointer_type_error},
@@ -101,6 +102,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
 
     // generic
     {"tests/generic/constraint_fail",itl_error::generic},
+    {"tests/generic/type_specifier_mismatch",itl_error::generic}
 };
 
 static constexpr u32 PROGRAM_ERROR_TEST_SIZE = sizeof(PROGRAM_ERROR_TEST) / sizeof(ProgramErrorTest);
@@ -282,6 +284,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/generic/deduction",1},
     {"tests/generic/compound",45},
     {"tests/generic/builtin",2},
+    {"tests/generic/type",1},
 
     // defer
     {"tests/control_flow/defer",1},

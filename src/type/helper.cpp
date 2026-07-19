@@ -15,7 +15,7 @@ b32 fit_into_u32(s64 v1)
 }
 
 Option<itl_error> type_check_pointer(Interloper& itl,const Type* ltype, const Type* rtype, assign_type assign_kind);
-Option<itl_error> parse_def(Interloper& itl, TypeDef& def);
+Result<TypeDecl*,itl_error> parse_def(Interloper& itl, TypeDecl* decl);
 
 b32 is_builtin(const Type* type)
 {
@@ -178,7 +178,7 @@ b32 is_string(const Type* type)
 
 b32 is_const(const Type* type)
 {
-    return type->flags & TYPE_FLAG_CONST;
+    return type->flags & TYPE_CONST_FLAG;
 }
 
 b32 is_const_string(const ArrayType* type)
