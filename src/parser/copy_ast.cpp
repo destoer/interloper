@@ -290,7 +290,14 @@ StructAccessNode* copy_ast_struct_access(Interloper& itl, StructAccessNode* acce
     copy->members = {};
     for(const auto& member : access->members)
     {
-        push_var(copy->members,member);
+        auto member_copy = member;
+
+        if(member.type >= member_access_type::index_t)
+        {
+            member_copy.expr = copy_ast(itl,member.expr);
+        }
+
+        push_var(copy->members,member_copy);
     }
 
     add_copy_data_pointer(itl,&copy->members.data);
