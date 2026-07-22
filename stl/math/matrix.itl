@@ -91,6 +91,22 @@ func transpose_mat<M: usize,N: usize>(m1: const Matrix<$M,$N>@) Matrix<$N,$M>
     return ans;
 }
 
+func inverse_mat2(m1: const Mat2F@) Mat2F
+{
+    a := m1.mat[0][0];
+    b := m1.mat[0][1];
+    c := m1.mat[1][0];
+    d := m1.mat[1][1];
+
+    det := (a * d) - (b * c);
+    inv_det := 1.0 / det;
+
+    return Mat2F {{
+        {d * inv_det, -b * inv_det},
+        {-c * inv_det, a * inv_det}
+    }};
+}
+
 func test_mat<M: usize, N: usize>(m1: const Matrix<$M,$N>, ans: const Matrix<$M,$N>, name: const string)
 {
     for [row, r] in m1.mat

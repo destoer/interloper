@@ -69,6 +69,19 @@ func test_mat2()
 
     transpose := std::transpose_mat(&v1);
     std::test_mat(transpose,ans_transpose,"transpose(v1)");
+
+
+    m1 := std::Mat2F {{
+        {-3.0,-1.0},
+        {5.0, 2.0}
+    }};
+
+    inv_ans := std::Mat2F {{
+        {-2.0,-1.0},
+        {5.0,3.0}
+    }};
+
+    std::test_mat(std::inverse_mat2(&m1),inv_ans,"inverse_mat2(m1)");
 }
 
 func test_mat3()
