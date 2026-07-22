@@ -91,6 +91,52 @@ func transpose_mat<M: usize,N: usize>(m1: const Matrix<$M,$N>@) Matrix<$N,$M>
     return ans;
 }
 
+func add_mat<M: usize, N: usize>(m1: const Matrix<$M,$N>@, m2: const Matrix<$M,$N>@) Matrix<$N,$M>
+{
+    ans: Matrix<$N,$M> = {?};
+
+    for [row, r] in m1.mat
+    {
+        for [cell, c] in row
+        {
+            ans.mat[r][c] = cell + m2.mat[r][c];
+        }
+    }
+
+    return ans;
+}
+
+
+func sub_mat<M: usize, N: usize>(m1: const Matrix<$M,$N>@, m2: const Matrix<$M,$N>@) Matrix<$N,$M>
+{
+    ans: Matrix<$N,$M> = {?};
+
+    for [row, r] in m1.mat
+    {
+        for [cell, c] in row
+        {
+            ans.mat[r][c] = cell - m2.mat[r][c];
+        }
+    }
+
+    return ans;
+}
+
+func scale_mat<M: usize, N: usize>(m1: const Matrix<$M,$N>@,scale: f64) Matrix<$N,$M>
+{
+    ans: Matrix<$N,$M> = {?};
+
+    for [row, r] in m1.mat
+    {
+        for [cell, c] in row
+        {
+            ans.mat[r][c] = cell * scale;
+        }
+    }
+
+    return ans;
+}
+
 func inverse_mat2(m1: const Mat2F@) Mat2F
 {
     a := m1.mat[0][0];

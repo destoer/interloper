@@ -43,6 +43,30 @@ func test_vec()
 
 func test_mat2()
 {
+    m1 := std::Mat2F {{
+        {1.0,5.0},
+        {-1.0,7.0}
+    }};
+
+    m2 := std::Mat2F {{
+        {9.0,0.0},
+        {12.0,19.0}
+    }};
+
+    ans_add := std::Mat2F {{
+        {10.0,5.0},
+        {11.0,26.0}
+    }};
+
+    std::test_mat(std::add_mat(&m1,&m2),ans_add,"m1 + m2");
+
+    ans_sub := std::Mat2F {{
+        {-8.0,5.0},
+        {-13.0,-12.0}
+    }};
+
+    std::test_mat(std::sub_mat(&m1,&m2),ans_sub,"m1 + m2");
+
     scale_2 := std::Mat2F {{
         {2.0,0.0},
         {0.0,2.0},
@@ -71,7 +95,7 @@ func test_mat2()
     std::test_mat(transpose,ans_transpose,"transpose(v1)");
 
 
-    m1 := std::Mat2F {{
+    m3 := std::Mat2F {{
         {-3.0,-1.0},
         {5.0, 2.0}
     }};
@@ -81,7 +105,7 @@ func test_mat2()
         {5.0,3.0}
     }};
 
-    std::test_mat(std::inverse_mat2(&m1),inv_ans,"inverse_mat2(m1)");
+    std::test_mat(std::inverse_mat2(&m3),inv_ans,"inverse_mat2(m3)");
 }
 
 func test_mat3()
