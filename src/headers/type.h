@@ -203,13 +203,6 @@ enum class known_value_type
     none_t,
 };
 
-static const char* KNOWN_VALUE_TYPE_NAMES[] = 
-{
-    "integer",
-    "float",
-    "none"
-};
-
 struct KnownValue
 {
     union
@@ -248,6 +241,8 @@ inline bool operator == (const KnownValue &t1, const KnownValue &t2)
         case known_value_type::gpr_t: return t1.gpr == t2.gpr;
         case known_value_type::none_t: return true;
     }
+
+    return true;
 }
 
 struct GenericKnown
