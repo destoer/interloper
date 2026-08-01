@@ -88,13 +88,6 @@ TypedReg collapse_typed_struct_res(Interloper& itl, Function& func, const TypedA
     return TypedReg {ptr,struct_slot.type};
 }
 
-
-void collapse_struct_offset(Interloper& itl, Function& func, AddrSlot* struct_slot)
-{
-    *struct_slot = make_pointer_addr(collapse_struct_addr_res(itl,func,*struct_slot),0);
-}
-
-
 static void load_ptr_addr(Interloper &itl,Function& func,RegSlot dst,PointerAddr pointer,u32 size, b32 is_signed, b32 is_float)
 {
     if(is_float)

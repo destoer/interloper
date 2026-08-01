@@ -240,7 +240,7 @@ void access_index_member(Interloper& itl, Function& func,TypedAddr* struct_addr,
     }
 }
 
-void access_enum_struct_member(Interloper& itl,Function& func, const AccessMember& member_access, TypedAddr* struct_addr)
+void access_enum_struct_member(Interloper& itl,Function& func, const AccessMember& member_access, TypedAddr* struct_addr, b32 direct_enum_access)
 {
     const auto enumeration = enum_from_type(itl.enum_table, (EnumType*)struct_addr->type);
     const auto& structure = struct_from_type(itl.struct_table,(StructType*)enumeration.underlying_type);
@@ -253,13 +253,13 @@ void access_enum_struct_member(Interloper& itl,Function& func, const AccessMembe
     RegSlot enum_slot = INVALID_SYM_REG_SLOT;
     
     // we allready directly have the enum
-    if(struct_addr->addr_slot.struct_addr)
+    if(direct_enum_access)
     {
         assert(struct_addr->addr_slot.addr.offset == 0);
         enum_slot = struct_addr->addr_slot.addr.base;
     }
 
-    // ordinary access on a pointer, we must deref it
+    // ordinary access on a pointer or struct we must load it
     else
     {
         enum_slot = new_tmp(func,GPR_SIZE);
@@ -292,6 +292,9 @@ TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode*
 {
     TypedAddr struct_addr;
 
+    // Are we directly accessing a member on a enum symbol
+    bool direct_enum_access = false;
+
     // parse out initial expr
     switch(struct_access->expr->type)
     {
@@ -311,6 +314,7 @@ TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode*
             {
                 // NOTE: For an enum we will us this as a direct index.
                 struct_addr = typed_addr(sym);
+                direct_enum_access = is_enum(sym.type);
             }
             break;        
         }
@@ -347,6 +351,9 @@ TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode*
 
         switch(access_member.type)
         {
+            // Only directly accessing an enum if we access the first enum immediately
+            direct_enum_access = direct_enum_access && access_member.type == member_access_type::enum_t;
+
             case member_access_type::struct_t:
             {
                 const auto& structure = struct_from_type(itl.struct_table,(StructType*)struct_addr.type);
@@ -359,7 +366,8 @@ TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode*
 
             case member_access_type::enum_t:
             {
-                access_enum_struct_member(itl, func, access_member, &struct_addr);
+                access_enum_struct_member(itl, func, access_member, &struct_addr,direct_enum_access);
+                direct_enum_access = false;
                 break;
             }
 
