@@ -11,7 +11,7 @@ func in_screen_bounds(win: gfx::Window@, x: s64, y: s64) bool
     return cast(u32,x) < cast(u32,win.width) && cast(u32,y) < cast(u32,win.height);
 }
 
-func draw_line(win: gfx::Window@, p1: const std::Vec2F@, p2: const std::Vec2F@, colour: u32)
+func draw_line(win: gfx::Window@, p1: std::Vec2F, p2: std::Vec2F, colour: u32)
 {
     x1 := p1.x;
     y1 := p1.y;
@@ -79,19 +79,19 @@ struct TriChangeCord
     z: ChangeCord;
 }
 
-func tri_dda(tri: const std::Vec2F[3], tri_screen: const std::Vec3F[3], min: const std::Vec2F@) TriChangeCord
+func tri_dda(tri: const std::Vec2F[3], tri_screen: const std::Vec3F[3], min: std::Vec2F) TriChangeCord
 {
-    v0 := std::vec2f_sub(&tri[1],&tri[0]);
-    v1 := std::vec2f_sub(&tri[2],&tri[0]);
+    v0 := std::vec2f_sub(tri[1],tri[0]);
+    v1 := std::vec2f_sub(tri[2],tri[0]);
 
-    d00 := std::vec2f_dot(&v0,&v0);
-    d01 := std::vec2f_dot(&v0,&v1);
-    d11 := std::vec2f_dot(&v1,&v1);
+    d00 := std::vec2f_dot(v0,v0);
+    d01 := std::vec2f_dot(v0,v1);
+    d11 := std::vec2f_dot(v1,v1);
 
     
-    v2_min := std::vec2f_sub(min,&tri[0]);
-    d20_row := std::vec2f_dot(&v2_min,&v0);
-    d21_row := std::vec2f_dot(&v2_min,&v1);
+    v2_min := std::vec2f_sub(min,tri[0]);
+    d20_row := std::vec2f_dot(v2_min,v0);
+    d21_row := std::vec2f_dot(v2_min,v1);
 
     d20_cc := (tri[1].x - tri[0].x);
     d20_rc := (tri[1].y - tri[0].y);
@@ -151,7 +151,7 @@ func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: 
     stride := win.width;
 
     fmin := std::Vec2F {cast(f64,min.x),cast(f64,min.y)};
-    change := tri_dda(tri,tri_screen,&fmin);
+    change := tri_dda(tri,tri_screen,fmin);
 
     for y in min.y <= max.y 
     {
@@ -219,17 +219,17 @@ func perspective(f: f64) std::Mat4F {
 }
 
 // This part of the maths i don't fully understand.
-func look_at(eye: const std::Vec3F@, centre: const std::Vec3F@, up: const std::Vec3F@) std::Mat4F
+func look_at(eye: std::Vec3F, centre: std::Vec3F, up: std::Vec3F) std::Mat4F
 {
     eye_to_centre := std::vec3f_sub(eye,centre);
 
-    n := std::vec3f_normalize(&eye_to_centre);
+    n := std::vec3f_normalize(eye_to_centre);
 
-    up_n_cross := std::vec3f_cross(up,&n);
-    l := std::vec3f_normalize(&up_n_cross);
+    up_n_cross := std::vec3f_cross(up,n);
+    l := std::vec3f_normalize(up_n_cross);
 
-    n_l_cross := std::vec3f_cross(&n,&l);
-    m := std::vec3f_normalize(&n_l_cross);
+    n_l_cross := std::vec3f_cross(n,l);
+    m := std::vec3f_normalize(n_l_cross);
 
     m1 := std::Mat4F {{
         {l.x,l.y,l.z,0.0},
@@ -245,10 +245,10 @@ func look_at(eye: const std::Vec3F@, centre: const std::Vec3F@, up: const std::V
         {0.0,0.0,0.0,1.0}
     }};
 
-    return std::mul_mat(&m1, &m2);
+    return std::mul_mat(m1, m2);
 }
 
-func render(win: gfx::Window@, model: const Model@, angle: f64)
+func render(win: gfx::Window@, model: Model, angle: f64)
 {
     gfx::blank_screen(win.screen);
 
@@ -257,7 +257,7 @@ func render(win: gfx::Window@, model: const Model@, angle: f64)
 
     rot := rotate(angle);
 
-    eye = std::mul_vec3_mat4(&eye,&rot);
+    eye = std::mul_vec3_mat4(eye,rot);
 
     // camera direction
     centre := std::Vec3F {0.0,0.0,0.0}; 
@@ -265,23 +265,23 @@ func render(win: gfx::Window@, model: const Model@, angle: f64)
     // camera up vector
     up := std::Vec3F {0.0,1.0,0.0}; 
 
-    view := look_at(&eye,&centre,&up);
+    view := look_at(eye,centre,up);
 
-    eye_to_centre := std::vec3f_sub(&eye,&centre);
-    persp := perspective(std::vec3f_norm(&eye_to_centre));
+    eye_to_centre := std::vec3f_sub(eye,centre);
+    persp := perspective(std::vec3f_norm(eye_to_centre));
 
-    v2 := std::mul_mat(&persp,&view);
+    v2 := std::mul_mat(persp,view);
 
     proj := project(win);
-    transform := std::mul_mat(&proj,&v2);
+    transform := std::mul_mat(proj,v2);
 
 
     for @tri in model.faces
     {
         points: std::Vec3F[3] = {?};
-        points[0] = std::mul_vec3_mat4(&tri.points[0],&transform);
-        points[1] = std::mul_vec3_mat4(&tri.points[1],&transform);
-        points[2] = std::mul_vec3_mat4(&tri.points[2],&transform);
+        points[0] = std::mul_vec3_mat4(tri.points[0],transform);
+        points[1] = std::mul_vec3_mat4(tri.points[1],transform);
+        points[2] = std::mul_vec3_mat4(tri.points[2],transform);
 
         draw_triangle(win,points,RED);
     }
@@ -337,7 +337,7 @@ func main() s32
             log::info(TAG,"Quitting");
         }
 
-        render(&win,&model,angle);
+        render(&win,model,angle);
         angle += 1.0;
 
         if(gfx::draw_window(&win) == gfx::win_result::err)

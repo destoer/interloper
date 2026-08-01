@@ -282,6 +282,7 @@ void compile_auto_decl(Interloper &itl,Function &func, AstNode* stmt)
     compile_expression(itl,func,auto_decl->expr,sym.reg.slot);
 }
 
+// TODO: Handle assigns of copied struct parameters
 void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
 {
     AssignNode *assign = (AssignNode*)stmt;

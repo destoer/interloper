@@ -179,6 +179,37 @@ void push_struct(Interloper& itl, Function& func, ArgPass& pass, StructType* arg
 }
 
 u32 compile_any(Interloper& itl, Function& func, AstNode* arg_node);
+TypedReg compile_addrof_res(Interloper& itl,Function &func,AstNode *expr);
+b32 can_take_addrof(const AstNode* addr_expr);
+
+void pass_struct_value_as_ptr(Interloper& itl, Function& func, ArgPass& pass, AstNode* node, u32 arg_idx)
+{
+    // If we are about to do a deref to get a pass, just directly pass the pointer instead
+    if(node->type == ast_type::deref)
+    {
+        DerefNode* deref = (DerefNode*)node;
+
+        const auto ptr = compile_oper(itl,func,deref->expr);
+        pass_arg(itl,func,pass,ptr,arg_idx);
+    }
+
+    else if(!can_take_addrof(node))
+    {
+        const auto reg = compile_oper(itl,func,node);
+        const StructAddr struct_addr = {make_addr(reg.slot,0)};
+
+        const auto ptr = addrof_res(itl,func,struct_addr);
+        const auto ptr_typed = TypedReg { ptr, make_reference(itl,node->expr_type) };
+        pass_arg(itl,func,pass,ptr_typed,arg_idx);
+    }
+
+    else
+    {
+        // Auto take the addr
+        const auto ptr = compile_addrof_res(itl,func,node);
+        pass_arg(itl,func,pass,ptr,arg_idx);
+    }
+}
 
 void push_arg(Interloper& itl, Function& func, ArgPass& pass, Type* arg_type, AstNode* node, u32 arg_idx)
 {
@@ -205,8 +236,17 @@ void push_arg(Interloper& itl, Function& func, ArgPass& pass, Type* arg_type, As
 
         default:
         {
-            const auto reg = compile_oper(itl,func,node);
-            pass_arg(itl,func,pass,reg,arg_idx);
+            // Auto coerced pointer
+            if(is_struct(node->expr_type))
+            {
+                pass_struct_value_as_ptr(itl,func,pass,node,arg_idx);
+            }
+
+            else
+            {
+                const auto reg = compile_oper(itl,func,node);
+                pass_arg(itl,func,pass,reg,arg_idx);
+            }
             break;
         }
     }

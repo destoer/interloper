@@ -20,9 +20,9 @@ func read_args()
 
     defer destroy_array(&bin);
 
-    str_buffer := cast(string,array_buffer(&bin));
+    str_buffer := cast(string,array_buffer(bin));
     strings := split_null_str(str_buffer);
-    itl_context.args = cast(string[],array_buffer(&strings));
+    itl_context.args = cast(string[],array_buffer(strings));
 
     if(!itl_context.args.len)
     {

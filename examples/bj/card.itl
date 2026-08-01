@@ -41,7 +41,7 @@ struct Card
 };
 
 
-func print_card(card : const Card@)
+func print_card(card : Card)
 {
     std::print("{}:{} ",card.suit.name,card.face.name);
 }
@@ -67,7 +67,7 @@ struct Deck
 };
 
 
-func init_deck(deck : const Deck@)
+func init_deck(deck: Deck)
 {
     for(s in 0 < suit_kind.len)
     {
@@ -80,7 +80,7 @@ func init_deck(deck : const Deck@)
     }
 }
 
-func shuffle_deck(deck : const Deck@)
+func shuffle_deck(deck: Deck)
 {
     for(i in deck.card.len - 1 > 0)
     {
@@ -92,7 +92,7 @@ func shuffle_deck(deck : const Deck@)
     }
 }
 
-func print_deck(deck : const Deck@)
+func print_deck(deck: Deck)
 {
     std::print("deck: \n");
 
@@ -104,7 +104,7 @@ func print_deck(deck : const Deck@)
     std::linefeed();
 }
 
-func print_hand(hand : const Hand@, name : const string)
+func print_hand(hand : Hand, name : const string)
 {
     std::print("{}: ",name);
 

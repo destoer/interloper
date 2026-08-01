@@ -568,6 +568,10 @@ TypeResult type_check_addrof(Interloper& itl, AstNode* expr)
     }
 
     auto type = *res;
+    if(type->flags & TYPE_CONST_STRUCT_ARG_FLAG)
+    {
+        return compile_error(itl,itl_error::pointer_type_error,"Cannot take pointer on struct value arg %t",type);
+    }
 
     if(is_func_pointer(type))
     {
@@ -606,6 +610,11 @@ TypeResult type_check_deref(Interloper& itl, AstNode* expr)
 
     auto type = *res;
 
+    if(type->flags & TYPE_CONST_STRUCT_ARG_FLAG)
+    {
+        return compile_error(itl,itl_error::pointer_type_error,"Cannot dereference struct value reference %t",type);
+    }
+
     // make sure we actually have a pointer
     if(!is_pointer(type))
     {
@@ -636,6 +645,10 @@ TypeResult type_check_sizeof(Interloper& itl, AstNode* expr)
     {
         return res;
     }
+
+    Type* type = *res;
+
+    type = strip_const_struct_arg(type);
 
     auto value = make_value(type_memory_size(itl,*res),false);
 

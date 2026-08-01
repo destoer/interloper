@@ -205,6 +205,8 @@ static constexpr u32 TYPE_CONSTANT_FLAG = (1 << 1);
 static constexpr u32 TYPE_USE_RESULT_FLAG = (1 << 2);
 // Force declare first in type decl
 static constexpr u32 FORCED_FIRST_FLAG = (1 << 3);
+// Passed internally as a const reference without explicitly taking a pointer.
+static constexpr u32 TYPE_CONST_STRUCT_ARG_FLAG = (1 << 4);
 
 struct TypeNode
 {

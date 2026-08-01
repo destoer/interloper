@@ -766,12 +766,43 @@ Option<itl_error> type_check_array(Interloper& itl, const Type* ltype, const Typ
     return check_assign_plain(itl,ltype,rtype);
 }
 
+const Type* strip_const_struct_arg(const Type* type)
+{
+    // Pretend this is the actual type for sizing purposes
+    if(type->flags & TYPE_CONST_STRUCT_ARG_FLAG)
+    {
+        type = deref_pointer(type);
+    }
+    
+    return type;
+}
+
+Type* strip_const_struct_arg(Type* type)
+{
+    // Pretend this is the actual type for sizing purposes
+    if(type->flags & TYPE_CONST_STRUCT_ARG_FLAG)
+    {
+        type = deref_pointer(type);
+    }
+    
+    return type;
+}
+
 Option<itl_error> check_assign_internal(Interloper& itl,const Type *ltype, const Type *rtype, assign_type type)
 {
     // Assign to any is fine for any type.
     if(is_any(itl,ltype))
     {
         return option::none;
+    }
+
+    // TODO: This Only handles copying correctly ATM. The rest should treat it
+    // as the const reference that it is until we implement the code for it.
+    // We will get some inconsistency with structs actually passed as values but this is fine for now.
+    if(type == assign_type::arg)
+    {
+        ltype = strip_const_struct_arg(ltype);
+        rtype = strip_const_struct_arg(rtype);
     }
 
     if(is_plain(rtype) && is_plain(ltype))

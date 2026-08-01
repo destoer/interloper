@@ -79,6 +79,10 @@ TypeResult type_check_cast(Interloper& itl, AstNode* expr)
 
     Type* old_type = *old_type_res;
 
+    if(old_type->flags & TYPE_CONST_STRUCT_ARG_FLAG)
+    {
+        return compile_error(itl,itl_error::pointer_type_error,"Cannot cast struct value reference %t",old_type);
+    }
 
     const auto new_type_res = get_type(itl,cast->type);
     if(!new_type_res)

@@ -84,7 +84,7 @@ struct HashTable
 func hash_table_new_buckets(size: usize) Array
 {
     buckets := make_sized_array(sizeof_type(Bucket),size);
-    bucket_array := cast(Bucket[],array_buffer(&buckets));
+    bucket_array := cast(Bucket[],array_buffer(buckets));
 
     for @bucket in bucket_array
     {
@@ -108,9 +108,9 @@ func make_hash_table(key_size: usize, value_size: usize, hash_func: HASH_FUNC, c
     };
 }
 
-func hash_table_lookup_bucket(table: const HashTable@,bucket: const Bucket@, key: const byte@) HashNode?
+func hash_table_lookup_bucket(table: HashTable,bucket: const Bucket@, key: const byte@) HashNode?
 {
-    node_array := cast(HashNode[],array_buffer(&bucket.node));
+    node_array := cast(HashNode[],array_buffer(bucket.node));
 
     for @node in node_array
     {
@@ -123,10 +123,10 @@ func hash_table_lookup_bucket(table: const HashTable@,bucket: const Bucket@, key
     return NULL;
 }
 
-func hash_table_lookup(table: const HashTable@, key: const byte@) byte?
+func hash_table_lookup(table: HashTable, key: const byte@) byte?
 {
-    slot := table.hash_func(key,count_array(&table.bucket));
-    bucket := cast(Bucket@,array_index(&table.bucket,slot));
+    slot := table.hash_func(key,count_array(table.bucket));
+    bucket := cast(Bucket@,array_index(table.bucket,slot));
 
     node := hash_table_lookup_bucket(table,bucket,key);
 
@@ -139,7 +139,7 @@ func hash_table_lookup(table: const HashTable@, key: const byte@) byte?
     return NULL;
 }
 
-func hash_table_contains(table: const HashTable@, key: const byte@) bool
+func hash_table_contains(table: HashTable, key: const byte@) bool
 {
     return hash_table_lookup(table,key) != NULL;
 }
@@ -147,13 +147,13 @@ func hash_table_contains(table: const HashTable@, key: const byte@) bool
 func rehash(table: HashTable@, new_size: usize)
 {
     new_bucket := hash_table_new_buckets(new_size);
-    new_bucket_array := cast(Bucket[],array_buffer(&new_bucket));
+    new_bucket_array := cast(Bucket[],array_buffer(new_bucket));
 
-    bucket_array := cast(Bucket[],array_buffer(&table.bucket));
+    bucket_array := cast(Bucket[],array_buffer(table.bucket));
 
     for @bucket in bucket_array
     {
-        node_array := cast(HashNode[],array_buffer(&bucket.node));
+        node_array := cast(HashNode[],array_buffer(bucket.node));
 
         for @node in node_array
         {
@@ -171,16 +171,16 @@ func rehash(table: HashTable@, new_size: usize)
 
 func hash_table_add(table: HashTable@, key: const byte@, value: const byte@) byte@
 {
-    bucket_size := count_array(&table.bucket);
+    bucket_size := count_array(table.bucket);
     if(table.table_size == bucket_size)
     {
         rehash(table,bucket_size * 2);
     }
 
-    slot := table.hash_func(key,count_array(&table.bucket));
+    slot := table.hash_func(key,count_array(table.bucket));
 
-    bucket := cast(Bucket@, array_index(&table.bucket,slot));
-    node := hash_table_lookup_bucket(table,bucket,key);
+    bucket := cast(Bucket@, array_index(table.bucket,slot));
+    node := hash_table_lookup_bucket(@table,bucket,key);
 
     // key present just memcpy it
     if(node)
@@ -205,10 +205,10 @@ func hash_table_add(table: HashTable@, key: const byte@, value: const byte@) byt
 
 func hash_table_remove(table: HashTable@, key: const byte@) 
 {
-    slot := table.hash_func(key,count_array(&table.bucket));
-    bucket := cast(Bucket@,array_index(&table.bucket,slot));
+    slot := table.hash_func(key,count_array(table.bucket));
+    bucket := cast(Bucket@,array_index(table.bucket,slot));
 
-    node := hash_table_lookup_bucket(table,bucket,key);
+    node := hash_table_lookup_bucket(@table,bucket,key);
 
     if node
     {
@@ -219,11 +219,11 @@ func hash_table_remove(table: HashTable@, key: const byte@)
 
 func destroy_hash_table(table: HashTable@)
 {
-    bucket_array := cast(Bucket[],array_buffer(&table.bucket));
+    bucket_array := cast(Bucket[],array_buffer(table.bucket));
 
     for @bucket in bucket_array
     {
-        node_array := cast(HashNode[],array_buffer(&bucket.node));
+        node_array := cast(HashNode[],array_buffer(bucket.node));
 
         for @node in node_array
         {

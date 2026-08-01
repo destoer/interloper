@@ -41,17 +41,17 @@ struct Array
     element_size: usize = 1;
 };
 
-func array_data(arr: Array@) byte@
+func array_data(arr: Array) byte@
 {
     return arr.buf.data;
 }
 
-func count_array(arr: const Array@) usize 
+func count_array(arr: Array) usize 
 {
     return arr.buf.len / arr.element_size;
 }
 
-func array_buffer(arr: Array@) byte[]
+func array_buffer(arr: Array) byte[]
 {
     return arr.buf;
 }
@@ -137,12 +137,12 @@ func reserve_array(arr : Array@, size: usize)
     }
 }
 
-func read_buffer(arr : const Array@, offset : usize, data: byte@, size: usize)
+func read_buffer(arr : Array, offset : usize, data: byte@, size: usize)
 {
     memcpy(data,&arr.buf[offset],size);
 }
 
-func array_index(array: const Array@, idx: usize) byte@
+func array_index(array: Array, idx: usize) byte@
 {
     offset := idx * array.element_size;
 
@@ -154,7 +154,7 @@ func array_index(array: const Array@, idx: usize) byte@
     return &array.buf[offset];
 }
 
-func read_array_circular(array: const Array@, idx: ssize,out: byte@)
+func read_array_circular(array: Array, idx: ssize,out: byte@)
 {
     if idx < 0
     {
@@ -165,7 +165,7 @@ func read_array_circular(array: const Array@, idx: ssize,out: byte@)
     memcpy(out,src,array.element_size);
 }
 
-func array_end(array: const Array@) byte@
+func array_end(array: Array) byte@
 {
     return &array.buf[array.buf.len];
 }
@@ -219,7 +219,7 @@ func push_u64(arr : Array@, v : u64)
     push_var(arr,&v);
 }
 
-func read_var<T: Sized>(arr: const Array@, offset: u64) $T
+func read_var<T: Sized>(arr: Array, offset: u64) $T
 {
     out: $T = {?};
     read_buffer(arr,offset,&out,sizeof_type($T));
@@ -233,11 +233,11 @@ func array_pop(arr: Array@)
 
 func array_remove_in_place(arr: Array@, data: byte@) 
 {
-    memcpy(data,array_index(arr,count_array(arr) - 1),arr.element_size);
+    memcpy(data,array_index(@arr,count_array(@arr) - 1),arr.element_size);
     array_pop(arr);   
 }
 
-func str_from_array(arr : Array@) string
+func str_from_array(arr : Array) string
 {
     return cast(c8[],array_buffer(arr));
 }
@@ -245,7 +245,7 @@ func str_from_array(arr : Array@) string
 func buffer_file_array(buffer: Array@, file: File@, buffer_size: usize) [usize, file_read_res]
 {
     reserve_extra_array_mem(buffer,buffer_size);
-    [len, res] := read_file_raw(file,array_end(buffer),buffer_size);
+    [len, res] := read_file_raw(file,array_end(@buffer),buffer_size);
     buffer.buf.len += len;
 
     return len, res;

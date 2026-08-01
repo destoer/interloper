@@ -14,18 +14,18 @@ func vec2f_aabb_intersect(p1: Vec2F,s1: Vec2F, p2: Vec2F, s2: Vec2F) bool
         && (p1.y < p2.y + s2.y) && (p1.y + s1.y > p2.y);
 }
 
-func vec2f_add(v1: const Vec2F@, v2: const Vec2F@) Vec2F
+func vec2f_add(v1: Vec2F, v2: Vec2F) Vec2F
 {
     return Vec2F {v1.x + v2.x, v1.y + v2.y};
 }
 
 
-func vec2f_sub(v1: const Vec2F@, v2: const Vec2F@) Vec2F
+func vec2f_sub(v1: Vec2F, v2: Vec2F) Vec2F
 {
     return Vec2F {v1.x - v2.x, v1.y - v2.y};
 }
 
-func vec2f_scale(v1: const Vec2F@, scale: f64) Vec2F
+func vec2f_scale(v1: Vec2F, scale: f64) Vec2F
 {
     return Vec2F {v1.x * scale, v1.y * scale};
 }
@@ -39,12 +39,12 @@ func rand_vec2f(x0: s64, x1: s64, y0: s64, y1: s64) Vec2F
     };
 }
 
-func vec2f_dot(v1: const Vec2F@, v2: const Vec2F@) f64
+func vec2f_dot(v1: Vec2F, v2: Vec2F) f64
 {
     return (v1.x * v2.x) + (v1.y * v2.y);
 }
 
-func vec2f_norm(v1: const Vec2F@) f64 
+func vec2f_norm(v1: Vec2F) f64 
 {
     return sqrt((v1.x * v1.x) + (v1.y * v1.y));
 }

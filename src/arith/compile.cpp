@@ -410,6 +410,12 @@ void compile_deref(Interloper& itl,Function &func,AstNode *expr, RegSlot dst_slo
 
 TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode* struct_access);
 
+b32 can_take_addrof(const AstNode* addr_expr)
+{
+    const auto type = addr_expr->type;
+    return type == ast_type::symbol || type == ast_type::index || type == ast_type::struct_access;
+}
+
 void compile_addrof_expr(Interloper& itl,Function &func,AstNode *addr_expr, RegSlot dst_slot)
 {
     switch(addr_expr->type)

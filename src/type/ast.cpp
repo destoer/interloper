@@ -90,6 +90,8 @@ TypeResult type_check_type_operator(Interloper& itl, AstNode* expr)
 
     Type* type = *type_res;
 
+    // Pretend this is the actual type for sizing purposes
+    type = strip_const_struct_arg(type);
 
     switch(type_oper->oper)
     {
@@ -208,9 +210,14 @@ Option<itl_error> type_check_auto_decl(Interloper &itl,Function& func, AstNode* 
         return decl_res.error();
     }
 
-    const auto rtype = *decl_res;
+    auto rtype = *decl_res;
     decl->node.expr_type = rtype;
-
+   
+    // TODO: relax this
+    if(rtype->flags & TYPE_CONST_STRUCT_ARG_FLAG)
+    {
+        return compile_error(itl,itl_error::pointer_type_error,"Cannot auto assign struct value reference %t",rtype);
+    }
 
     const auto sym_res = add_symbol(itl,decl->sym.name,rtype);
     if(!sym_res)
@@ -307,9 +314,14 @@ Option<itl_error> type_check_assign(Interloper& itl,Function& func, AstNode* stm
         return right_res.error();
     }
     
-    const auto left = *left_res;
-    const auto right = *right_res;
+    auto left = *left_res;
+    auto right = *right_res;
 
+    // TODO: Relax this
+    if(left->flags & TYPE_CONST_STRUCT_ARG_FLAG)
+    {
+        return compile_error(itl,itl_error::pointer_type_error,"Cannot assign struct value reference %t",left);
+    }
 
     const auto assign_err = check_assign(itl,left,right);
     if(assign_err)
