@@ -363,6 +363,19 @@ void print_func_decl(Interloper& itl,const Function &func)
 
 void add_sig_arg(Interloper& itl, FuncSig& sig, const String& name, Type* type, u32* arg_offset)
 {
+    // Automatically make a const reference under the hood.
+    if(is_struct(type))
+    {
+        // Always mark const for consistency
+        type->flags |= TYPE_CONST_FLAG;
+
+        // If its Any or it is more optimal just to copy then don't optimize
+        if(!is_any(itl,type) && type_size(itl,type) > GPR_SIZE)
+        {
+            type = make_reference(itl,type,TYPE_CONST_STRUCT_ARG_FLAG | TYPE_CONST_FLAG);
+        }
+    }
+
     if(is_trivial_copy(type) && !is_float(type) && count(sig.pass_as_reg) < 2)
     {
         const auto spec = spec_reg(SPECIAL_REG_ARG_START + sig.max_reg_pass);
@@ -396,6 +409,7 @@ void add_sig_arg(Interloper& itl, FuncSig& sig, const String& name, Type* type, 
         push_var(sig.args,sym.reg.slot.sym_slot);
 
         *arg_offset += promote_size(type_size(itl,type));
+
         push_var(sig.pass_as_reg,NON_ARG);
     }
 }

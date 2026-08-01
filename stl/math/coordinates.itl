@@ -29,7 +29,7 @@ struct Spherical3F
 }
 
 
-func polar_to_cartesian(polar: const Polar2F@) Point2F
+func polar_to_cartesian(polar: Polar2F) Point2F
 {    
     // TODO: Type aliases are not handled in context sensitive parsing
     return Vec2F {
@@ -38,7 +38,7 @@ func polar_to_cartesian(polar: const Polar2F@) Point2F
     };
 }
 
-func cartesian_to_polar(point: const Point2F@) Polar2F
+func cartesian_to_polar(point: Point2F) Polar2F
 {
     // theta = atan(y / x)
     // r = sqrt(x*x + y*y);
@@ -59,7 +59,7 @@ func cartesian_to_polar(point: const Point2F@) Polar2F
     };
 }
 
-func cylindrical_to_cartesian(cylindrical: const Cylindrical3F@) Point3F
+func cylindrical_to_cartesian(cylindrical: Cylindrical3F) Point3F
 {
     // TODO: Type aliases are not handled in context sensitive parsing
     return Vec3F {
@@ -69,7 +69,7 @@ func cylindrical_to_cartesian(cylindrical: const Cylindrical3F@) Point3F
     };
 }
 
-func cartesian_to_cylindrical(point: const Point3F@) Cylindrical3F 
+func cartesian_to_cylindrical(point: Point3F) Cylindrical3F 
 {
     r := sqrt(point.x*point.x + point.y * point.y);
 
@@ -87,7 +87,7 @@ func cartesian_to_cylindrical(point: const Point3F@) Cylindrical3F
     };
 }
 
-func cartesian_to_spherical(point: const Point3F@) Spherical3F
+func cartesian_to_spherical(point: Point3F) Spherical3F
 {
     theta := 90.0;
 
@@ -106,7 +106,7 @@ func cartesian_to_spherical(point: const Point3F@) Spherical3F
     };
 }
 
-func spherical_to_cartesian(spherical: const Spherical3F@) Point3F
+func spherical_to_cartesian(spherical: Spherical3F) Point3F
 {
     r_sine_phi := spherical.r * sin(spherical.phi);
 

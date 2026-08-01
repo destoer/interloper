@@ -1,3 +1,5 @@
+Type* strip_const_struct_arg(Type* type);
+
 struct BinType
 {
     Type* ltype;
@@ -636,6 +638,10 @@ TypeResult type_check_sizeof(Interloper& itl, AstNode* expr)
     {
         return res;
     }
+
+    Type* type = *res;
+
+    type = strip_const_struct_arg(type);
 
     auto value = make_value(type_memory_size(itl,*res),false);
 

@@ -79,6 +79,17 @@ Option<itl_error> type_check_initializer_list(Interloper& itl,Type* ltype, Initi
     }
 }
 
+Type* strip_const_struct_arg(Type* type)
+{
+    // Pretend this is the actual type for sizing purposes
+    if(type->flags & TYPE_CONST_STRUCT_ARG_FLAG)
+    {
+        type = deref_pointer(type);
+    }
+    
+    return type;
+}
+
 TypeResult type_check_type_operator(Interloper& itl, AstNode* expr)
 {
     TypeOperatorNode* type_oper = (TypeOperatorNode*)expr;
@@ -90,6 +101,8 @@ TypeResult type_check_type_operator(Interloper& itl, AstNode* expr)
 
     Type* type = *type_res;
 
+    // Pretend this is the actual type for sizing purposes
+    type = strip_const_struct_arg(type);
 
     switch(type_oper->oper)
     {
@@ -307,8 +320,11 @@ Option<itl_error> type_check_assign(Interloper& itl,Function& func, AstNode* stm
         return right_res.error();
     }
     
-    const auto left = *left_res;
-    const auto right = *right_res;
+    auto left = *left_res;
+    auto right = *right_res;
+
+    left = strip_const_struct_arg(left);
+    right = strip_const_struct_arg(right);
 
 
     const auto assign_err = check_assign(itl,left,right);

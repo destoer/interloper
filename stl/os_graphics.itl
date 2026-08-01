@@ -375,8 +375,6 @@ struct XVisualType
 
 func read_setup_info(win: OSWindow@,reply: const AuthReply@) net_result
 {
-    buf := &win.packet;
-
     log::debug(X11_PREFIX,"version {}.{}",reply.major,reply.minor);
 
     len : u32 = reply.data_len * 4;
@@ -401,7 +399,7 @@ func read_setup_info(win: OSWindow@,reply: const AuthReply@) net_result
         return res;
     }
 
-    log::debug(X11_PREFIX,"vendor {}",std::str_from_array(buf),info.vendor_size);
+    log::debug(X11_PREFIX,"vendor {}",std::str_from_array(win.packet),info.vendor_size);
 
     res = net::recv_ignore(&win.sock,pad_x11(info.vendor_size));
     if(res != net_result::ok)
@@ -546,7 +544,7 @@ func authenticate(win: OSWindow@) net_result
                 return res;
             }
 
-            str := std::str_from_array(&win.packet);
+            str := std::str_from_array(win.packet);
             log::error(X11_PREFIX,"Failure reason: {}",str);
 
             return net_result::err;
@@ -623,12 +621,10 @@ enum x_reply_type : u8
 
 func process_reply(win : OSWindow@) win_result
 {
-    buf := &win.packet;
+    seq: u32 = std::read_var$<u16>(win.packet,2);
+    len := std::read_var$<u32>(win.packet,4) * 4;
 
-    seq: u32 = std::read_var$<u16>(buf,2);
-    len := std::read_var$<u32>(buf,4) * 4;
-
-    callback_opt := std::hash_table_lookup(&win.reply_callback,&seq);
+    callback_opt := std::hash_table_lookup(win.reply_callback,&seq);
 
     if(!callback_opt)
     {
@@ -660,7 +656,7 @@ struct XError
 func process_error(win : OSWindow@)
 {
     error: XError = {?};
-    std::read_buffer(&win.packet,0,&error,sizeof_data(XError));
+    std::read_buffer(win.packet,0,&error,sizeof_data(XError));
 
     log::error(X11_PREFIX,"Error: {}",error);
 }
@@ -1012,10 +1008,8 @@ func os_process_events(std_win: Window@) win_result
     // while socket has data or we are waiting for specific notification
     while(net::socket_has_data(&win.sock) && !std_win.quit)
     {
-        buf := &win.packet;
-
         // TODO: we probably want to peek this...
-        res := net::recv_clear_array(&win.sock,buf,32);
+        res := net::recv_clear_array(&win.sock,&win.packet,32);
 
         if(res != net_result::ok)
         {
@@ -1023,7 +1017,7 @@ func os_process_events(std_win: Window@) win_result
         }
 
         type: x_reply_type;
-        std::read_buffer(buf,0,&type,sizeof_data(x_reply_type));
+        std::read_buffer(win.packet,0,&type,sizeof_data(x_reply_type));
 
         switch(type)
         {
@@ -1040,7 +1034,7 @@ func os_process_events(std_win: Window@) win_result
 
             case x_reply_type::key_press:
             {
-                key := std::read_var$<u8>(buf,1);
+                key := std::read_var$<u8>(win.packet,1);
 
                 x_key_event(std_win,key,true);
             }
@@ -1048,7 +1042,7 @@ func os_process_events(std_win: Window@) win_result
             // TODO: why are the key release events not always firing?
             case x_reply_type::key_release:
             {
-                key := std::read_var$<u8>(buf,1);
+                key := std::read_var$<u8>(win.packet,1);
 
                 x_key_event(std_win,key,false);         
             }
@@ -1056,7 +1050,7 @@ func os_process_events(std_win: Window@) win_result
             case x_reply_type::configure_notify:
             {
                 config: XConfigureNotify = {?};
-                std::read_buffer(buf,0,&config,sizeof_data(XConfigureNotify));
+                std::read_buffer(win.packet,0,&config,sizeof_data(XConfigureNotify));
 
 
                 win_res := os_window_resized(std_win,config.width,config.height);
@@ -1072,7 +1066,7 @@ func os_process_events(std_win: Window@) win_result
             case x_reply_type::shm_completion:
             {
                 completion: XSHMCompletion = {?};
-                std::read_buffer(buf,0,&completion,sizeof_data(XSHMCompletion));
+                std::read_buffer(win.packet,0,&completion,sizeof_data(XSHMCompletion));
                 shm_completion(win,&completion);
             }
         
@@ -1411,8 +1405,8 @@ func ext_query_callback(win: OSWindow@, _len: u32, data: byte?) win_result
 {
     ext_query := cast(ExtensionQuery@,data);
     ext_query.replied = true;
-    ext_query.enabled = cast(bool,std::read_var$<u8>(&win.packet,8));
-    ext_query.opcode = std::read_var$<u8>(&win.packet,9);
+    ext_query.enabled = cast(bool,std::read_var$<u8>(win.packet,8));
+    ext_query.opcode = std::read_var$<u8>(win.packet,9);
 
     return win_result::ok;
 }
@@ -1483,7 +1477,7 @@ func enable_big_req_callback(win: OSWindow@, _len: u32, data: byte?) win_result
     reply := cast(XBigReqReply@,data);
 
     reply.replied = true;
-    reply.max_req = std::read_var$<u32>(&win.packet,8) * 4;
+    reply.max_req = std::read_var$<u32>(win.packet,8) * 4;
 
     return win_result::ok;
 }
@@ -1580,7 +1574,7 @@ func keyboard_mapping_callback(win: OSWindow@, len: u32, data: byte?) win_result
     @replied = true;
 
     log::debug(X11_PREFIX,"Key mapping setup");
-    n := std::read_var$<u8>(&win.packet,1);
+    n := std::read_var$<u8>(win.packet,1);
 
     res := read_x11_reply(win,len);
     if(res != net_result::err)
@@ -1593,7 +1587,7 @@ func keyboard_mapping_callback(win: OSWindow@, len: u32, data: byte?) win_result
 
     for(i in win.min_keycode < win.max_keycode)
     {
-        win.key_code_to_sym[i] = std::read_var$<u8>(&win.packet,cur);
+        win.key_code_to_sym[i] = std::read_var$<u8>(win.packet,cur);
         cur += offset;
     }
     

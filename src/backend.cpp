@@ -282,6 +282,7 @@ void compile_auto_decl(Interloper &itl,Function &func, AstNode* stmt)
     compile_expression(itl,func,auto_decl->expr,sym.reg.slot);
 }
 
+// TODO: Handle assigns of copied struct parameters
 void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
 {
     AssignNode *assign = (AssignNode*)stmt;
@@ -290,6 +291,8 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
     {
         case ast_type::symbol:
         {
+            assert(!(assign->right->expr_type->flags & TYPE_CONST_STRUCT_ARG_FLAG));
+
             SymbolNode* sym_node = (SymbolNode*)assign->left;
             auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
 
@@ -310,6 +313,8 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
 
         case ast_type::deref:
         {
+            assert(!(assign->right->expr_type->flags & TYPE_CONST_STRUCT_ARG_FLAG));
+
             DerefNode* deref = (DerefNode*)assign->left;
             const auto src = compile_oper(itl,func,assign->right);
             auto ptr = compile_oper(itl,func,deref->expr);
@@ -322,6 +327,8 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
 
         case ast_type::struct_access:
         {
+            assert(!(assign->right->expr_type->flags & TYPE_CONST_STRUCT_ARG_FLAG));
+
             const auto src = compile_oper(itl,func,assign->right);
             write_struct(itl,func,src,(StructAccessNode*)assign->left);
             break;
@@ -329,6 +336,8 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
 
         case ast_type::index:
         {
+            assert(!(assign->right->expr_type->flags & TYPE_CONST_STRUCT_ARG_FLAG));
+
             const auto dst = index_arr(itl,func,(IndexNode*)assign->left);
             const auto src = compile_oper(itl,func,assign->right);
 

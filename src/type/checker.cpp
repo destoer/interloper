@@ -774,6 +774,20 @@ Option<itl_error> check_assign_internal(Interloper& itl,const Type *ltype, const
         return option::none;
     }
 
+    if(ltype->flags & TYPE_CONST_STRUCT_ARG_FLAG)
+    {
+        // If the argument we are assigning to is a hidden const ref we can coerce the type
+        if(is_struct(rtype) && type == assign_type::arg)
+        {
+            const auto left_struct = (StructType*)deref_pointer(ltype);
+            const auto right_struct = (StructType*)rtype;
+            if(left_struct->struct_idx == right_struct->struct_idx)
+            {
+                ltype = (Type*)left_struct;
+            }
+        }
+    }
+
     if(is_plain(rtype) && is_plain(ltype))
     {
         const auto plain_err = check_assign_plain(itl,ltype,rtype);

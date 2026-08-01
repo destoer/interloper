@@ -29,7 +29,7 @@ constant MAT2_IDENT: const Mat2F = {{
     {0.0,1.0},
 }};
 
-func mul_mat<M: usize,N: usize>(m1: const Matrix<$M,$N>@,m2: const Matrix<$M,$N>@) Matrix<$M,$N>
+func mul_mat<M: usize,N: usize>(m1: Matrix<$M,$N>,m2: Matrix<$M,$N>) Matrix<$M,$N>
 {   
     ans: Matrix<$M,$N> = {?};
 
@@ -53,7 +53,7 @@ func mul_mat<M: usize,N: usize>(m1: const Matrix<$M,$N>@,m2: const Matrix<$M,$N>
     return ans;
 }
 
-func mul_vec3_mat4(v1: const Vec3F@,m1: const Mat4F@) Vec3F
+func mul_vec3_mat4(v1: Vec3F,m1: Mat4F) Vec3F
 {
     // Implicit w of one on input vec
     x := (v1.x * m1.mat[0][0]) + (v1.y * m1.mat[0][1]) + (v1.z * m1.mat[0][2]) + m1.mat[0][3]; 
@@ -76,7 +76,7 @@ func mul_vec3_mat4(v1: const Vec3F@,m1: const Mat4F@) Vec3F
     };
 }
 
-func transpose_mat<M: usize,N: usize>(m1: const Matrix<$M,$N>@) Matrix<$N,$M>
+func transpose_mat<M: usize,N: usize>(m1: Matrix<$M,$N>) Matrix<$N,$M>
 {
     ans: Matrix<$N,$M> = {?};
 
@@ -91,7 +91,7 @@ func transpose_mat<M: usize,N: usize>(m1: const Matrix<$M,$N>@) Matrix<$N,$M>
     return ans;
 }
 
-func add_mat<M: usize, N: usize>(m1: const Matrix<$M,$N>@, m2: const Matrix<$M,$N>@) Matrix<$N,$M>
+func add_mat<M: usize, N: usize>(m1: Matrix<$M,$N>, m2: Matrix<$M,$N>) Matrix<$N,$M>
 {
     ans: Matrix<$N,$M> = {?};
 
@@ -107,7 +107,7 @@ func add_mat<M: usize, N: usize>(m1: const Matrix<$M,$N>@, m2: const Matrix<$M,$
 }
 
 
-func sub_mat<M: usize, N: usize>(m1: const Matrix<$M,$N>@, m2: const Matrix<$M,$N>@) Matrix<$N,$M>
+func sub_mat<M: usize, N: usize>(m1: Matrix<$M,$N>, m2: Matrix<$M,$N>) Matrix<$N,$M>
 {
     ans: Matrix<$N,$M> = {?};
 
@@ -122,7 +122,7 @@ func sub_mat<M: usize, N: usize>(m1: const Matrix<$M,$N>@, m2: const Matrix<$M,$
     return ans;
 }
 
-func scale_mat<M: usize, N: usize>(m1: const Matrix<$M,$N>@,scale: f64) Matrix<$N,$M>
+func scale_mat<M: usize, N: usize>(m1: Matrix<$M,$N>,scale: f64) Matrix<$N,$M>
 {
     ans: Matrix<$N,$M> = {?};
 
@@ -137,7 +137,7 @@ func scale_mat<M: usize, N: usize>(m1: const Matrix<$M,$N>@,scale: f64) Matrix<$
     return ans;
 }
 
-func inverse_mat2(m1: const Mat2F@) Mat2F
+func inverse_mat2(m1: Mat2F) Mat2F
 {
     a := m1.mat[0][0];
     b := m1.mat[0][1];
@@ -153,7 +153,7 @@ func inverse_mat2(m1: const Mat2F@) Mat2F
     }};
 }
 
-func test_mat<M: usize, N: usize>(m1: const Matrix<$M,$N>, ans: const Matrix<$M,$N>, name: const string)
+func test_mat<M: usize, N: usize>(m1: Matrix<$M,$N>, ans: Matrix<$M,$N>, name: const string)
 {
     for [row, r] in m1.mat
     {

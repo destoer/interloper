@@ -38,7 +38,7 @@ func scan_verticies(line: const string[]) [res: result,vertices: std::Vec3F]
     return result::ok, ans;
 }
 
-func read_face_vertex(point: std::Vec3F@,vertices: const std::Array@, index: s64) result
+func read_face_vertex(point: std::Vec3F@,vertices: std::Array, index: s64) result
 {
     // Vertices are 1 indexed
     if(index > 0)
@@ -50,7 +50,7 @@ func read_face_vertex(point: std::Vec3F@,vertices: const std::Array@, index: s64
     return result::ok;
 }
 
-func scan_face(faces: std::Array@,verticies: const std::Array@,line: const string[]) result
+func scan_face(faces: std::Array@,verticies: std::Array,line: const string[]) result
 {
     [v1, _] := std::parse_value(line[1]);
     [v2, _] := std::parse_value(line[2]);
@@ -115,7 +115,7 @@ func load_model(path: const string) [result, Model]
         if str
         {
             std::split_str_in(str," ",&paramters);
-            split := cast(string[],std::array_buffer(&paramters));
+            split := cast(string[],std::array_buffer(paramters));
 
             if split[0] == "v"
             {
@@ -144,16 +144,16 @@ func load_model(path: const string) [result, Model]
                     return result::err, {?};
                 }
 
-                if scan_face(&model_faces,&verticies,split) == result::err
+                if scan_face(&model_faces,verticies,split) == result::err
                 {
-                    log::error(TAG,"Vertex index out of range: {}",str,std::count_array(&verticies));
+                    log::error(TAG,"Vertex index out of range: {}",str,std::count_array(verticies));
                     return result::err, {?};
                 }
             }
         }
     }
 
-    model.faces = cast(Triangle[],std::array_buffer(&model_faces));
+    model.faces = cast(Triangle[],std::array_buffer(model_faces));
 
     if !model.faces
     {
