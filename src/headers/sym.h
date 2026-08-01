@@ -140,6 +140,7 @@ struct Function
     b32 from_generic = false;
 
     FuncCall call_info;
+    b32 overload = false;
 };
 
 using FuncOverloadTable = Array<Function*>;
