@@ -1,5 +1,3 @@
-Type* strip_const_struct_arg(Type* type);
-
 struct BinType
 {
     Type* ltype;
@@ -570,6 +568,10 @@ TypeResult type_check_addrof(Interloper& itl, AstNode* expr)
     }
 
     auto type = *res;
+    if(type->flags & TYPE_CONST_STRUCT_ARG_FLAG)
+    {
+        return compile_error(itl,itl_error::pointer_type_error,"Cannot take pointer on struct value arg %t",type);
+    }
 
     if(is_func_pointer(type))
     {

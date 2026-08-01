@@ -79,17 +79,6 @@ Option<itl_error> type_check_initializer_list(Interloper& itl,Type* ltype, Initi
     }
 }
 
-Type* strip_const_struct_arg(Type* type)
-{
-    // Pretend this is the actual type for sizing purposes
-    if(type->flags & TYPE_CONST_STRUCT_ARG_FLAG)
-    {
-        type = deref_pointer(type);
-    }
-    
-    return type;
-}
-
 TypeResult type_check_type_operator(Interloper& itl, AstNode* expr)
 {
     TypeOperatorNode* type_oper = (TypeOperatorNode*)expr;
@@ -221,8 +210,10 @@ Option<itl_error> type_check_auto_decl(Interloper &itl,Function& func, AstNode* 
         return decl_res.error();
     }
 
-    const auto rtype = *decl_res;
+    auto rtype = *decl_res;
     decl->node.expr_type = rtype;
+    
+    assert(!(decl->expr->expr_type->flags & TYPE_CONST_STRUCT_ARG_FLAG));
 
 
     const auto sym_res = add_symbol(itl,decl->sym.name,rtype);
@@ -322,10 +313,6 @@ Option<itl_error> type_check_assign(Interloper& itl,Function& func, AstNode* stm
     
     auto left = *left_res;
     auto right = *right_res;
-
-    left = strip_const_struct_arg(left);
-    right = strip_const_struct_arg(right);
-
 
     const auto assign_err = check_assign(itl,left,right);
     if(assign_err)

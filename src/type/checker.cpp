@@ -766,6 +766,28 @@ Option<itl_error> type_check_array(Interloper& itl, const Type* ltype, const Typ
     return check_assign_plain(itl,ltype,rtype);
 }
 
+const Type* strip_const_struct_arg(const Type* type)
+{
+    // Pretend this is the actual type for sizing purposes
+    if(type->flags & TYPE_CONST_STRUCT_ARG_FLAG)
+    {
+        type = deref_pointer(type);
+    }
+    
+    return type;
+}
+
+Type* strip_const_struct_arg(Type* type)
+{
+    // Pretend this is the actual type for sizing purposes
+    if(type->flags & TYPE_CONST_STRUCT_ARG_FLAG)
+    {
+        type = deref_pointer(type);
+    }
+    
+    return type;
+}
+
 Option<itl_error> check_assign_internal(Interloper& itl,const Type *ltype, const Type *rtype, assign_type type)
 {
     // Assign to any is fine for any type.
@@ -774,18 +796,12 @@ Option<itl_error> check_assign_internal(Interloper& itl,const Type *ltype, const
         return option::none;
     }
 
-    if(ltype->flags & TYPE_CONST_STRUCT_ARG_FLAG)
+    // TODO: Only this handles copying correctly ATM, the rest should treat it
+    // as the const reference that it is until we implement the code for it.
+    if(type == assign_type::arg)
     {
-        // If the argument we are assigning to is a hidden const ref we can coerce the type
-        if(is_struct(rtype) && type == assign_type::arg)
-        {
-            const auto left_struct = (StructType*)deref_pointer(ltype);
-            const auto right_struct = (StructType*)rtype;
-            if(left_struct->struct_idx == right_struct->struct_idx)
-            {
-                ltype = (Type*)left_struct;
-            }
-        }
+        ltype = strip_const_struct_arg(ltype);
+        rtype = strip_const_struct_arg(rtype);
     }
 
     if(is_plain(rtype) && is_plain(ltype))
