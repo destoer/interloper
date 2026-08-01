@@ -18,7 +18,7 @@ func vec3f_add(v1: Vec3F, v2: Vec3F) Vec3F
     };
 }
 
-operator add(v1: Vec3F, v2: Vec3F) Vec3F
+operator +(v1: Vec3F, v2: Vec3F) Vec3F
 {
     return vec3f_add(v1,v2);
 }

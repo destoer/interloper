@@ -79,6 +79,7 @@ enum class token_type
     scope,
 
     func,
+    operator_t,
     extern_t,
     ret,
     defer,
@@ -229,6 +230,7 @@ static const TokInfo TOKEN_INFO[TOKEN_SIZE] =
 
 
     {token_type::func,"func",-1},
+    {token_type::operator_t,"operator",-1},
     {token_type::extern_t,"extern",-1},
     {token_type::ret,"return",-1},
     {token_type::defer,"defer",-1},
