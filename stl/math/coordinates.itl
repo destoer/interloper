@@ -31,8 +31,7 @@ struct Spherical3F
 
 func polar_to_cartesian(polar: Polar2F) Point2F
 {    
-    // TODO: Type aliases are not handled in context sensitive parsing
-    return Vec2F {
+    return Point2F {
         polar.r * cos(polar.angle), // x = r * cos(theta)
         polar.r * sin(polar.angle)  // y = r * cos(theta)
     };
@@ -40,9 +39,6 @@ func polar_to_cartesian(polar: Polar2F) Point2F
 
 func cartesian_to_polar(point: Point2F) Polar2F
 {
-    // theta = atan(y / x)
-    // r = sqrt(x*x + y*y);
-
     // x = 0 will give the wrong angle
     angle := 90.0;
 
@@ -61,8 +57,7 @@ func cartesian_to_polar(point: Point2F) Polar2F
 
 func cylindrical_to_cartesian(cylindrical: Cylindrical3F) Point3F
 {
-    // TODO: Type aliases are not handled in context sensitive parsing
-    return Vec3F {
+    return Point3F {
         cylindrical.r * cos(cylindrical.angle), // x = r * cos(theta)
         cylindrical.r * sin(cylindrical.angle),  // y = r * cos(theta)
         cylindrical.z
@@ -110,7 +105,7 @@ func spherical_to_cartesian(spherical: Spherical3F) Point3F
 {
     r_sine_phi := spherical.r * sin(spherical.phi);
 
-    return Vec3F {
+    return Point3F {
         r_sine_phi  * cos(spherical.theta),
         r_sine_phi  * sin(spherical.theta),
         spherical.r * cos(spherical.phi)
