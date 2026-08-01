@@ -610,6 +610,11 @@ TypeResult type_check_deref(Interloper& itl, AstNode* expr)
 
     auto type = *res;
 
+    if(type->flags & TYPE_CONST_STRUCT_ARG_FLAG)
+    {
+        return compile_error(itl,itl_error::pointer_type_error,"Cannot dereference struct value reference %t",type);
+    }
+
     // make sure we actually have a pointer
     if(!is_pointer(type))
     {

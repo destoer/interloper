@@ -287,8 +287,6 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
 {
     AssignNode *assign = (AssignNode*)stmt;
 
-    assert(!(assign->right->expr_type->flags & TYPE_CONST_STRUCT_ARG_FLAG));
-
     switch(assign->left->type)
     {
         case ast_type::symbol:

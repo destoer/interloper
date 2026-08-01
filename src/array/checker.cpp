@@ -2,6 +2,11 @@
 #include "interloper.h"
 TypeResult type_check_pointer_index(Interloper& itl, IndexNode* index, PointerType* ptr_type)
 {
+    if(ptr_type->type.flags & TYPE_CONST_STRUCT_ARG_FLAG)
+    {
+        return compile_error(itl,itl_error::pointer_type_error,"Cannot index struct value reference %t",(Type*)ptr_type);
+    }
+
     if(ptr_type->pointer_kind == pointer_type::nullable)
     {
         return compile_error(itl,itl_error::pointer_type_error,"Cannot index a nullable pointer");
