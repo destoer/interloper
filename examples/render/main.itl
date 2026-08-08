@@ -128,7 +128,6 @@ func tri_dda(tri: const std::Vec2F[3], tri_screen: const std::Vec3F[3], min: std
 
 func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3])
 {
-
     tri: std::Vec2F[3] = {
         {tri_screen[0].x,tri_screen[0].y},
         {tri_screen[1].x,tri_screen[1].y},
@@ -280,14 +279,19 @@ func render(win: gfx::Window@, model: Model, angle: f64)
     rotation := rotation_matrix(angle);
     transform := std::mul_mat(camera,rotation);
 
-    for @tri in model.faces
+    for @face in model.faces
     {
-        points: std::Vec3F[3] = {?};
-        points[0] = std::mul_vec3_mat4(tri.points[0],transform);
-        points[1] = std::mul_vec3_mat4(tri.points[1],transform);
-        points[2] = std::mul_vec3_mat4(tri.points[2],transform);
+        tri: std::Vec3F[3] = {?};
+        tri[0] = std::mul_vec3_mat4(face.points[0],transform);
+        tri[1] = std::mul_vec3_mat4(face.points[1],transform);
+        tri[2] = std::mul_vec3_mat4(face.points[2],transform);
 
-        draw_triangle(win,points);
+        // Cull back faces
+        sign := ((tri[1].x - tri[0].x) * (tri[2].y - tri[0].y)) - ((tri[2].x - tri[0].x) * (tri[1].y - tri[0].y));
+        if(sign <= 0.0)
+        {
+            draw_triangle(win,tri);
+        }
     }
 }
 
