@@ -1,0 +1,15 @@
+namespace std;
+
+struct Vec4F
+{
+    x: f64;
+    y: f64;
+    z: f64;
+	w: f64;
+};
+
+
+func perspective_divide(v1: Vec4F) Vec3F
+{
+	return std::Vec3F {v1.x/v1.w,v1.y/v1.w,v1.z/v1.w};
+}

@@ -5,6 +5,8 @@ import "model"
 
 // https://haqr.eu/tinyrenderer/
 // https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/projection-matrix-introduction.html
+// https://hambup.me/pipeline/01_framebuffer/
+// https://gamemath.com/book/intro.html
 
 func in_screen_bounds(win: gfx::Window@, x: s64, y: s64) bool
 {
@@ -124,7 +126,7 @@ func tri_dda(tri: const std::Vec2F[3], tri_screen: const std::Vec3F[3], min: std
     };
 }
 
-func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3], _colour: u32)
+func draw_triangle(win: gfx::Window@, tri_screen: const std::Vec3F[3])
 {
 
     tri: std::Vec2F[3] = {
@@ -198,7 +200,40 @@ func rotate(angle: f64) std::Mat4F {
     }};
 }
 
-func project(win: gfx::Window@) std::Mat4F {
+
+func look_at(eye: std::Vec3F, centre: std::Vec3F) std::Mat4F 
+{
+    forward := std::vec3f_normalize(std::vec3f_sub(centre,eye));
+
+    world_up := std::Vec3F {0.0,1.0,0.0};
+    right := std::vec3f_normalize(std::vec3f_cross(forward,world_up));
+
+    up := std::vec3f_cross(right,forward);
+
+    return std::Mat4F {{
+        {right.x, right.y, right.z, -(std::vec3f_dot(right,eye))},
+        {up.x, up.y, up.z, -(std::vec3f_dot(up,eye))},
+        {forward.x, forward.y, forward.z, -(std::vec3f_dot(forward,eye))},
+        {0.0, 0.0, 0.0, 1.0}
+    }};
+}
+
+func perspective_matrix(fov: f64, aspect: f64, near: f64, far: f64) std::Mat4F 
+{
+    f := 1.0 / std::tan(fov / 2.0);
+    a := (2.0 * (near * far)) / (near - far);
+    b := (near + far) / (far - near);
+
+    return std::Mat4F {{
+        {f / aspect, 0.0, 0.0, 0.0},
+        {0.0, f, 0.0, 0.0},
+        {0.0, 0.0, a, b},
+        {0.0, 0.0, 1.0, 0.0}
+    }};
+}
+
+func projection_matrix(win: gfx::Window@) std::Mat4F 
+{
     return std::Mat4F {{
         {win.half_size.x,0.0,0.0,win.half_size.x},
         {0.0,-win.half_size.y,0.0,win.half_size.y},
@@ -207,74 +242,43 @@ func project(win: gfx::Window@) std::Mat4F {
     }};
 }
 
-func perspective(f: f64) std::Mat4F {
-    scale := -1.0 / f;
+func camera_transform(win: gfx::Window@, eye: std::Vec3F, centre: std::Vec3F) std::Mat4F 
+{
+    view := look_at(eye,centre);
+
+    aspect := cast(f64,win.width) / cast(f64,win.height);
+    perspective := perspective_matrix(80.0,aspect,0.1,6.0);
+    project := projection_matrix(win);
+
+    v2 := std::mul_mat(perspective,view);
+    transform := std::mul_mat(project,v2);
+
+    return transform;
+}
+
+
+func rotation_matrix(angle: f64) std::Mat4F 
+{
+    cos_a := std::cos(angle);
+    sin_a := std::sin(angle);
 
     return std::Mat4F {{
-        {1.0,0.0,0.0,0.0},
+        {cos_a,0.0,sin_a,0.0},
         {0.0,1.0,0.0,0.0},
-        {0.0,0.0,1.0,0.0},
-        {0.0,0.0,scale,1.0}
+        {-sin_a,0.0,cos_a,0.0},
+        {0.0,0.0,0.0,1.0}
     }};
 }
 
-// This part of the maths i don't fully understand.
-func look_at(eye: std::Vec3F, centre: std::Vec3F, up: std::Vec3F) std::Mat4F
-{
-    eye_to_centre := std::vec3f_sub(eye,centre);
-
-    n := std::vec3f_normalize(eye_to_centre);
-
-    up_n_cross := std::vec3f_cross(up,n);
-    l := std::vec3f_normalize(up_n_cross);
-
-    n_l_cross := std::vec3f_cross(n,l);
-    m := std::vec3f_normalize(n_l_cross);
-
-    m1 := std::Mat4F {{
-        {l.x,l.y,l.z,0.0},
-        {m.x,m.y,m.z,0.0},
-        {n.x,n.y,n.z,0.0},
-        {0.0,0.0,0.0,1.0}
-    }};
-
-    m2 := std::Mat4F {{
-        {1.0,0.0,0.0,-centre.x},
-        {0.0,1.0,0.0,-centre.y},
-        {0.0,0.0,1.0,-centre.z},
-        {0.0,0.0,0.0,1.0}
-    }};
-
-    return std::mul_mat(m1, m2);
-}
 
 func render(win: gfx::Window@, model: Model, angle: f64)
 {
-    gfx::blank_screen(win.screen);
+    centre := std::Vec3F {0.0,0.0,0.0};
+    eye := std::Vec3F {0.0,0.0,1.8};
+    camera := camera_transform(win,eye,centre);
 
-    // camera pos
-    eye := std::Vec3F {0.0,0.0,2.0}; 
-
-    rot := rotate(angle);
-
-    eye = std::mul_vec3_mat4(eye,rot);
-
-    // camera direction
-    centre := std::Vec3F {0.0,0.0,0.0}; 
-
-    // camera up vector
-    up := std::Vec3F {0.0,1.0,0.0}; 
-
-    view := look_at(eye,centre,up);
-
-    eye_to_centre := std::vec3f_sub(eye,centre);
-    persp := perspective(std::vec3f_norm(eye_to_centre));
-
-    v2 := std::mul_mat(persp,view);
-
-    proj := project(win);
-    transform := std::mul_mat(proj,v2);
-
+    rotation := rotation_matrix(angle);
+    transform := std::mul_mat(camera,rotation);
 
     for @tri in model.faces
     {
@@ -283,7 +287,7 @@ func render(win: gfx::Window@, model: Model, angle: f64)
         points[1] = std::mul_vec3_mat4(tri.points[1],transform);
         points[2] = std::mul_vec3_mat4(tri.points[2],transform);
 
-        draw_triangle(win,points,RED);
+        draw_triangle(win,points);
     }
 }
 

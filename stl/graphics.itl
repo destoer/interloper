@@ -146,6 +146,7 @@ func start_frame(win : Window@) win_result
 
 func end_frame(win : Window@)
 {
+    blank_screen(win.screen);
     clear_z_buffer(win);
 
     win.end_timestamp = std::timestamp_ms();
