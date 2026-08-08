@@ -81,6 +81,12 @@ struct TriChangeCord
     z: ChangeCord;
 }
 
+struct Camera
+{
+    centre: std::Vec3F = {0.0,0.0,0.0};
+    eye: std::Vec3F = {0.0,0.0,1.8};
+}
+
 func tri_dda(tri: const std::Vec2F[3], tri_screen: const std::Vec3F[3], min: std::Vec2F) TriChangeCord
 {
     v0 := std::vec2f_sub(tri[1],tri[0]);
@@ -270,14 +276,14 @@ func rotation_matrix(angle: f64) std::Mat4F
 }
 
 
-func render(win: gfx::Window@, model: Model, angle: f64)
+
+
+func render(win: gfx::Window@, camera: Camera@, model: Model, angle: f64)
 {
-    centre := std::Vec3F {0.0,0.0,0.0};
-    eye := std::Vec3F {0.0,0.0,1.8};
-    camera := camera_transform(win,eye,centre);
+    camera_transform := camera_transform(win,camera.eye,camera.centre);
 
     rotation := rotation_matrix(angle);
-    transform := std::mul_mat(camera,rotation);
+    transform := std::mul_mat(camera_transform,rotation);
 
     for @face in model.faces
     {
@@ -292,6 +298,40 @@ func render(win: gfx::Window@, model: Model, angle: f64)
         {
             draw_triangle(win,tri);
         }
+    }
+}
+
+func process_controls(win: gfx::Window@, camera: Camera@)
+{
+    TAG := "Render";
+
+    if(input::is_pressed(win.input,input::button_t::start))
+    {
+        win.quit = true;
+        log::info(TAG,"Quitting");
+    }
+
+    MOVE_SPEED := 0.03;
+
+    if(input::is_pressed(win.input,input::button_t::up))
+    {
+        camera.eye.z -= MOVE_SPEED;
+    }
+
+    if(input::is_pressed(win.input,input::button_t::down))
+    {
+        camera.eye.z += MOVE_SPEED;
+    }
+
+
+    if(input::is_pressed(win.input,input::button_t::left))
+    {
+        camera.eye.x -= MOVE_SPEED;
+    }
+
+    if(input::is_pressed(win.input,input::button_t::right))
+    {
+        camera.eye.x += MOVE_SPEED;
     }
 }
 
@@ -330,6 +370,7 @@ func main() s32
     }
 
     angle := 0.0;
+    camera: Camera;
 
     while(!win.quit)
     {
@@ -339,14 +380,10 @@ func main() s32
             return -1;
         }
     
-        if(input::is_pressed(&win.input,input::button_t::start))
-        {
-            win.quit = true;
-            log::info(TAG,"Quitting");
-        }
+        process_controls(&win,&camera);
 
-        render(&win,model,angle);
-        angle += 1.0;
+        render(&win,&camera,model,angle);
+        // angle += 1.0;
 
         if(gfx::draw_window(&win) == gfx::win_result::err)
         {

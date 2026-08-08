@@ -53,7 +53,7 @@ func reset_input(input: Input@)
     input.button = 0;
 }
 
-func is_pressed(input: const Input@, type: button_t) bool
+func is_pressed(input: Input, type: button_t) bool
 {
     return std::is_set(input.button,cast(u32,type));
 }
