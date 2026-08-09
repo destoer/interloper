@@ -27,7 +27,7 @@ func vec3f_sub(v1: Vec3F, v2: Vec3F) Vec3F
     };
 }
 
-func vec3_scale(v1: Vec3F, scale: f64) Vec3F {
+func vec3f_scale(v1: Vec3F, scale: f64) Vec3F {
     return Vec3F {
         v1.x * scale,
         v1.y * scale,
@@ -35,7 +35,7 @@ func vec3_scale(v1: Vec3F, scale: f64) Vec3F {
     };
 }
 
-func vec3_div(v1: Vec3F, scale: f64) Vec3F {
+func vec3f_div(v1: Vec3F, scale: f64) Vec3F {
     return Vec3F {
         v1.x / scale,
         v1.y / scale,

@@ -83,8 +83,10 @@ struct TriChangeCord
 
 struct Camera
 {
-    centre: std::Vec3F = {0.0,0.0,0.0};
     eye: std::Vec3F = {0.0,0.0,1.8};
+    front: std::Vec3F;
+    yaw: f64 = 0.0;
+    pitch: f64 = 0.0;
 }
 
 func tri_dda(tri: const std::Vec2F[3], tri_screen: const std::Vec3F[3], min: std::Vec2F) TriChangeCord
@@ -276,11 +278,9 @@ func rotation_matrix(angle: f64) std::Mat4F
 }
 
 
-
-
-func render(win: gfx::Window@, camera: Camera@, model: Model, angle: f64)
+func render(win: gfx::Window@, camera: Camera, model: Model, angle: f64)
 {
-    camera_transform := camera_transform(win,camera.eye,camera.centre);
+    camera_transform := camera_transform(win,camera.eye,std::vec3f_add(camera.eye,camera.front));
 
     rotation := rotation_matrix(angle);
     transform := std::mul_mat(camera_transform,rotation);
@@ -305,34 +305,55 @@ func process_controls(win: gfx::Window@, camera: Camera@)
 {
     TAG := "Render";
 
+    front := std::Vec3F {
+        std::sin(camera.yaw) * std::cos(camera.pitch),
+        std::sin(camera.pitch),
+        std::cos(camera.yaw) * std::cos(camera.pitch)
+    };
+
+    MOVE_SPEED := 0.03;
+
+    camera.front = std::vec3f_normalize(front);
+    front_scaled := std::vec3f_scale(camera.front,MOVE_SPEED);
+
+    world_right := std::Vec3F {0.0, 1.0, 0.0};
+    right := std::vec3f_normalize(std::vec3f_cross(front,world_right));
+    right_scaled := std::vec3f_scale(right,MOVE_SPEED);
+
     if(input::is_pressed(win.input,input::button_t::start))
     {
         win.quit = true;
         log::info(TAG,"Quitting");
     }
 
-    MOVE_SPEED := 0.03;
-
     if(input::is_pressed(win.input,input::button_t::up))
     {
-        camera.eye.z -= MOVE_SPEED;
+        camera.eye = std::vec3f_add(camera.eye,front_scaled);
     }
 
     if(input::is_pressed(win.input,input::button_t::down))
     {
-        camera.eye.z += MOVE_SPEED;
+        camera.eye = std::vec3f_sub(camera.eye,front_scaled);
     }
 
 
     if(input::is_pressed(win.input,input::button_t::left))
     {
-        camera.eye.x -= MOVE_SPEED;
+        camera.eye = std::vec3f_sub(camera.eye,right_scaled);
     }
 
     if(input::is_pressed(win.input,input::button_t::right))
     {
-        camera.eye.x += MOVE_SPEED;
+        camera.eye = std::vec3f_add(camera.eye,right_scaled);
     }
+
+    sensitivity := 0.2; 
+
+    std::println("change: {}",win.pointer_change);
+
+    camera.yaw += cast(f64,win.pointer_change.x) * sensitivity;
+    camera.pitch += cast(f64,win.pointer_change.y) * sensitivity;
+    camera.pitch = std::clamp(camera.pitch, -80.0, 80.0);
 }
 
 func main() s32
@@ -382,7 +403,7 @@ func main() s32
     
         process_controls(&win,&camera);
 
-        render(&win,&camera,model,angle);
+        render(&win,camera,model,angle);
         // angle += 1.0;
 
         if(gfx::draw_window(&win) == gfx::win_result::err)

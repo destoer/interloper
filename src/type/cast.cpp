@@ -105,8 +105,13 @@ TypeResult type_check_cast(Interloper& itl, AstNode* expr)
         const auto builtin_old = cast_builtin(old_type);
         const auto builtin_new = cast_builtin(new_type);
 
+        if(builtin_old == builtin_new)
+        {
+            cast->oper = cast_oper::move;
+        }
+
         // integer
-        if(is_integer(old_type) && is_integer(new_type))
+        else if(is_integer(old_type) && is_integer(new_type))
         {
             // signed -> larger type
             // sign extend

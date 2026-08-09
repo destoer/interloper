@@ -63,6 +63,12 @@ struct OSWindow
     max_keycode: u8;
     key_code_to_sym: u8[255];
 
+    // pointer info
+    pointer_change: std::Vec2I;
+    last_pointer: std::Vec2I;
+
+    first_mouse: bool = true;
+
     // shm
     big_req : bool;
     mit_shm: bool;
@@ -614,7 +620,13 @@ enum x_reply_type : u8
     reply = 1,
     key_press = 2,
     key_release = 3,
+    button_press = 4,
+    button_release = 5,
     pointer_motion = 6,
+    enter_notify = 7,
+    leave_notify = 8,
+    focus_in = 9,
+    focus_out = 10,
     map_notify = 19,
     configure_notify = 22,
     shm_completion = 65,
@@ -997,9 +1009,9 @@ func shm_completion(win: OSWindow@, completion: const XSHMCompletion@)
 }
 
 #attr(no_reorder)
-struct MotionNotify
+struct InputEvent
 {
-    code: u8 = 6;
+    code: u8;
     detail: u8;
     seq: u16;
     timestamp: u32;
@@ -1013,6 +1025,17 @@ struct MotionNotify
     set_of_key: u16;
     same_screen: bool;
     pad: u8;
+}
+
+type_alias MotionNotify = InputEvent; 
+type_alias ButtonPress = InputEvent; 
+type_alias ButtonRelease = InputEvent; 
+
+func os_end_frame(std_win: Window@) 
+{
+    // TODO: We should be able to do this better with callbacks but leave for now.
+    // I think we need to periodically check if the cursor is in the window then grab it..
+    _ = query_pointer(std_win);
 }
 
 func os_process_events(std_win: Window@) win_result
@@ -1061,9 +1084,26 @@ func os_process_events(std_win: Window@) win_result
 
             case x_reply_type::pointer_motion:
             {
-                motion := std::read_var$<gfx::MotionNotify>(win.packet,0);
+                motion := std::read_var$<gfx::InputEvent>(win.packet,0);
 
-                std::println("Motion event: {} {}",motion.event_x,motion.event_y);
+                std::println("Pointer motion: {} {}",motion.event_x,motion.event_y);
+            }
+
+            case x_reply_type::button_press:
+            {
+                press := std::read_var$<gfx::InputEvent>(win.packet,0);
+
+                std::println("Button press: {} {}",press.event_x,press.event_y);
+            }
+
+            case x_reply_type::leave_notify:
+            {
+                return net_res_to_win(ungrab_pointer(win));
+            }
+
+            case x_reply_type::enter_notify:
+            {
+                return net_res_to_win(grab_pointer(win));
             }
 
 
@@ -1399,7 +1439,7 @@ func os_set_window_name(win: OSWindow@, str: const string) net_result
 
 func wait_for_reply(std_win: Window@, done: bool@) win_result
 {
-    while(!@done)
+    while(!@done && !std_win.quit)
     {
         res := process_events(std_win);
         if(res != win_result::ok)
@@ -1576,7 +1616,7 @@ func grab_keyboard(win: OSWindow@) net_result
 
     grab.window = win.window_id;
     grab.keyboard_mode = 1;
-    grab.pointer_mode = 1;
+    grab.pointer_mode = 0;
 
     // grab any key
     grab.mask = 0x8000;
@@ -1646,6 +1686,37 @@ func get_keyboard_mapping(std_win: Window@) win_result
 }
 
 #attr(no_reorder)
+struct XGrabButton
+{
+    opcode: u8 = 28;
+    owner_events: bool;
+    request_length: u16 = 6;
+    window: u32;
+    set_of_pointer_events: u16;
+    pointer_mode: u8;
+    keyboard_mode: u8;
+    confine_to: u32;
+    cursor: u32;
+    button: u8;
+    pad1: u8;
+    set_of_key_mask: u16;
+}
+
+func grab_button(win: OSWindow@) net_result
+{
+    grab: XGrabButton;
+
+    grab.window = win.window_id;
+    grab.set_of_pointer_events = 0x100 | 0x200 | 0x4 | 0x8;
+    grab.pointer_mode = 1;
+    grab.keyboard_mode = 1;
+    grab.set_of_key_mask = 0x8000;
+
+    [_, res] := send_req(win,&grab,sizeof_data(XGrabButton));
+    return res;
+}
+
+#attr(no_reorder)
 struct XGrabPointer
 {
     opcode: u8 = 26;
@@ -1665,15 +1736,99 @@ func grab_pointer(win: OSWindow@) net_result
     grab: XGrabPointer;
 
     grab.window = win.window_id;
-    grab.confine_to = win.window_id;
     grab.keyboard_mode = 1;
     grab.pointer_mode = 1;
-    grab.confine_to = win.window_id;
-    grab.set_of_pointer_events = 0x40;
+    // Motion | leave | enter
+    grab.set_of_pointer_events = 0x40 | 0x20 | 0x10;
 
     [_, res] := send_req(win,&grab,sizeof_data(XGrabPointer));
     return res;
 }
+
+#attr(no_reorder)
+struct XUngrabPointer
+{
+    opcode: u8 = 27;
+    pad: u8;
+    request_length: u16 = 2;
+    timestamp: u32;
+}
+
+func ungrab_pointer(win: OSWindow@) net_result
+{
+    grab: XUngrabPointer;
+
+    [_, res] := send_req(win,&grab,sizeof_data(XUngrabPointer));
+    return res;
+}
+
+
+#attr(no_reorder)
+struct XQueryPointer
+{
+    opcode: u8 = 38;
+    pad: u8;
+    request_length: u16 = 2;
+    window: u32;
+}
+
+#attr(no_reorder)
+struct XQueryPointerReply
+{
+    root: u32;
+    child: u32;
+    root_x: s16;
+    root_y: s16;
+    win_x: s16;
+    win_y: s16;
+    set_of_key_mask: u16;
+    pad: u8[6];
+}
+
+func pointer_query_callback(win: OSWindow@, _len: u32, data: byte?) win_result
+{
+    replied := cast(bool@,data);
+    @replied = true;
+
+    pointer := std::read_var$<gfx::XQueryPointerReply>(win.packet,8);
+
+    cur: std::Vec2I = {pointer.win_x, pointer.win_y};
+
+    if(!win.first_mouse)
+    {
+        win.pointer_change = std::vec2i_sub(win.last_pointer,cur);
+    }
+
+    win.first_mouse = false;
+
+    win.last_pointer = cur;
+
+    return win_result::ok;
+}
+
+func query_pointer(std_win: Window@) net_result
+{
+    win := &std_win.os_win;
+
+    query: XQueryPointer;
+    query.window = win.window_id;
+
+    [query_pointer_seq, res] := send_req(win,&query,sizeof_data(XQueryPointer));
+
+    replied := false;
+    callback: ReplyCallback = {&pointer_query_callback,&replied};
+    add_reply_callback(win,query_pointer_seq,&callback);
+
+    if(wait_for_reply(std_win,&replied) != win_result::ok)
+    {
+        res = net_result::err;
+    }
+
+    std_win.pointer_change = win.pointer_change;
+
+    return res;
+}
+
 
 // For now these have the same members so we can just cheat.
 func net_res_to_win(res: net_result) win_result 
@@ -1854,7 +2009,13 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32) win_r
         return net_res_to_win(res);
     }
 
-    res = grab_pointer(win);
+    // res = grab_pointer(win);
+    // if(res != net_result::ok)
+    // {
+    //     return net_res_to_win(res);
+    // }
+
+    // res = grab_button(win);
 
     return net_res_to_win(res);
 }
