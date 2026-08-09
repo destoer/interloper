@@ -83,9 +83,12 @@ struct TriChangeCord
 
 struct Camera
 {
-    eye: std::Vec3F = {0.0,0.0,1.8};
+    near: f64 = 0.1;
+    far: f64 = 100.0;
+
+    eye: std::Vec3F = {0.0,0.0,2.0};
     front: std::Vec3F;
-    yaw: f64 = 0.0;
+    yaw: f64 = 180.0;
     pitch: f64 = 0.0;
 }
 
@@ -98,7 +101,6 @@ func tri_dda(tri: const std::Vec2F[3], tri_screen: const std::Vec3F[3], min: std
     d01 := std::vec2f_dot(v0,v1);
     d11 := std::vec2f_dot(v1,v1);
 
-    
     v2_min := std::vec2f_sub(min,tri[0]);
     d20_row := std::vec2f_dot(v2_min,v0);
     d21_row := std::vec2f_dot(v2_min,v1);
@@ -239,28 +241,15 @@ func perspective_matrix(fov: f64, aspect: f64, near: f64, far: f64) std::Mat4F
     }};
 }
 
-func projection_matrix(win: gfx::Window@) std::Mat4F 
+func camera_transform(win: gfx::Window@, camera: Camera) std::Mat4F 
 {
-    return std::Mat4F {{
-        {win.half_size.x,0.0,0.0,win.half_size.x},
-        {0.0,-win.half_size.y,0.0,win.half_size.y},
-        {0.0,0.0,1.0,0.0},
-        {0.0,0.0,0.0,1.0}
-    }};
-}
-
-func camera_transform(win: gfx::Window@, eye: std::Vec3F, centre: std::Vec3F) std::Mat4F 
-{
-    view := look_at(eye,centre);
+    centre := std::vec3f_add(camera.eye,camera.front);
+    view := look_at(camera.eye,centre);
 
     aspect := cast(f64,win.width) / cast(f64,win.height);
-    perspective := perspective_matrix(80.0,aspect,0.1,6.0);
-    project := projection_matrix(win);
+    perspective := perspective_matrix(80.0,aspect,camera.near,camera.far);
 
-    v2 := std::mul_mat(perspective,view);
-    transform := std::mul_mat(project,v2);
-
-    return transform;
+    return std::mul_mat(perspective,view);
 }
 
 
@@ -277,24 +266,49 @@ func rotation_matrix(angle: f64) std::Mat4F
     }};
 }
 
+func is_in_frustum(tri: const std::Vec4F[3]) bool
+{
+    x_valid := std::abs(tri[0].x) < tri[0].w && std::abs(tri[1].x) < tri[1].w && std::abs(tri[2].x) < tri[2].w;
+    y_valid := std::abs(tri[0].y) < tri[0].w && std::abs(tri[1].y) < tri[1].w && std::abs(tri[2].y) < tri[2].w;
+    z_valid := std::abs(tri[0].z) < tri[0].w && std::abs(tri[1].z) < tri[1].w && std::abs(tri[2].z) < tri[2].w;
+
+    return x_valid & y_valid & z_valid;
+}
 
 func render(win: gfx::Window@, camera: Camera, model: Model, angle: f64)
 {
-    camera_transform := camera_transform(win,camera.eye,std::vec3f_add(camera.eye,camera.front));
+    camera_transform := camera_transform(win,camera);
 
     rotation := rotation_matrix(angle);
     transform := std::mul_mat(camera_transform,rotation);
 
     for @face in model.faces
     {
-        tri: std::Vec3F[3] = {?};
-        tri[0] = std::mul_vec3_mat4(face.points[0],transform);
-        tri[1] = std::mul_vec3_mat4(face.points[1],transform);
-        tri[2] = std::mul_vec3_mat4(face.points[2],transform);
+        // project to clip space
+        clip: std::Vec4F[3] = {?};
+        for [@point, i] in clip {
+            @point = std::mul_vec3_mat4(face.points[i],transform);
+        }
 
-        // Cull back faces
+        in_frustum := is_in_frustum(clip);
+
+        // Remap to ndc
+        tri: std::Vec3F[3] = {?};
+
+        for [@point,i] in tri {
+            @point = std::perspective_divide(clip[i]);
+        }
+
+        // Remap to screen
+        for @point in tri {
+            point.x = (point.x * win.half_size.x) + win.half_size.x;
+            point.y = (point.y * -win.half_size.y) + win.half_size.y;
+        }
+
+        // Backface cull
         sign := ((tri[1].x - tri[0].x) * (tri[2].y - tri[0].y)) - ((tri[2].x - tri[0].x) * (tri[1].y - tri[0].y));
-        if(sign <= 0.0)
+
+        if(in_frustum && sign <= 0.0)
         {
             draw_triangle(win,tri);
         }
@@ -316,8 +330,8 @@ func process_controls(win: gfx::Window@, camera: Camera@)
     camera.front = std::vec3f_normalize(front);
     front_scaled := std::vec3f_scale(camera.front,MOVE_SPEED);
 
-    world_right := std::Vec3F {0.0, 1.0, 0.0};
-    right := std::vec3f_normalize(std::vec3f_cross(front,world_right));
+    world_up := std::Vec3F {0.0, 1.0, 0.0};
+    right := std::vec3f_normalize(std::vec3f_cross(front,world_up));
     right_scaled := std::vec3f_scale(right,MOVE_SPEED);
 
     if(input::is_pressed(win.input,input::button_t::start))
@@ -347,9 +361,7 @@ func process_controls(win: gfx::Window@, camera: Camera@)
         camera.eye = std::vec3f_add(camera.eye,right_scaled);
     }
 
-    sensitivity := 0.2; 
-
-    std::println("change: {}",win.pointer_change);
+    sensitivity := 0.1; 
 
     camera.yaw += cast(f64,win.pointer_change.x) * sensitivity;
     camera.pitch += cast(f64,win.pointer_change.y) * sensitivity;
