@@ -614,6 +614,7 @@ enum x_reply_type : u8
     reply = 1,
     key_press = 2,
     key_release = 3,
+    pointer_motion = 6,
     map_notify = 19,
     configure_notify = 22,
     shm_completion = 65,
@@ -995,6 +996,25 @@ func shm_completion(win: OSWindow@, completion: const XSHMCompletion@)
     }
 }
 
+#attr(no_reorder)
+struct MotionNotify
+{
+    code: u8 = 6;
+    detail: u8;
+    seq: u16;
+    timestamp: u32;
+    window_root: u32;
+    window_event: u32;
+    window_child: u32;
+    root_x: s16;
+    root_y: s16;
+    event_x: s16;
+    event_y: s16;
+    set_of_key: u16;
+    same_screen: bool;
+    pad: u8;
+}
+
 func os_process_events(std_win: Window@) win_result
 {
     win := &std_win.os_win;
@@ -1038,6 +1058,14 @@ func os_process_events(std_win: Window@) win_result
 
                 x_key_event(std_win,key,true);
             }
+
+            case x_reply_type::pointer_motion:
+            {
+                motion := std::read_var$<gfx::MotionNotify>(win.packet,0);
+
+                std::println("Motion event: {} {}",motion.event_x,motion.event_y);
+            }
+
 
             // TODO: why are the key release events not always firing?
             case x_reply_type::key_release:
@@ -1617,6 +1645,36 @@ func get_keyboard_mapping(std_win: Window@) win_result
     return wait_for_reply(std_win,&replied);
 }
 
+#attr(no_reorder)
+struct XGrabPointer
+{
+    opcode: u8 = 26;
+    owner_events: bool;
+    request_length: u16 = 6;
+    window: u32;
+    set_of_pointer_events: u16;
+    pointer_mode: u8;
+    keyboard_mode: u8;
+    confine_to: u32;
+    cursor: u32;
+    timestamp: u32;
+}
+
+func grab_pointer(win: OSWindow@) net_result
+{
+    grab: XGrabPointer;
+
+    grab.window = win.window_id;
+    grab.confine_to = win.window_id;
+    grab.keyboard_mode = 1;
+    grab.pointer_mode = 1;
+    grab.confine_to = win.window_id;
+    grab.set_of_pointer_events = 0x40;
+
+    [_, res] := send_req(win,&grab,sizeof_data(XGrabPointer));
+    return res;
+}
+
 // For now these have the same members so we can just cheat.
 func net_res_to_win(res: net_result) win_result 
 {
@@ -1791,6 +1849,12 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32) win_r
     }
 
     res = grab_keyboard(win);
+    if(res != net_result::ok)
+    {
+        return net_res_to_win(res);
+    }
+
+    res = grab_pointer(win);
 
     return net_res_to_win(res);
 }
