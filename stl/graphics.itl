@@ -26,6 +26,7 @@ struct Window
     limit: f64;
 
     pointer_change: std::Vec2I;
+    last: std::Vec2I;
 }
 
 struct Colour
