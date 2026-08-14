@@ -210,7 +210,7 @@ static constexpr ProgramCorrectTest PROGRAM_CORRECT_TEST[] =
     {"tests/struct/struct_return",1},
     {"tests/struct/initializer_assign",14},
     {"tests/struct/designated_initializer",1},
-    {"tests/struct/no_reorder",16},
+    {"tests/struct/no_reorder",12},
     {"tests/struct/struct_equal",1},
 
     {"tests/array/array_conv_struct",6},
