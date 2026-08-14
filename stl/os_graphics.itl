@@ -64,10 +64,10 @@ struct OSWindow
     key_code_to_sym: u8[255];
 
     // pointer info
-    last_pointer: std::Vec2I;
+    reference_pointer: std::Vec2I;
+    cursor: u32;
 
-    first_mouse: bool = true;
-    first_motion_of_frame: bool = true;
+    first_in_frame: bool = true;
 
     // shm
     big_req : bool;
@@ -1032,7 +1032,13 @@ type_alias ButtonRelease = InputEvent;
 
 func os_end_frame(std_win: Window@) 
 {
-    std_win.os_win.first_motion_of_frame = true;
+    // Re centre the mouse pointer
+    // x := std_win.width / 2;
+    // y := std_win.height / 2;
+
+    // _ = warp_pointer(&std_win.os_win,x,y);
+
+    std_win.os_win.first_in_frame = true;
 }
 
 func os_process_events(std_win: Window@) win_result
@@ -1087,19 +1093,19 @@ func os_process_events(std_win: Window@) win_result
             {
                 motion := std::read_var$<gfx::InputEvent>(win.packet,0);
                 cur: std::Vec2I = {motion.event_x, motion.event_y};
-
-                if(!win.first_mouse)
+            
+                if(win.first_in_frame)
                 {
-                    std_win.pointer_change = std::vec2i_sub(win.last_pointer,cur);
+                    win.reference_pointer = cur;
+                    win.first_in_frame = false;
                 }
 
-                if(win.first_motion_of_frame)
+                else
                 {
-                    win.last_pointer = cur;
+                    std_win.pointer_change = std::vec2i_sub(win.reference_pointer,cur);
                 }
 
-                win.first_mouse = false;
-                win.first_motion_of_frame = false;
+                // std::println("{} {}",cur,std_win.pointer_change);
             }
 
             case x_reply_type::button_press:
@@ -1192,6 +1198,7 @@ func create_window(win : OSWindow@, x : u32, y : u32) net_result
     // first the events we want to listen for
     events : u32 = event_flag::structure_notify;
     events |= event_flag::key_release | event_flag::key_press | event_flag::pointer_motion; 
+    events |= event_flag::enter_window | event_flag::leave_window;
     std::push_u32(packet,events);
 
     // attempt to get a rgba window
@@ -1743,6 +1750,7 @@ func grab_pointer(win: OSWindow@) net_result
     grab.window = win.window_id;
     grab.keyboard_mode = 1;
     grab.pointer_mode = 1;
+    grab.confine_to = win.window_id;
     // Motion | leave | enter
     grab.set_of_pointer_events = 0x40 | 0x20 | 0x10;
 
@@ -1765,6 +1773,134 @@ func ungrab_pointer(win: OSWindow@) net_result
 
     [_, res] := send_req(win,&grab,sizeof_data(XUngrabPointer));
     return res;
+}
+
+#attr(no_reorder)
+struct XWarpPointer
+{
+    opcode: u8 = 41;
+    pad: u8;
+    request_length: u16 = 6;
+    src_window: u32;
+    dst_window: u32;
+    src_x: s16;
+    src_y: s16;
+    src_width: s16;
+    src_height: s16;
+    dst_x: s16;
+    dst_y: s16;
+}
+
+func warp_pointer(win: OSWindow@, x: u32, y: u32) net_result
+{
+    warp: XWarpPointer;
+    warp.src_window = win.window_id;
+    warp.dst_window = win.window_id;
+
+    warp.dst_x = cast(s16,x);
+    warp.dst_y = cast(s16,y);
+    
+    std::println("warp to {} {}",x,y);
+    [_, res] := send_req(win,&warp,sizeof_data(XWarpPointer));
+    return res;
+}
+
+#attr(no_reorder)
+struct XCreateCursor
+{
+    opcode: u8 = 93;
+    pad: u8;
+    request_length: u16 = 8;
+    cid: u32;
+    source: u32;
+    mask: u32;
+    foreground_red: u16;
+    foreground_green: u16;
+    foreground_blue: u16;
+    background_red: u16;
+    background_green: u16;
+    background_blue: u16;
+    x: u16;
+    y: u16;
+}
+
+#attr(no_reorder)
+struct XCreatePixmap
+{
+    opcode: u8 = 53;
+    depth: u8;
+    request_length: u8 = 4;
+    pid: u32;
+    drawable: u32;
+    width: u16;
+    height: u16;
+}
+
+func create_pixmap(win: OSWindow@, x: u16, y: u16) [id: u32, res: net_result]
+{
+    pixmap: XCreatePixmap;
+    pixmap.width = x;
+    pixmap.height = y;
+    pixmap.depth = 1;
+    pixmap.pid = alloc_resource(win);
+    pixmap.drawable = win.window_id;
+
+    [_, res] := send_req(win,&pixmap,sizeof_data(XCreatePixmap));
+    return pixmap.pid, res; 
+}
+
+func create_blank_cursor(win: OSWindow@) net_result
+{
+    cursor: XCreateCursor;
+    cursor.x = 0;
+    cursor.y = 0;
+    [pixmap, res] := create_pixmap(win,1,1);
+    if(res != net_result::ok)
+    {
+        return res;
+    }
+
+    cursor.source = pixmap;
+    cursor.cid = alloc_resource(win);
+
+    win.cursor = cursor.cid;
+
+    [_, res] := send_req(win,&cursor,sizeof_data(XCreateCursor));
+    return res;
+}
+
+#attr(no_reorder)
+struct XChangeWindowAttributes
+{
+    opcode: u8 = 2;
+    pad: u8;
+    request_length: u16 = 3;
+    window: u32;
+    bitmask: u32;
+}
+
+func change_window_attribute(win: OSWindow@, cursor: u32) net_result
+{
+    packet := &win.packet;
+    std::clear_array(packet);
+
+    std::push_u32(packet,cursor);
+
+    change: XChangeWindowAttributes;
+
+    change.bitmask |= window_create_flag::cursor;
+    change.request_length += x11_req_len(packet.buf.len);
+    change.window = win.window_id;
+
+
+    [_, res] := send_req(win,&change,sizeof_data(XChangeWindowAttributes));
+    if res != net_result::ok
+    {
+        return res;
+    }
+
+    // send end list
+    return net::send_array_all(&win.sock,packet); 
 }
 
 // For now these have the same members so we can just cheat.
@@ -1939,6 +2075,14 @@ func os_open_window(std_win: Window@,str : const string, x : u32, y : u32) win_r
     {
         return key_res;
     }
+
+    res = create_blank_cursor(win);
+    if(res != net_result::ok)
+    {
+        return net_res_to_win(res);
+    }
+
+    res = change_window_attribute(win,win.cursor);
 
     return net_res_to_win(res);
 }
