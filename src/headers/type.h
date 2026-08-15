@@ -557,3 +557,37 @@ static const builtin_type GPR_SIZE_TYPE = builtin_type::u64_t;
 Option<Member> get_member(StructTable& struct_table, const Type* type, const String& member_name);
 Option<Member> get_member(StructTable& struct_table, const StructType* struct_type, const String& member_name);
 builtin_type value_type(const Value& value);
+
+
+
+enum class operator_type 
+{
+    add
+};
+
+static constexpr u32 OPERATOR_SIZE = 1;
+
+static const char* OPERATOR_NAMES[] = 
+{
+    "add",
+};
+
+struct Function;
+struct FuncNode;
+
+struct Operator
+{
+    TopLevelDefinition def;
+    NameSpace* name_space = nullptr;
+    operator_type type;
+
+    FuncNode* func_node = nullptr;
+    Function* func = nullptr;
+};
+
+using OperatorLookup = Array<Operator>;
+
+struct OperatorTable
+{
+    OperatorLookup lookup[OPERATOR_SIZE];
+};

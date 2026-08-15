@@ -7,6 +7,7 @@ Result<AstBlock*,parse_error> block_ast_unpinned(Parser &parser);
 Option<ParserResult> try_parse_slice(Parser& parser, const Token& t);
 Result<FuncNode*,parse_error> parse_func_sig(Parser& parser, const String& func_name,const Token& token);
 ParserResult statement(Parser &parser);
+Option<parse_error> operator_decl(Interloper& itl,Parser& parser, const ParsedAttr& attr);
 
 
 constexpr u32 AST_ALLOC_DEFAULT_SIZE = 8 * 1024;
@@ -841,13 +842,23 @@ Option<parse_error> parse_top_level_token(Interloper& itl, Parser& parser, FileQ
             break;
         }
 
-        // function declartion
+        // function declaration
         case token_type::func:
         {
             const auto func_err = func_decl(itl,parser,{});
             if(func_err)
             {
                 return func_err;
+            }
+            break;
+        }
+
+        case token_type::operator_t:
+        {
+            const auto operator_err = operator_decl(itl,parser,{});
+            if(operator_err)
+            {
+                return operator_err;
             }
             break;
         }

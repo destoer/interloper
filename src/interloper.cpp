@@ -16,6 +16,7 @@ Option<itl_error> type_check_init_expr(Interloper& itl, Type* ltype, AstNode* ex
 #include "parser.cpp"
 #include "func/decl.cpp"
 #include "generic.cpp"
+#include "operator.cpp"
 #include "struct.cpp"
 #include "enum.cpp"
 #include "rtti.cpp"

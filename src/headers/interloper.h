@@ -30,6 +30,7 @@ struct Interloper
     Parser parser;
 
     FunctionTable func_table;
+    OperatorTable operator_table;
 
     // Cur scope saved in FileContext
     NameSpace* global_namespace = nullptr;
@@ -93,9 +94,6 @@ struct Interloper
 
     DeferNode* cur_defer_node = nullptr;
     Array<DeferNode*> defer_stack;
-
-
-
 
     // targeting info
     arch_target arch = arch_target::x86_64_t;
