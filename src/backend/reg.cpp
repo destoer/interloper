@@ -40,13 +40,28 @@ b32 is_stored_in_mem(Reg& reg)
     return reg.flags & (STORED_IN_MEM | ALIASED);
 }
 
-// NOTE: this only works for structs, vars i.e power of two aligned sizes
-// not arrays
-std::pair<u32,u32> calc_alloc_size(u32 size)
+// NOTE: this only works for structs, vars, not arrays
+std::pair<u32,u32> calc_var_alloc_size(u32 size)
 {
     if(size > GPR_SIZE)
     {
-        return std::pair{GPR_SIZE,gpr_count(size)};
+        if((size % sizeof(u64)) == 0)
+        {
+            return std::pair{sizeof(u64),gpr_count(size)};
+        }
+
+        if((size % sizeof(u32)) == 0)
+        {
+            return std::pair{sizeof(u32),size / sizeof(u32)};
+        }
+
+        if((size % sizeof(u16)) == 0)
+        {
+            return std::pair{sizeof(u16),size / sizeof(u16)};
+        }
+
+        // Does not align needs to be in byte section
+        return std::pair{sizeof(u8),size};
     }
 
     else
@@ -57,7 +72,7 @@ std::pair<u32,u32> calc_alloc_size(u32 size)
 
 void assign_reg_size(Reg& reg, u32 size)
 {
-    const auto [reg_size,count] = calc_alloc_size(size);
+    const auto [reg_size,count] = calc_var_alloc_size(size);
 
     reg.size = reg_size;
     reg.count = count;   

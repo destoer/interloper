@@ -11,6 +11,12 @@ func vec2i_add(v1: Vec2I, v2: Vec2I) Vec2I
     return Vec2I {v1.x + v2.x,v1.y + v2.y};
 }
 
+func vec2i_sub(v1: Vec2I, v2: Vec2I) Vec2I
+{
+    return Vec2I {v1.x - v2.x,v1.y - v2.y};
+}
+
+
 func ved2i_clamp_zero(v1: Vec2I,limit: Vec2I) Vec2I
 {
     return Vec2I {

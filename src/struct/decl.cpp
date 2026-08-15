@@ -85,7 +85,7 @@ std::pair<u32,u32> compute_member_size(Interloper& itl,const Type* type)
     }
 
     const u32 size = type_memory_size(itl,type);
-    return calc_alloc_size(size);
+    return calc_var_alloc_size(size);
 }
 
 
@@ -283,8 +283,7 @@ void finalise_member_offsets(Interloper& itl, Struct& structure, u32* size_count
         }
 
         structure.data_size = offset;
-        structure.size = align_val(structure.data_size,GPR_SIZE);
-
+        structure.size = structure.data_size;
         return;
     }
 

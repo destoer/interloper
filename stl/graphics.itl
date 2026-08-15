@@ -24,6 +24,9 @@ struct Window
 
     target: f64;
     limit: f64;
+
+    pointer_change: std::Vec2I;
+    last: std::Vec2I;
 }
 
 struct Colour
@@ -140,13 +143,17 @@ func draw_window(win : Window@) win_result
 func start_frame(win : Window@) win_result
 {
     win.start_timestamp = std::timestamp_ms();
+    win.pointer_change = std::Vec2I {0,0};
 
     return gfx::process_events(win);
 }
 
 func end_frame(win : Window@)
 {
+    blank_screen(win.screen);
     clear_z_buffer(win);
+
+    os_end_frame(win);
 
     win.end_timestamp = std::timestamp_ms();
 

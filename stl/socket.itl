@@ -155,7 +155,7 @@ func recv_array_all(sock: Socket@, arr: std::Array@, size: usize) net_result
 
     arr.buf.len += size;
 
-    // calc the ammount read
+    // calc the amount read
     return net_result::ok;
 }
 
@@ -164,6 +164,11 @@ func recv_clear_array(sock: Socket@, arr: std::Array@, size: usize) net_result
     std::clear_array(arr);
 
     return recv_array_all(sock,arr,size);
+}
+
+func recv_append_array(sock: Socket@, arr: std::Array@, size: usize) net_result
+{
+    return recv_array_all(sock,arr,size - arr.buf.len);
 }
 
 func send_raw(sock : Socket@, ptr: const byte@, size : usize) [u64, net_result]
