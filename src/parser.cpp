@@ -8,7 +8,7 @@ Option<ParserResult> try_parse_slice(Parser& parser, const Token& t);
 Result<FuncNode*,parse_error> parse_func_sig(Parser& parser, const String& func_name,const Token& token);
 ParserResult statement(Parser &parser);
 Option<parse_error> operator_decl(Interloper& itl,Parser& parser, const ParsedAttr& attr);
-
+Option<parse_error> parse_operator_decl(Parser& parser, Operator& operator_def);
 
 constexpr u32 AST_ALLOC_DEFAULT_SIZE = 8 * 1024;
 constexpr u32 AST_STRING_INITIAL_SIZE = 4 * 1024;
@@ -1162,6 +1162,20 @@ Option<parse_error> parse(Interloper& itl, const String& initial_filename)
 
     // Tokens are scanned into sections so we can build up type names.
     // Then we can parse them properly with sensitive typing.
+
+    // Parse all operator overloads
+    for(auto& operator_table : itl.operator_table.lookup)
+    {
+        for(auto& operator_def : operator_table)
+        {
+            const auto ctx = switch_parse_def(itl.parser,operator_def.func_def.parser_def);
+            const auto parse_err = parse_operator_decl(itl.parser,operator_def);
+            if(parse_err)
+            {
+                return parse_err;
+            }
+        }
+    }
 
     // Now parse in all the functions
     for(auto& func_def : itl.func_table.table)

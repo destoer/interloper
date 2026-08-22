@@ -577,12 +577,9 @@ struct FuncNode;
 
 struct Operator
 {
-    TopLevelDefinition def;
-    NameSpace* name_space = nullptr;
     operator_type type;
-
-    FuncNode* func_node = nullptr;
-    Function* func = nullptr;
+    FunctionDef func_def;
+    u32 hash;
 };
 
 using OperatorLookup = Array<Operator>;
