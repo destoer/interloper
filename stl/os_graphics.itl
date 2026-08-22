@@ -1074,7 +1074,7 @@ struct XFixedPoint32
 
 func handle_xinput_event(std_win: Window@, buffer: std::Array)
 {
-    event := std::read_var$<gfx::RawInputEvent>(buffer,0);
+    event := std::read_var$<RawInputEvent>(buffer,0);
     input_event := cast(raw_input_event,event.generic.event_type);
 
     switch(input_event)
@@ -1084,8 +1084,8 @@ func handle_xinput_event(std_win: Window@, buffer: std::Array)
             // TODO: This is making assumptions about the mask
             axis_offset := buffer.buf.len - (sizeof_type(XFixedPoint32) * 2);
 
-            x_fixed := std::read_var$<gfx::XFixedPoint32>(buffer,axis_offset);
-            y_fixed := std::read_var$<gfx::XFixedPoint32>(buffer,axis_offset + sizeof(x_fixed));
+            x_fixed := std::read_var$<XFixedPoint32>(buffer,axis_offset);
+            y_fixed := std::read_var$<XFixedPoint32>(buffer,axis_offset + sizeof(x_fixed));
 
             std_win.pointer_change.x -= x_fixed.integral;
             std_win.pointer_change.y -= y_fixed.integral;
@@ -1122,7 +1122,7 @@ func os_process_events(std_win: Window@) win_result
             return net_res_to_win(res);
         }
 
-        type := std::read_var$<gfx::x_reply_type>(win.packet,0);
+        type := std::read_var$<x_reply_type>(win.packet,0);
 
         switch(type)
         {
@@ -1150,7 +1150,7 @@ func os_process_events(std_win: Window@) win_result
 
             case x_reply_type::generic_event:
             {
-                event := std::read_var$<gfx::GenericEvent>(win.packet,0);
+                event := std::read_var$<GenericEvent>(win.packet,0);
 
                 res = net::recv_array_all(&win.sock,&win.packet,event.length * 4);
                 if(res != net_result::ok)
@@ -1166,7 +1166,7 @@ func os_process_events(std_win: Window@) win_result
                 // Do not bother with these events if we have raw input
                 if !win.xinput.enabled
                 {
-                    motion := std::read_var$<gfx::InputEvent>(win.packet,0);
+                    motion := std::read_var$<InputEvent>(win.packet,0);
                     cur: std::Vec2I = {motion.event_x, motion.event_y};
                 
                     if(win.first_in_frame)
@@ -1184,7 +1184,7 @@ func os_process_events(std_win: Window@) win_result
 
             case x_reply_type::button_press:
             {
-                press := std::read_var$<gfx::InputEvent>(win.packet,0);
+                press := std::read_var$<InputEvent>(win.packet,0);
 
                 std::println("Button press: {} {}",press.event_x,press.event_y);
             }

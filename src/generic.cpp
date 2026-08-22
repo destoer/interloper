@@ -576,8 +576,10 @@ Result<HashTable<String,Generic*>,itl_error> make_generic_lookup(Interloper& itl
     return generic_lookup;
 }
 
-Option<itl_error> handle_generic_args(Interloper& itl, GenericOverload& generic_overload, const Array<AstNode*>& generic_args)
+Option<itl_error> handle_generic_args(Interloper& itl, GenericOverload& generic_overload, const Array<AstNode*>& generic_args, NameSpace* args_namespace)
 {
+    const auto context_guard = switch_context(itl,itl.ctx.filename,args_namespace,itl.ctx.expr);
+
     if(count(generic_args) > count(generic_overload))
     {
         return compile_error(itl,itl_error::generic,"Generic specifies too many args %d > %d",
@@ -613,10 +615,10 @@ Option<itl_error> handle_generic_args(Interloper& itl, GenericOverload& generic_
     return option::none;
 }
 
-Result<Array<Generic>,itl_error> deduce_generic(Interloper& itl, GenericOverload& generic_overload, 
+Result<Array<Generic>,itl_error> deduce_generic(Interloper& itl, NameSpace* calling_namespace, GenericOverload& generic_overload, 
     const Array<AstNode*>& generic_args, const Array<AstNode*>& args, const Array<DeclNode*>& decl)
 {
-    const auto arg_err = handle_generic_args(itl,generic_overload,generic_args);
+    const auto arg_err = handle_generic_args(itl,generic_overload,generic_args,calling_namespace);
     if(arg_err)
     {
         destroy_arr(generic_overload);
@@ -654,20 +656,24 @@ Result<Array<Generic>,itl_error> deduce_generic(Interloper& itl, GenericOverload
 
 Result<Array<Generic>,itl_error> deduce_generic_func(Interloper& itl, FuncNode& node, NameSpace* name_space, FuncCallNode* func_call)
 {
+    auto calling_namespace = itl.ctx.name_space;
+
     // TODO: This causes some less than ideal error reporting
     const auto context_guard = switch_context(itl,itl.ctx.filename,name_space,itl.ctx.expr);
 
     auto generic_overload = copy_array(node.generic);
-    return deduce_generic(itl,generic_overload,func_call->generic_args,func_call->args,node.args);
+    return deduce_generic(itl,calling_namespace,generic_overload,func_call->generic_args,func_call->args,node.args);
 }
 
 Result<Array<Generic>,itl_error> deduce_generic_struct(Interloper& itl, TypeDecl* decl, const TypeLookupInfo& info)
 {
+    auto calling_namespace = itl.ctx.name_space;
+
     StructNode* struct_node = (StructNode*)decl->root;
     const Array<AstNode*> blank;
 
     auto generic_overload = copy_array(struct_node->generic);
-    return deduce_generic(itl,generic_overload,info.generic_args,blank,struct_node->members);
+    return deduce_generic(itl,calling_namespace,generic_overload,info.generic_args,blank,struct_node->members);
 }
 
 bool check_overload(const GenericOverload& args, const GenericOverload& generic_overload)
