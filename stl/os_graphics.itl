@@ -300,12 +300,14 @@ struct XQueryTree
 }
 
 
-func query_tree(win: OSWindow@, root : u32)
+func query_tree(win: OSWindow@, root : u32) net_result
 {
     query : XQueryTree;
     query.window = root;
 
-    send_req(win,&query,sizeof_data(XQueryTree));
+    [_, res] := send_req(win,&query,sizeof_data(XQueryTree));
+
+    return res;
 }
 
 
