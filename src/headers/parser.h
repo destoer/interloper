@@ -73,9 +73,20 @@ inline bool known_gpr_node(const AstNode* node)
     return node->known_value.type == known_value_type::gpr_t;
 }
 
+inline bool known_fpr_node(const AstNode* node)
+{
+    return node->known_value.type == known_value_type::fpr_t;
+}
+
+
 inline bool known_gpr_expr(const AstNode* v1, const AstNode* v2)
 {
     return known_gpr_node(v1) && known_gpr_node(v2);
+}
+
+inline bool known_fpr_expr(const AstNode* v1, const AstNode* v2)
+{
+    return known_fpr_node(v1) && known_fpr_node(v2);
 }
 
 

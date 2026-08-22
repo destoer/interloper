@@ -293,6 +293,13 @@ Type* calc_known_value(Interloper& itl, AstNode* expr,  u64 result, bool sign)
     return make_value_type(itl,ans);   
 }
 
+Type* calc_known_float(Interloper& itl, AstNode* expr,  f64 result)
+{
+    expr->known_value = KnownValue(result);
+    return make_builtin(itl,builtin_type::f64_t);  
+}
+
+
 TypeResult compute_known_integer_arith(Interloper& itl, ArithBinNode* bin)
 {
     const Value left = value_from_known_expr(bin->left);
@@ -381,6 +388,41 @@ TypeResult compute_known_integer_arith(Interloper& itl, ArithBinNode* bin)
     assert(false);
 }
 
+TypeResult compute_known_float_arith(Interloper& itl, ArithBinNode* bin)
+{
+    const f64 left = bin->left->known_value.fpr;
+    const f64 right = bin->right->known_value.fpr;
+
+    switch(bin->oper)
+    {
+        case arith_bin_type::add_t:
+        {
+            return calc_known_float(itl,&bin->node,left + right);
+        }
+
+        case arith_bin_type::sub_t:
+        {
+            return calc_known_float(itl,&bin->node,left - right);
+        }
+
+        case arith_bin_type::mul_t:
+        {
+            return calc_known_float(itl,&bin->node,left * right);
+        }
+
+
+        case arith_bin_type::div_t:
+        {
+            return calc_known_float(itl,&bin->node,left / right);
+        }
+
+        default: 
+        {
+            return compile_error(itl,itl_error::invalid_expr,"operation is not defined for floats");
+        }
+    }
+}
+
 TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
 {
     ArithBinNode* arith = (ArithBinNode*)expr;
@@ -396,7 +438,8 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
 
     const auto& bin = *bin_res;
 
-    const bool known_expr = known_gpr_expr(arith->left,arith->right);
+    const bool known_integer_expr = known_gpr_expr(arith->left,arith->right);
+    const bool known_float_expr = known_fpr_expr(arith->left,arith->right);
 
     // pointer arith adds the size of the underlying type
     if(is_pointer(bin.ltype) && is_integer(bin.rtype))
@@ -426,6 +469,11 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
     {
         if(arith_info.flags & ARITH_BIN_FLAG_FLOAT_ENABLED)
         {
+            if(known_float_expr)
+            {
+                return compute_known_float_arith(itl,arith);
+            }
+
             return make_builtin(itl,builtin_type::f64_t);
         }
 
@@ -436,7 +484,7 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
     {
         if(arith_info.flags & ARITH_BIN_FLAG_BOOL_ENABLED)
         {
-            if(known_expr)
+            if(known_integer_expr)
             {
                 return compute_known_integer_arith(itl,arith);
             }
@@ -453,7 +501,7 @@ TypeResult type_check_arith_bin(Interloper& itl, AstNode* expr)
     // integer arith
     else if(is_integer(bin.ltype) && is_integer(bin.rtype))
     {
-        if(known_expr)
+        if(known_integer_expr)
         {
             return compute_known_integer_arith(itl,arith);
         }

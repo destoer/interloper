@@ -9,6 +9,7 @@ import "coordinates"
 namespace std;
 
 constant PI: f64 = 3.14159265358979323846;
+constant NAN: f64 = 0.0 / 0.0;
 
 func abs<T: Real>(v1: $T) $T
 {
@@ -87,7 +88,7 @@ func sqrt(square: f64) f64
 {
     if square < 0.0 
     {
-        return 0.0;
+        return NAN;
     }
 
     // Initial guess
