@@ -1,0 +1,14 @@
+func numbers(x: s32@) [s32, s32]
+{
+	@x = 1;
+    return 5, 3;
+}
+
+func main() s32
+{
+	x: s32 = 0;
+
+    numbers(&x);
+
+    return x;
+}

@@ -58,12 +58,17 @@ func socket_valid(sock: const Socket@) bool
     return sock.handle != cast(byte@,INVALID_SOCKET_HANDLE);
 }
 
-func connect(ip: const string, port: u16, type: net_type) Socket
+func connect(ip: const string, port: u16, type: net_type) [Socket, net_result]
 {
-    return Socket {
-        std::os_connect(ip,port,type),
-        type
-    };
+    [handle, res] := std::os_connect(ip,port,type);
+
+    if res != result::ok
+    {
+        return {?}, net_result::err;
+    }
+
+    socket := Socket {handle, type};
+    return socket, net_result::ok;
 }
 
 

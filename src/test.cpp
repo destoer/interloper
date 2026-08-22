@@ -99,6 +99,7 @@ static constexpr ProgramErrorTest PROGRAM_ERROR_TEST[] =
     // tuple
     {"tests/tuple/tuple_invalid_assign",itl_error::undefined_type_oper},
     {"tests/tuple/tuple_invalid_return",itl_error::mismatched_args},
+    {"tests/tuple/tuple_unbound",itl_error::missing_return},
 
     // generic
     {"tests/generic/constraint_fail",itl_error::generic},

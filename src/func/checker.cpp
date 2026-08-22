@@ -148,7 +148,14 @@ Option<itl_error> check_format_arg(Interloper& itl, FuncCallNode* func_call, con
     return option::none;
 }
 
-TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bool result_bound)
+enum class func_assign_type
+{
+    unbound,
+    expression,
+    tuple
+};
+
+TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, func_assign_type bound)
 {
     // Check for intrinsic.
     if(func_call->expr->type == ast_type::symbol)
@@ -194,6 +201,11 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
 
     func_call->call = *call_info_res;
     const auto& call_info = func_call->call;
+
+    if(count(call_info.sig.return_type) > 1 && bound != func_assign_type::tuple)
+    {
+        return compile_error(itl,itl_error::missing_return,"Tuple result is not bound");
+    }
 
     u32 passed_args = count(func_call->args);
 
@@ -268,7 +280,7 @@ TypeResult type_check_function_call(Interloper& itl, FuncCallNode* func_call, bo
         }
     }
 
-    if(!result_bound)
+    if(bound == func_assign_type::unbound)
     {
         const auto err = check_unbound_return(itl,call_info);
         if(err)
@@ -284,12 +296,12 @@ Option<itl_error> type_check_function_stmt(Interloper& itl, Function& func, AstN
 {
     UNUSED(func);
 
-    return type_check_function_call(itl,(FuncCallNode*)stmt,false).remap_to_err();
+    return type_check_function_call(itl,(FuncCallNode*)stmt,func_assign_type::unbound).remap_to_err();
 }
 
 TypeResult type_check_function_expr(Interloper& itl, AstNode* expr)
 {
-    return type_check_function_call(itl,(FuncCallNode*)expr,true);
+    return type_check_function_call(itl,(FuncCallNode*)expr,func_assign_type::expression);
 }
 
 
@@ -331,7 +343,7 @@ Option<itl_error> type_check_tuple_assign(Interloper& itl, Function& func, AstNo
 
     TupleAssignNode* tuple_assign = (TupleAssignNode*)stmt;
 
-    const auto func_res = type_check_function_call(itl,(FuncCallNode*)tuple_assign->func_call,true);
+    const auto func_res = type_check_function_call(itl,(FuncCallNode*)tuple_assign->func_call,func_assign_type::tuple);
     if(!func_res)
     {
         return func_res.error();
