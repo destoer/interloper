@@ -808,12 +808,14 @@ ParserResult expression(Parser &parser,ExprCtx& ctx,Result<s32,parse_error> rbp_
 
 ParserResult expr_terminate_internal(Parser &parser,ExprCtx& ctx)
 {
+    const auto start = peek(parser,0);
+
     const auto e = expression(parser,ctx,0);
 
     // expression must terminate on this token
     if(!(ctx.expr_flags & EXPR_TERMINATED_FLAG) && (ctx.expr_flags & EXPR_MUST_TERMINATE_FLAG))
     {
-        return parser_error(parser,parse_error::invalid_terminator,ctx.term_tok,"%s should terminate with '%s' terminated with '%s'",
+        return parser_error(parser,parse_error::invalid_terminator,start,"%s should terminate with '%s' terminated with '%s'",
             ctx.expression_name.buf,tok_name(ctx.term),tok_name(ctx.term_tok.type));
     }
 
