@@ -14,6 +14,12 @@ void unlock_fixed_arith(LinearAlloc& alloc, RegSlot dst, x86_reg x86_dst, x86_re
     release_register(alloc.gpr,x86_oper);
 }
 
+lowered_reg_t reload_fixed_reg_stack(LinearAlloc& alloc,Block& block, OpcodeNode* node, RegSlot dst, u32 reg)
+{
+    // issue a load
+    reload_reg(alloc,block,node,dst,reg,insertion_type::before);
+    return reg;
+}
 
 OpcodeNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, OpcodeNode* node)
 {
@@ -27,8 +33,7 @@ OpcodeNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, OpcodeNode*
     // What register we actually want the result out of varies
     if(alloc.stack_only)
     {
-        assert(false);
-        // reload_fixed_reg_stack(alloc,block,node,dst,x86_reg::rax,0);
+        fixed.dst.reg = reload_fixed_reg_stack(alloc,block,node,dst,x86_reg::rax);
     }
 
     else
@@ -50,26 +55,18 @@ OpcodeNode* rewrite_x86_fixed_arith(LinearAlloc& alloc,Block& block, OpcodeNode*
     const x86_reg out_reg = rdx_out? x86_reg::rdx : x86_reg::rax;
     const x86_reg src_reg = rdx_out? x86_reg::rax : x86_reg::rdx;
 
-    if(alloc.stack_only)
-    {
-        assert(false);
-        // if(dst.kind != reg_kind::spec)
-        // {
-        //     spill_reg(alloc,block,node, dst, out_reg, insertion_type::after);
-
-        // }
-
-        // node->value.v[0] = make_lowered_operand(out_reg);
+    if(alloc.stack_only && dst.kind != reg_kind::spec)
+    { 
+        spill_reg(alloc,block,node, dst, out_reg, insertion_type::after);
     }
 
     else
     {
         unlock_fixed_arith(alloc,dst,out_reg,src_reg);
+        fixed.dst.reg = linear_allocate_reg(alloc,block,node,fixed.dst.ir,reg_arg_kind::dst); 
     }
 
-    fixed.dst.reg = linear_allocate_reg(alloc,block,node,fixed.dst.ir,reg_arg_kind::dst); 
     node->value.state = opcode_state::lowered;
-
     return node->next;
 }   
 
@@ -77,13 +74,15 @@ OpcodeNode* rewrite_x86_fixed_shift(LinearAlloc& alloc,Block& block, OpcodeNode*
 {
     auto& fixed = node->value.x86_fixed;
     const auto src = fixed.src.ir;
+    const auto dst = fixed.dst.ir;
 
     if(alloc.stack_only)
     {
-        assert(false);
-        // // Issue the load into rcx
-        // reload_fixed_reg_stack(alloc,block,node,src,x86_reg::rcx,1);
-        // allocate_and_rewrite(alloc,block,node,0);
+        // Issue the load into rcx
+        fixed.src.reg = reload_fixed_reg_stack(alloc,block,node,src,x86_reg::rcx);
+        
+        // Finally allocate in dst
+        fixed.dst.reg = linear_allocate_reg(alloc,block,node,dst,reg_arg_kind::dst_src);
     }
 
     else 
