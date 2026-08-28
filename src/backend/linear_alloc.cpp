@@ -595,7 +595,7 @@ void acquire_local_reg(LinearAlloc& alloc, Reg& ir_reg, RegisterFile& regs,Block
     assert(alloc_ir_reg(regs,ir_reg));
 }
 
-void free_all_regs(LinearAlloc& alloc)
+void reset_all_regs(LinearAlloc& alloc)
 {
     // All regs free (though this does not imply they are usable)
     alloc.gpr.free_set = 0xffff'ffff;
@@ -608,7 +608,7 @@ void free_all_regs(LinearAlloc& alloc)
 
 void reset_stack_only_registers(LinearAlloc& alloc)
 {
-    free_all_regs(alloc);
+    reset_all_regs(alloc);
 
     // just add the scratch registers
     add_reg(alloc.gpr,x86_reg::r11);
@@ -638,8 +638,7 @@ void init_regs(LinearAlloc& alloc)
         return;
     }
 
-
-    free_all_regs(alloc);
+    reset_all_regs(alloc);
 
     // add grps
     add_reg(alloc.gpr,x86_reg::rax);
@@ -1092,7 +1091,8 @@ lowered_reg_t allocate_special_reg(LinearAlloc& alloc, Block& block, OpcodeNode*
     const lowered_reg_t location = special_reg_to_reg(alloc.arch,spec);
 
     // This is not a real hardware register don't attempt an allocation
-    if(location >= SPECIAL_REG_START)
+    // Or we are doing stack allocation and these are all reserved
+    if(location >= SPECIAL_REG_START || alloc.stack_only)
     {
         return location;
     }
