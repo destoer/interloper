@@ -14,7 +14,7 @@ FuncCall call_info_from_func_pointer(Symbol& sym)
 {
     auto call_info = call_info_from_type((FuncPointerType*)sym.type,0);
 
-    call_info.reg_slot = sym.reg.slot;
+    call_info.reg_slot = sym.reg_slot;
     call_info.name = sym.name;
 
     return call_info;

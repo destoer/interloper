@@ -284,7 +284,7 @@ TypeResult type_check_sym(Interloper& itl, AstNode* expr)
 
     const auto &sym = *sym_ptr;
 
-    sym_node->sym_slot = sym.reg.slot.sym_slot;
+    sym_node->sym_slot = sym.sym_slot;
     sym_node->type = sym_node_type::sym_slot;
     sym_node->node.known_value = sym.known_value;
 
@@ -488,9 +488,9 @@ Option<itl_error> type_check_ast(Interloper& itl)
     }
 
     // Check all declared symbols are used.
-    for(auto& sym : itl.symbol_table.slot_lookup)
+    for(auto& sym : itl.symbol_table.sym_lookup)
     {
-        if(sym.references == 0 && sym.reg.segment == reg_segment::local && sym.name[0] != '_')
+        if(sym.references == 0 && sym.reg_slot.kind == reg_kind::local && sym.name[0] != '_')
         {
             trash_context(itl,sym.ctx);
             return compile_error(itl,itl_error::unused_symbol,"Symbol %S is never used",sym.name);

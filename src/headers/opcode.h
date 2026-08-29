@@ -190,6 +190,12 @@ b32 is_raw_special_reg(lowered_reg_t reg)
 
 struct RegSlot
 {
+    RegSlot() = default;
+
+    RegSlot(LocalSlot local) : local(local), kind(reg_kind::local) {}
+    RegSlot(GlobalSlot global) : global(global), kind(reg_kind::global) {}
+    RegSlot(spec_reg spec) : spec(spec), kind(reg_kind::spec) {}
+
     union 
     {
         LocalSlot local;
@@ -215,24 +221,6 @@ inline bool operator == (const RegSlot& v1, const RegSlot &v2)
     }
 
     assert(false);
-}
-
-RegSlot make_tmp_reg_slot(TmpSlot slot)
-{
-    RegSlot handle;
-    handle.tmp_slot = slot;
-    handle.kind = reg_kind::tmp;
-
-    return handle;
-}
-
-RegSlot make_spec_reg_slot(spec_reg reg)
-{
-    RegSlot handle;
-    handle.spec = reg;
-    handle.kind = reg_kind::spec;
-
-    return handle;
 }
 
 static constexpr u32 MAX_OPCODE_REGS = 8;
@@ -330,8 +318,8 @@ struct ConstLoweredRegSpan
 
 struct Addr
 {
-    RegSlot base = make_spec_reg_slot(spec_reg::null);
-    RegSlot index = make_spec_reg_slot(spec_reg::null);
+    RegSlot base = spec_reg::null;
+    RegSlot index = spec_reg::null;
     u32 scale = 1;
     u32 offset = 0;
 };
@@ -344,7 +332,7 @@ struct LoweredAddr
     u32 offset = 0;
 
     // Copy for struct addrs
-    RegSlot base_ir = {INVALID_SYM_REG_SLOT};
+    RegSlot base_ir = spec_reg::null;
 };
 
 // Subtyped for passing to emitters to ensure context is correct.
@@ -820,7 +808,7 @@ struct DirectiveOperand
         f64 decimal;
         u64 imm;
         u64 reg_set;
-        RegSlot ir_reg = {INVALID_SYM_REG_SLOT};
+        RegSlot ir_reg = spec_reg::null;
         LabelSlot label;
         PoolSlot pool;
         lowered_reg_t reg;

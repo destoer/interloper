@@ -15,55 +15,44 @@ void destroy_scope(SymbolTable &sym_table)
     }
 }
 
-SymSlot slot_from_sym(const Symbol& sym)
-{
-    return sym.reg.slot.sym_slot;
-}
-
-u32 handle_from_sym(const Symbol& sym)
-{
-    return slot_from_sym(sym).handle;
-}
 
 // NOTE: reference may move, hold the slot if needed for extended periods
 Symbol& sym_from_slot(SymbolTable &table, SymSlot slot)
 {
-    return table.slot_lookup[slot.handle]; 
+    return table.sym_lookup[slot.handle]; 
 }
 
 const Symbol& sym_from_slot(const SymbolTable &table, SymSlot slot)
 {
-    return table.slot_lookup[slot.handle]; 
+    return table.sym_lookup[slot.handle]; 
 }
 
-Reg& reg_from_slot(SymbolTable &table,Array<Reg> &tmp_regs, const RegSlot& slot)
+Reg& reg_from_slot(SymbolTable &table,RegTable& local, const RegSlot& slot)
 {
     switch(slot.kind)
     {
-        case reg_kind::tmp:
+        case reg_kind::local:
         {
-            return tmp_regs[slot.tmp_slot.handle];
+            return local.registers[slot.local.handle];
         }
 
-        case reg_kind::sym:
+        case reg_kind::global:
         {
-            return sym_from_slot(table,slot.sym_slot).reg;
+            return table.global.registers[slot.global.handle];
         }
 
         // These don't have registers backing them
-        case reg_kind::spec:
+        default:
         {
             assert(false);
-            break;
         }
     }
 
-    assert(false);
 }
 
 Reg& reg_from_slot(SymbolTable &table,Function& func, const RegSlot& slot)
 {
-    return reg_from_slot(table,func.registers,slot);
+    return reg_from_slot(table,func.local,slot);
 }
 
 Reg& reg_from_slot(Interloper& itl,Function& func, const RegSlot& slot)
@@ -104,19 +93,64 @@ b32 symbol_exists(SymbolTable &sym_table,const String &sym)
 }
 
 
-Symbol make_sym(Interloper& itl,const String& name, Type* type)
+Reg make_reg_sym(Interloper& itl, RegSlot reg_slot, Symbol& sym, u32 flags)
+{
+    auto reg = make_reg(itl,reg_slot,sym.type);
+    reg.flags |= flags;
+
+    reg.sym_slot = sym.sym_slot;
+    reg.reg_slot = reg_slot;
+
+    sym.reg_slot = reg_slot;
+
+
+    return reg;
+}
+
+void add_symbol_reg(Interloper& itl, Function& func, Symbol& sym, reg_segment segment, u32 flags = 0)
 {
     auto& table = itl.symbol_table;
 
-    const SymSlot sym_slot = {count(table.slot_lookup)};
+    const SymSlot sym_slot = {count(table.sym_lookup)};
+    sym.sym_slot = sym_slot;
+
+    switch(segment)
+    {
+        case reg_segment::local:
+        {
+            LocalSlot local = {count(func.local.registers)};
+
+            push_var(func.local.registers,make_reg_sym(itl,local,sym,flags));
+            break;
+        }
+
+        case reg_segment::global:
+        case reg_segment::constant:
+        {
+            GlobalSlot global = {count(table.global.registers)};
+
+            push_var(table.global.registers,make_reg_sym(itl,global,sym,flags));
+            break;
+        }
+    }
+
+    push_var(table.sym_lookup,sym);
+}
+
+void add_function_arg_reg(Interloper& itl, Function& func, Symbol& sym)
+{
+    add_symbol_reg(itl,func,sym,reg_segment::local,STACK_ARG | STACK_ALLOCATED);
+}
+
+
+Symbol make_sym(Interloper& itl, const String& name, Type* type)
+{
+    auto& table = itl.symbol_table;
 
     Symbol symbol = {};
     symbol.name = copy_string(*table.string_allocator,name);
     symbol.type = type;
 
-    const auto reg_slot = make_sym_reg_slot(sym_slot);
-
-    symbol.reg = make_reg(itl,reg_slot,type);
     symbol.ctx = itl.ctx;
     symbol.arg_offset = NON_ARG;
 
@@ -126,9 +160,7 @@ Symbol make_sym(Interloper& itl,const String& name, Type* type)
 Symbol make_sym_arg(Interloper& itl,const String& name, Type* type, u32 arg_offset)
 {
     auto sym = make_sym(itl,name,type);
-
     sym.arg_offset = arg_offset;
-    sym.reg.flags |= (STACK_ARG | STACK_ALLOCATED);
     
     return sym;
 }
@@ -156,8 +188,7 @@ Result<SymSlot,itl_error> add_symbol(Interloper &itl,const String &name, Type *t
     }
 
     auto sym = make_sym(itl,name,type);
-
-    push_var(sym_table.slot_lookup,sym);
+    add_symbol_reg(itl,sym,segment);
 
     add_sym_to_scope(sym_table,sym);
 

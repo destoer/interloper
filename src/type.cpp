@@ -351,11 +351,11 @@ void destroy_func(Function& func)
 {
     destroy_sig(func.sig);
 
-    for(auto& reg : func.registers)
+    for(auto& reg : func.local.registers)
     {
         destroy_reg(reg);
     }
 
-    destroy_arr(func.registers);
+    destroy_arr(func.local.registers);
     destroy_emitter(func.emitter);
 }

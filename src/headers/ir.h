@@ -16,7 +16,7 @@ using RegResult = destoer::Result<TypedReg,itl_error>;
 
 inline bool is_direct_addr(const AddrSlot& addr_slot)
 {
-    return addr_slot.struct_addr && addr_slot.addr.index == make_spec_reg_slot(spec_reg::null) && addr_slot.addr.offset == 0;
+    return addr_slot.struct_addr && addr_slot.addr.index == spec_reg::null && addr_slot.addr.offset == 0;
 }
 
 
@@ -53,17 +53,17 @@ struct Reg
     reg_segment segment = reg_segment::local;
 
     // what slot does this symbol hold inside the ir?
-    IrSlot slot;
+    RegSlot reg_slot;
 
     // What symbol does is this for if any?
-    SymSlot sym = {INVALID_HANDLE}
+    SymSlot sym_slot = {INVALID_HANDLE};
 
     // how much memory does this thing use GPR_SIZE max (spilled into count if larger)
     // i.e this is for stack allocation to get actual var sizes use type_size();
     u32 size = 0;
     u32 count = 0;
 
-    // intialized during register allocation
+    // initialized during register allocation
 
     // where is the current offset for its section?
     u32 offset = 0;
@@ -85,7 +85,7 @@ struct Reg
 
 struct RegTable
 {
-    Array<Reg> regs;
+    Array<Reg> registers;
 };
 
 

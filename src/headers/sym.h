@@ -18,7 +18,8 @@ struct Symbol
     String name;
     Type* type;
 
-    Reg reg;
+    RegSlot reg_slot;
+    SymSlot sym_slot;
 
     u32 arg_offset = NON_ARG;
     u32 references = 0;
@@ -267,7 +268,7 @@ using SymLookup = Array<Symbol>;
 struct SymbolTable
 {
     RegTable global;
-    SymLookup symbol_lookup;
+    SymLookup sym_lookup;
 
     // offset is the block slot until full resolution
     // after label resolution this holds the address of the label
