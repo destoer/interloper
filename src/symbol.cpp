@@ -107,7 +107,7 @@ Reg make_reg_sym(Interloper& itl, RegSlot reg_slot, Symbol& sym, u32 flags)
     return reg;
 }
 
-void add_symbol_reg(Interloper& itl, Function& func, Symbol& sym, reg_segment segment, u32 flags = 0)
+SymSlot add_symbol_reg(Interloper& itl, Function* func, Symbol& sym, reg_segment segment, u32 flags = 0)
 {
     auto& table = itl.symbol_table;
 
@@ -118,9 +118,9 @@ void add_symbol_reg(Interloper& itl, Function& func, Symbol& sym, reg_segment se
     {
         case reg_segment::local:
         {
-            LocalSlot local = {count(func.local.registers)};
+            LocalSlot local = {count(func->local.registers)};
 
-            push_var(func.local.registers,make_reg_sym(itl,local,sym,flags));
+            push_var(func->local.registers,make_reg_sym(itl,local,sym,flags));
             break;
         }
 
@@ -135,11 +135,13 @@ void add_symbol_reg(Interloper& itl, Function& func, Symbol& sym, reg_segment se
     }
 
     push_var(table.sym_lookup,sym);
+
+    return sym_slot;
 }
 
 void add_function_arg_reg(Interloper& itl, Function& func, Symbol& sym)
 {
-    add_symbol_reg(itl,func,sym,reg_segment::local,STACK_ARG | STACK_ALLOCATED);
+    add_symbol_reg(itl,&func,sym,reg_segment::local,STACK_ARG | STACK_ALLOCATED);
 }
 
 
@@ -165,21 +167,14 @@ Symbol make_sym_arg(Interloper& itl,const String& name, Type* type, u32 arg_offs
     return sym;
 }
 
-
-// add symbol to slot lookup
-void add_var(SymbolTable &sym_table,Symbol &sym)
-{
-    push_var(sym_table.slot_lookup,sym);    
-}
-
 // add symbol to the scope table
 void add_sym_to_scope(SymbolTable &sym_table, Symbol &sym)
 {
-    const DefInfo info = {definition_type::variable,{handle_from_sym(sym)}};
+    const DefInfo info = {definition_type::variable,{sym.sym_slot.handle}};
     add(sym_table.ctx->name_space->table,sym.name, info);
 }    
 
-Result<SymSlot,itl_error> add_symbol(Interloper &itl,const String &name, Type *type)
+Result<SymSlot,itl_error> add_symbol(Interloper &itl,Function* func,reg_segment segment,const String &name, Type *type)
 {
     auto& sym_table = itl.symbol_table;
     if(symbol_exists(itl.symbol_table,name))
@@ -188,38 +183,27 @@ Result<SymSlot,itl_error> add_symbol(Interloper &itl,const String &name, Type *t
     }
 
     auto sym = make_sym(itl,name,type);
-    add_symbol_reg(itl,sym,segment);
+    add_symbol_reg(itl,func,sym,segment);
 
     add_sym_to_scope(sym_table,sym);
 
-    return slot_from_sym(sym);
+    return sym.sym_slot;
 }
 
 Result<SymSlot,itl_error> add_global(Interloper& itl,const String &name, Type *type, b32 constant)
 {
-    auto& sym_table = itl.symbol_table;
     if(symbol_exists(itl.symbol_table,name))
     {
         return compile_error(itl,itl_error::redeclaration,"symbol '%S' is already declared",name);
     }
 
-
     auto sym = make_sym(itl,name,type);
-    sym.reg.segment = constant? reg_segment::constant : reg_segment::global;
+    const auto slot = add_symbol_reg(itl,nullptr,sym,constant? reg_segment::constant : reg_segment::global);
 
     reserve_global_alloc(itl,sym);
 
-    push_var(sym_table.slot_lookup,sym);
-
-    const auto slot = slot_from_sym(sym);
-
-    if(!constant)
-    {
-        push_var(sym_table.global,slot);
-    }
-
     // add this into the top level scope
-    const DefInfo info = {definition_type::variable,{handle_from_sym(sym)}};
+    const DefInfo info = {definition_type::variable,{slot.handle}};
     add(itl.global_namespace->table,sym.name, info);    
 
     return slot;
