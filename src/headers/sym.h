@@ -125,8 +125,7 @@ struct Function
 
     FuncSig sig;
 
-    // tmp's in the function
-    Array<Reg> registers;
+    RegTable local;
 
     // IR code for function
     IrEmitter emitter;
@@ -220,7 +219,6 @@ struct Interloper;
 void mark_used(Interloper& itl, Function& func);
 
 
-using SlotLookup = Array<Symbol>;
 using LabelLookup = Array<Label>;
 
 enum class definition_type
@@ -264,10 +262,12 @@ struct NameSpace
 
 struct FileContext;
 
+using SymLookup = Array<Symbol>;
+
 struct SymbolTable
 {
-    SlotLookup slot_lookup;
-    Array<SymSlot> global;
+    RegTable global;
+    SymLookup symbol_lookup;
 
     // offset is the block slot until full resolution
     // after label resolution this holds the address of the label

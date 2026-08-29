@@ -2,7 +2,8 @@
 enum class slot_type
 {
     symbol,
-    tmp,
+    local,
+    global,
     spec,
     label,
     block,
@@ -19,7 +20,8 @@ struct Slot
 };
 
 using SymSlot = Slot<slot_type::symbol>;
-using TmpSlot = Slot<slot_type::tmp>;
+using LocalSlot = Slot<slot_type::local>;
+using GlobalSlot = Slot<slot_type::global>;
 using LabelSlot = Slot<slot_type::label>;
 using BlockSlot = Slot<slot_type::block>;
 using PoolSlot = Slot<slot_type::pool>;
@@ -69,8 +71,8 @@ enum class reg_type
 
 enum class reg_kind
 {
-    sym,
-    tmp,
+    global,
+    local,
     spec,
 };
 
@@ -186,19 +188,17 @@ b32 is_raw_special_reg(lowered_reg_t reg)
 }
 
 
-
 struct RegSlot
 {
     union 
     {
-        TmpSlot tmp_slot;
-        SymSlot sym_slot;
+        LocalSlot local;
+        GlobalSlot global;
         spec_reg spec;
     };
 
     reg_kind kind;
 };
-
 
 inline bool operator == (const RegSlot& v1, const RegSlot &v2)
 {
@@ -209,36 +209,13 @@ inline bool operator == (const RegSlot& v1, const RegSlot &v2)
 
     switch(v1.kind)
     {
-        case reg_kind::sym: return v1.sym_slot == v2.sym_slot;
-        case reg_kind::tmp: return v1.tmp_slot == v2.tmp_slot;
+        case reg_kind::local: return v1.local == v2.local;
+        case reg_kind::global: return v1.global == v2.global;
         case reg_kind::spec: return v1.spec == v2.spec;
     }
 
     assert(false);
 }
-
-u32 hash_slot(u32 size, RegSlot slot)
-{
-    switch(slot.kind)
-    {
-        case reg_kind::tmp: return hash_slot(size,slot.tmp_slot);
-        case reg_kind::sym: return hash_slot(size,slot.sym_slot);
-        case reg_kind::spec: return u32_hash_func(size,u32(slot.spec));
-    }
-
-    assert(false);
-}
-
-RegSlot make_sym_reg_slot(SymSlot slot)
-{
-    RegSlot handle;
-    handle.sym_slot = slot;
-    handle.kind = reg_kind::sym;
-
-    return handle;
-}
-
-const RegSlot INVALID_SYM_REG_SLOT = make_sym_reg_slot({INVALID_HANDLE});
 
 RegSlot make_tmp_reg_slot(TmpSlot slot)
 {

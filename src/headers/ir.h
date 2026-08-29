@@ -53,7 +53,10 @@ struct Reg
     reg_segment segment = reg_segment::local;
 
     // what slot does this symbol hold inside the ir?
-    RegSlot slot;
+    IrSlot slot;
+
+    // What symbol does is this for if any?
+    SymSlot sym = {INVALID_HANDLE}
 
     // how much memory does this thing use GPR_SIZE max (spilled into count if larger)
     // i.e this is for stack allocation to get actual var sizes use type_size();
@@ -79,6 +82,12 @@ struct Reg
 
     u32 flags = 0;
 };
+
+struct RegTable
+{
+    Array<Reg> regs;
+};
+
 
 reg_type rtype_from_ir(const struct Reg& reg)
 {
