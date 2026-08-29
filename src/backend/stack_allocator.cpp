@@ -224,10 +224,10 @@ u32 global_alloc_internal(GlobalAlloc& alloc, u32 size, u32 count)
     return offset;
 }
 
-void reserve_global_alloc(Interloper& itl, Symbol& sym)
+void reserve_global_alloc(Interloper& itl, Reg& reg)
 {
-    sym.reg.offset = global_alloc_internal(itl.global_alloc,sym.reg.size,sym.reg.count);
-    sym.reg.flags |= GLOBALLY_ALLOCATED;
+    reg.offset = global_alloc_internal(itl.global_alloc,reg.size,reg.count);
+    reg.flags |= GLOBALLY_ALLOCATED;
 }
 
 u32 allocate_global_array(GlobalAlloc& alloc,SymbolTable& table ,SymSlot slot, u32 size, u32 alloc_count)

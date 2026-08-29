@@ -1,6 +1,6 @@
 Result<Function*,itl_error> check_startup_func(Interloper& itl, const String& name, NameSpace* name_space);
 TypeResult type_check_expr(Interloper& itl, AstNode* expr);
-void reserve_global_alloc(Interloper& itl, Symbol& sym);
+void reserve_global_alloc(Interloper& itl, Reg& reg);
 TypeResult assign_expr_type(AstNode* node, TypeResult result);
 SymbolScopeGuard enter_new_anon_scope(SymbolTable& sym_table);
 

@@ -129,7 +129,13 @@ SymSlot add_symbol_reg(Interloper& itl, Function* func, Symbol& sym, reg_segment
         {
             GlobalSlot global = {count(table.global.registers)};
 
-            push_var(table.global.registers,make_reg_sym(itl,global,sym,flags));
+            auto reg = make_reg_sym(itl,global,sym,flags);
+            if(segment == reg_segment::global)
+            {
+                reserve_global_alloc(itl,reg);
+            }
+
+            push_var(table.global.registers,reg);
             break;
         }
     }
@@ -199,8 +205,6 @@ Result<SymSlot,itl_error> add_global(Interloper& itl,const String &name, Type *t
 
     auto sym = make_sym(itl,name,type);
     const auto slot = add_symbol_reg(itl,nullptr,sym,constant? reg_segment::constant : reg_segment::global);
-
-    reserve_global_alloc(itl,sym);
 
     // add this into the top level scope
     const DefInfo info = {definition_type::variable,{slot.handle}};

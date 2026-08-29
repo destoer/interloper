@@ -196,7 +196,7 @@ Reg make_reg(Interloper& itl, const RegSlot& slot, const Type* type)
 Reg make_reg(const RegSlot& slot, u32 size, u32 flags)
 {
     Reg reg;
-    reg.slot = slot;
+    reg.reg_slot = slot;
 
     assign_reg_size(reg,size);
     reg.flags = flags;
