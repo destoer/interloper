@@ -20,10 +20,9 @@ bool is_reg_globally_allocated(const Reg& reg)
     return reg.global_reg != REG_FREE;
 }
 
-
 Reg& reg_from_slot(RegSlot slot, LinearAlloc& alloc)
 {
-    return reg_from_slot(*alloc.table,alloc.tmp_regs,slot);
+    return reg_from_slot(*alloc.table,alloc.local,slot);
 }
 
 bool marked_for_expiry(LinearAlloc& alloc, RegSlot slot);
@@ -84,7 +83,7 @@ void mark_used(RegisterFile& regs, u32 reg)
     regs.used_set = set_bit(regs.used_set,reg);
 }
 
-LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack, b32 stack_only, b32 debug, Array<Reg> registers, SymbolTable* table,arch_target arch)
+LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack, b32 stack_only, b32 debug, RegTable local, SymbolTable* table,arch_target arch)
 {
     LinearAlloc alloc;
 
@@ -92,7 +91,7 @@ LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack, b32 stack_only, b32
     alloc.stack_alloc = make_stack_alloc(print_stack,debug);
 
     alloc.arch = arch;
-    alloc.tmp_regs = registers;
+    alloc.local = local;
     alloc.table = table;
     alloc.stack_only = stack_only;
     alloc.debug = debug;
