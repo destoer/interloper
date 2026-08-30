@@ -234,22 +234,21 @@ LabelSlot add_label(SymbolTable &sym_table,const String &name)
     return label_from_idx(handle);
 }
 
-void destroy_sym_table(SymbolTable &sym_table)
+void destroy_register_table(RegTable& table)
 {
-    for(auto& sym : sym_table.slot_lookup)
+    for(auto& reg : table.registers)
     {
-        destroy_reg(sym.reg);
+        destroy_reg(reg);
     }
 
-    destroy_arr(sym_table.slot_lookup);
-    destroy_arr(sym_table.label_lookup);
-    destroy_arr(sym_table.global);
+    destroy_arr(table.registers);
 }
 
-
-bool is_stack_arg(const Symbol &sym)
+void destroy_sym_table(SymbolTable &sym_table)
 {
-    return sym.reg.flags & STACK_ARG;
+    destroy_register_table(sym_table.global);
+    destroy_arr(sym_table.sym_lookup);
+    destroy_arr(sym_table.label_lookup);
 }
 
 void print(Interloper& itl,const Symbol& sym)
@@ -257,14 +256,13 @@ void print(Interloper& itl,const Symbol& sym)
     printf("name: %s\n",sym.name.buf);
     printf("type: %s\n",type_name(itl,sym.type).buf);
     printf("arg_offset: %x\n",sym.arg_offset);
-    print(sym.reg);
 }
 
-void dump_slots(Interloper& itl,SlotLookup &slot_lookup)
+void dump_slots(Interloper& itl,SymLookup &sym_lookup)
 {
-    for(u32 i = 0; i < count(slot_lookup); i++)
+    for(u32 i = 0; i < count(sym_lookup); i++)
     {
-        print(itl,slot_lookup[i]);
+        print(itl,sym_lookup[i]);
     }
 }
 
@@ -302,7 +300,7 @@ String alloc_name_space_name(ArenaAllocator& allocator,const String& name_space,
 
 TypedReg typed_reg(const Symbol& sym)
 {
-    return TypedReg{sym.reg.slot,sym.type};
+    return TypedReg{sym.reg_slot,sym.type};
 }
 
 TypedAddr typed_addr_from_reg(const TypedReg& reg, u32 offset)
@@ -315,10 +313,30 @@ TypedAddr typed_addr(const Symbol& sym)
     // A fixed array is not a real struct so we have to lie.
     if(is_fixed_array(sym.type))
     {
-        return TypedAddr{make_pointer_addr(sym.reg.slot,0),sym.type};
+        return TypedAddr{make_pointer_addr(sym.reg_slot,0),sym.type};
     }
 
-    return TypedAddr{make_struct_addr(sym.reg.slot,0),sym.type};
+    return TypedAddr{make_struct_addr(sym.reg_slot,0),sym.type};
+}
+
+Reg& reg_from_global(Interloper& itl, GlobalSlot slot)
+{
+    return itl.symbol_table.global.registers[slot.handle];
+}
+
+Reg& reg_from_local(Function& func, LocalSlot slot)
+{
+    return func.local.registers[slot.handle];
+}
+
+Reg& local_reg_from_sym(Function& func, const Symbol& sym)
+{
+    return reg_from_local(func,sym.reg_slot.local);
+}
+
+Reg& global_reg_from_sym(Interloper& itl, const Symbol& sym)
+{
+    return reg_from_global(itl,sym.reg_slot.global);
 }
 
 

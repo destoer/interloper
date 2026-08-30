@@ -55,7 +55,7 @@ void lower_addr_reg_pass(LinearAlloc& alloc, AddrOpcode<op_type,IS_LOAD,IS_STRUC
         addr_op.addr.base_ir = base;
         auto& reg = reg_from_slot(base,alloc);
 
-        if(is_reg_mem_unallocated(reg))
+        if(is_mem_unallocated(reg))
         {
             assert(stored_in_mem(reg));
 

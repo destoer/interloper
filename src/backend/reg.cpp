@@ -23,11 +23,6 @@ b32 is_mem_unallocated(Reg& reg)
     return !is_mem_allocated(reg);
 }
 
-b32 is_reg_mem_unallocated(Reg& reg)
-{
-    return is_mem_unallocated(reg) && (reg.slot.kind == reg_kind::sym || reg.slot.kind == reg_kind::tmp);
-}
-
 
 b32 pending_stack_allocation(Reg& reg)
 {
@@ -151,17 +146,8 @@ Reg make_reg(Interloper& itl, const RegSlot& slot, const Type* type)
 {
     Reg reg;
 
-    reg.slot = slot;
-
+    reg.reg_slot = slot;
     u32 size = type_size(itl,type);
-
-    // tmp's derived from expression are always atleast gpr sized
-    // this ensures that intermediate results always get stored at 
-    // "max" precision
-    if(slot.kind == reg_kind::tmp && size < GPR_SIZE)
-    {
-        size = GPR_SIZE;
-    }
 
     assign_reg_size(reg,size);
 
