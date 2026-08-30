@@ -1,29 +1,3 @@
-// TODO: we need to handle 16 byte alignment
-// if we need to call external functions or use sse
-
-struct StackAlloc
-{
-    Array<ArrayAllocation> array_allocation;
-
-    // how much has our stack been screwed up by function calls etc
-    // so how much do we need to offset accesses to variables
-    u32 stack_offset = 0;
-
-    // where does each section for alloc start?
-    u32 stack_alloc[4] = {0};
-
-    // how much of each type of var is there at the moment?
-    u32 size_count[4] = {0};
-
-    // what is the total amount of space that this functions stack requires!
-    u32 stack_size = 0;
-
-    Array<RegSlot> pending_allocation;
-
-    b32 print = false;
-    b32 debug = false;
-};
-
 StackAlloc make_stack_alloc(b32 print, b32 debug)
 {
     StackAlloc alloc = {};
@@ -188,7 +162,7 @@ void calc_allocation(StackAlloc& alloc)
 
 // TODO: need to rethink this when we do register passing
 // and when we push off determining stack size to a later pass
-void alloc_args(Function &func, StackAlloc& alloc, SymbolTable& table, u32 saved_regs_offset)
+void alloc_args(Function &func, LinearAlloc& alloc, SymbolTable& table, u32 saved_regs_offset)
 {
     const u32 FRAME_OFFSET = alloc.debug? GPR_SIZE * 2 : GPR_SIZE;
 
@@ -200,13 +174,12 @@ void alloc_args(Function &func, StackAlloc& alloc, SymbolTable& table, u32 saved
         }
 
         const SymSlot slot = func.sig.args[a];
-
         auto &sym = sym_from_slot(table,slot);
 
         // alloc above the stack frame
-        sym.reg.offset = sym.arg_offset + alloc.stack_size + saved_regs_offset + FRAME_OFFSET;
+        sym.reg.offset = sym.arg_offset + alloc.stack_alloc.stack_size + saved_regs_offset + FRAME_OFFSET;
 
-        log_reg(alloc.print,table,"Arg offset %r(0x%x) -> 0x%x\n",slot,sym.arg_offset,sym.reg.offset);
+        log_reg(alloc,"Arg offset %r(0x%x) -> 0x%x\n",slot,sym.arg_offset,sym.reg.offset);
     }           
 }
 

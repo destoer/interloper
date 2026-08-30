@@ -298,7 +298,7 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, LinearAlloc& alloc,Block& 
 
             const b32 force_lower = directive.operand[1].imm;
 
-            log_reg(alloc.print,*alloc.table,"alloc slot: %r : %s\n",slot,force_lower? "forced" : "unforced");
+            log_reg(alloc,"alloc slot: %r : %s\n",slot,force_lower? "forced" : "unforced");
 
             // explicitly force a stack alloc now
             if(force_lower && reg.segment != reg_segment::global)

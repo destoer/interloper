@@ -251,7 +251,7 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
             const auto base = opcode.addrof.addr_ir.base;
             const auto dst = opcode.addrof.v1;
 
-            log_reg(alloc.print,*alloc.table,"addrof %r <- %r\n",dst,base);
+            log_reg(alloc,"addrof %r <- %r\n",dst,base);
             lower_addr_reg_pass(alloc,opcode.addrof,regs);
             break;
         }
