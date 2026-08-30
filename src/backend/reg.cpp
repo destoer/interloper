@@ -245,50 +245,31 @@ const char* reg_name(arch_target arch, u32 reg)
     return nullptr;
 }
 
-RegSlot new_tmp(Function& func, u32 size)
+RegSlot add_untyped_local_reg(Function& func, u32 size, u32 flags)
 {
-    const TmpSlot tmp_slot = {count(func.registers)};
+    const LocalSlot tmp_slot = {count(func.local.registers)};
+    const RegSlot reg_slot = tmp_slot;
 
-    const auto reg_slot = make_tmp_reg_slot(tmp_slot);
-
-    const auto reg = make_reg(reg_slot,size,0);
-    push_var(func.registers,reg);
+    const auto reg = make_reg(reg_slot,size,flags);
+    push_var(func.local.registers,reg);
 
     return reg_slot;
 }
 
-TypedReg new_typed_tmp(Interloper& itl,Function& func, Type* type)
+
+RegSlot new_tmp(Function& func, u32 size)
 {
-    const TmpSlot tmp_slot = {count(func.registers)};
-    const auto reg_slot = make_tmp_reg_slot(tmp_slot);
-
-    const auto reg = make_reg(itl,reg_slot,type);
-    push_var(func.registers,reg);
-
-    return TypedReg { reg_slot, type };    
+    return add_local_reg(func,size,0);
 }
 
 RegSlot new_struct(Function& func, u32 size)
 {
-    const TmpSlot tmp_slot = {count(func.registers)};
-
-    const auto reg_slot = make_tmp_reg_slot(tmp_slot);
-
-    const auto reg = make_reg(reg_slot,size,STORED_IN_MEM);
-    push_var(func.registers,reg);
-
-    return reg_slot;
+    return add_local_reg(func,size,STORED_IN_MEM);
 }
 
 RegSlot new_float(Function& func)
 {
-    const TmpSlot tmp_slot = {count(func.registers)};
-    const auto reg_slot = make_tmp_reg_slot(tmp_slot);
-
-    auto reg = make_reg(reg_slot,sizeof(f64),REG_FLOAT);
-    push_var(func.registers,reg);
-
-    return reg_slot;  
+    return add_untyped_local_reg(func,sizeof(f64),REG_FLOAT);
 }
 
 RegSlot new_max_tmp(Function& func,reg_type rtype)
@@ -299,6 +280,17 @@ RegSlot new_max_tmp(Function& func,reg_type rtype)
 RegSlot new_tmp_ptr(Function &func)
 {
     return new_tmp(func,GPR_SIZE);
+}
+
+TypedReg new_typed_tmp(Interloper& itl,Function& func, Type* type)
+{
+    const LocalSlot tmp_slot = {count(func.local.registers)};
+    const RegSlot reg_slot = tmp_slot;
+
+    const auto reg = make_reg(itl,reg_slot,type);
+    push_var(func.registers,reg);
+
+    return TypedReg { reg_slot, type };    
 }
 
 bool is_local_reg(const Reg &reg)
