@@ -175,11 +175,12 @@ void alloc_args(Function &func, LinearAlloc& alloc, SymbolTable& table, u32 save
 
         const SymSlot slot = func.sig.args[a];
         auto &sym = sym_from_slot(table,slot);
+        auto &reg = reg_from_local(func,sym.reg_slot.local);
 
         // alloc above the stack frame
-        sym.reg.offset = sym.arg_offset + alloc.stack_alloc.stack_size + saved_regs_offset + FRAME_OFFSET;
+        reg.offset = sym.arg_offset + alloc.stack_alloc.stack_size + saved_regs_offset + FRAME_OFFSET;
 
-        log_reg(alloc,"Arg offset %r(0x%x) -> 0x%x\n",slot,sym.arg_offset,sym.reg.offset);
+        log_reg(alloc,"Arg offset %r(0x%x) -> 0x%x\n",slot,sym.arg_offset,reg.offset);
     }           
 }
 
@@ -241,15 +242,19 @@ void finalise_global_offset(Interloper& itl)
     // now we need to give each symbol is final offset from the start of the global table
     
     // by definition globals (if any) will be stored inside the "top" symbol table
-    for(u32 g = 0; g < count(itl.symbol_table.global); g++)
+    for(auto& reg : itl.symbol_table.global.registers)
     {
-        const auto slot = itl.symbol_table.global[g];
-        auto& sym = sym_from_slot(itl.symbol_table,slot);
+        // Don't allocate constants
+        if(reg.segment != reg_segment::global)
+        {
+            continue;
+        }
 
-        const auto [size,count] = std::pair{sym.reg.size,sym.reg.count};
+        auto& sym = sym_from_slot(itl.symbol_table,reg.sym_slot);
+        const auto [size,count] = std::pair{reg.size,reg.count};
 
-        sym.reg.offset = calc_final_offset(itl.global_alloc.start,size,sym.reg.offset);
-        log(alloc.print_global,"Final offset for %s : %x (%x,%x)\n",sym.name.buf,sym.reg.offset,size,count);
+        reg.offset = calc_final_offset(itl.global_alloc.start,size,reg.offset);
+        log(alloc.print_global,"Final offset for %s : %x (%x,%x)\n",sym.name.buf,reg.offset,size,count);
     }
 
     // finalised offsets on any fixed size array allocations handled by global_array_alloc
