@@ -339,9 +339,14 @@ Reg& reg_from_global(Interloper& itl, GlobalSlot slot)
     return reg_from_global(itl.symbol_table,slot);
 }
 
+Reg& reg_from_local(RegTable& local, LocalSlot slot)
+{
+    return local.registers[slot.handle];
+}
+
 Reg& reg_from_local(Function& func, LocalSlot slot)
 {
-    return func.local.registers[slot.handle];
+    return reg_from_local(func.local,slot);
 }
 
 Reg& local_reg_from_sym(Function& func, const Symbol& sym)

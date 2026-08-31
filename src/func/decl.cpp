@@ -74,14 +74,11 @@ Option<itl_error> type_check_function(Interloper& itl, Function& func)
     push_var(itl.defer_stack,itl.cur_defer_node);
     itl.cur_defer_node = NULL;
 
-
-    // put each arg into scope and allocated it a register
+    // put each arg into scope
     for(u32 a = 0; a < count(func.sig.args_sym); a++)
     {
         const SymSlot slot = func.sig.args_sym[a];
         auto &sym = sym_from_slot(itl.symbol_table,slot);
-        push_var(func.sig.args_reg,add_function_arg_reg(itl,func,sym));
-
         add_sym_to_scope(itl.symbol_table,sym);
     }
 
@@ -370,7 +367,7 @@ void add_var(SymbolTable& table, Symbol& sym)
     push_var(table.sym_lookup,sym);
 }
 
-// TODO: Switch the reg arg adding to take a reg table and then we want to make this add the references if we have one.
+// NOTE: If local is non null add the register otherwise this is just a function pointer and we don't need to.
 void add_sig_arg(Interloper& itl, RegTable* local, FuncSig& sig, const String& name, Type* type, u32* arg_offset)
 {
     // Automatically make a const reference under the hood.
@@ -386,6 +383,23 @@ void add_sig_arg(Interloper& itl, RegTable* local, FuncSig& sig, const String& n
         }
     }
 
+    Symbol sym = make_sym_arg(itl,name,type,*arg_offset);
+
+    if(local)
+    {
+        const auto reg = add_function_arg_reg(itl,local,sym);
+        push_var(sig.args_reg,reg);
+    }
+
+    // This is for a func sig just add a symbol for reference
+    // It needs no reg.
+    else
+    {
+        add_var(itl.symbol_table,sym);
+    }
+
+    push_var(sig.args_sym,sym.sym_slot);
+
     if(is_trivial_copy(type) && !is_float(type) && count(sig.pass_as_reg) < 2)
     {
         const auto spec = spec_reg(SPECIAL_REG_ARG_START + sig.max_reg_pass);
@@ -394,16 +408,16 @@ void add_sig_arg(Interloper& itl, RegTable* local, FuncSig& sig, const String& n
         sig.locked_regs = set_bit(sig.locked_regs,location);
         sig.locked_args = set_bit(sig.locked_args,count(sig.pass_as_reg));
 
-        Symbol sym = make_sym(itl,name,type);
-        
-        // Make symbol likely to be directly allocated
-        sym.reg.hint = (1 << location);
 
-        add_var(itl.symbol_table,sym);
-        push_var(sig.args,sym.reg.slot.sym_slot);
+        if(local)
+        {
+            // Make symbol likely to be directly allocated
+            auto& reg = reg_from_local(local,sym.reg_slot);
+            reg.hint = (1 << location);
+        }
 
         // Note which args are fixed
-        const FixedArg fixed = {spec,sym.reg.slot};
+        const FixedArg fixed = {spec,sym.reg_slot};
         push_var(sig.fixed_args,fixed);
 
         // Reverse lookup to fixed_args
@@ -413,10 +427,6 @@ void add_sig_arg(Interloper& itl, RegTable* local, FuncSig& sig, const String& n
 
     else
     {
-        Symbol sym = make_sym_arg(itl,name,type,*arg_offset);
-        add_var(itl.symbol_table,sym);
-
-        push_var(sig.args,sym.reg.slot.sym_slot);
 
         *arg_offset += promote_size(type_size(itl,type));
 
