@@ -370,7 +370,8 @@ void add_var(SymbolTable& table, Symbol& sym)
     push_var(table.sym_lookup,sym);
 }
 
-void add_sig_arg(Interloper& itl, FuncSig& sig, const String& name, Type* type, u32* arg_offset)
+// TODO: Switch the reg arg adding to take a reg table and then we want to make this add the references if we have one.
+void add_sig_arg(Interloper& itl, RegTable* local, FuncSig& sig, const String& name, Type* type, u32* arg_offset)
 {
     // Automatically make a const reference under the hood.
     if(is_struct(type))
