@@ -163,14 +163,14 @@ void alloc_args(Function &func, LinearAlloc& alloc, SymbolTable& table, u32 save
 {
     const u32 FRAME_OFFSET = alloc.debug? GPR_SIZE * 2 : GPR_SIZE;
 
-    for(u32 a = 0; a < count(func.sig.args); a++)
+    for(u32 a = 0; a < count(func.sig.args_sym); a++)
     {
         if(is_set(func.sig.locked_args,a))
         {
             continue;
         }
 
-        const SymSlot slot = func.sig.args[a];
+        const SymSlot slot = func.sig.args_sym[a];
         auto &sym = sym_from_slot(table,slot);
         auto &reg = reg_from_local(func,sym.reg_slot.local);
 

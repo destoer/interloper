@@ -401,7 +401,7 @@ void compile_move(Interloper &itl, Function &func, const TypedReg& dst, const Ty
                     case spec_reg::rv_struct:
                     {
                         const auto src_addr = make_struct_addr(src.slot,0);
-                        const auto dst_addr = make_pointer_addr(make_sym_reg_slot(func.sig.args[0]),0);
+                        const auto dst_addr = make_pointer_addr(func.sig.args_reg[0],0);
 
                         ir_memcpy(itl,func,dst_addr,src_addr,type_size(itl,dst.type));
                         break;

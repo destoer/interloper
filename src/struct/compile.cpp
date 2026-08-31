@@ -424,7 +424,7 @@ void compile_struct_return(Interloper& itl, Function& func, AstNode* stmt)
 {
     StructInitializerNode* init = (StructInitializerNode*)stmt;
 
-    AddrSlot dst = make_pointer_addr(make_sym_reg_slot(func.sig.args[0]),0);
+    AddrSlot dst = make_pointer_addr(func.sig.args_reg[0],0);
     StructType* type = (StructType*)init->node.expr_type;
     compile_struct_init(itl,func,init->initializer,type,&dst);
 

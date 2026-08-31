@@ -206,7 +206,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
 
 void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_node, const Symbol& sym)
 {
-    const auto slot = sym.reg.slot;
+    const auto slot = sym.reg_slot;
 
     alloc_slot(itl,func,slot,false);
     
@@ -238,7 +238,8 @@ void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_no
     // Unknown quantity must be clipped
     if(is_unsigned_integer(sym.type) && !known_gpr_node(decl_node->expr))
     {
-        clip_arith_type(itl,func,slot,slot,sym.reg.size);
+        const auto& reg = reg_from_slot(itl,func,slot);
+        clip_arith_type(itl,func,slot,slot,reg.size);
     }
 }
 
@@ -278,8 +279,8 @@ void compile_auto_decl(Interloper &itl,Function &func, AstNode* stmt)
     auto& sym = sym_from_slot(itl.symbol_table,auto_decl->sym.slot);
 
     // save the alloc node so we can fill the info in later
-    alloc_slot(itl,func,sym.reg.slot,!is_plain_type(sym.type));
-    compile_expression(itl,func,auto_decl->expr,sym.reg.slot);
+    alloc_slot(itl,func,sym.reg_slot,!is_plain_type(sym.type));
+    compile_expression(itl,func,auto_decl->expr,sym.reg_slot);
 }
 
 // TODO: Handle assigns of copied struct parameters
@@ -293,10 +294,10 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
         {
             SymbolNode* sym_node = (SymbolNode*)assign->left;
             auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
+            auto& reg = reg_from_slot(itl,func,sym.reg_slot);
 
-
-            const RegSlot slot = sym.reg.slot;
-            const u32 size = sym.reg.size;
+            const RegSlot slot = reg.reg_slot;
+            const u32 size = reg.size;
             const Type *ltype = sym.type;
 
             compile_expression(itl,func,assign->right,slot);
@@ -480,7 +481,7 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
     {
         allocate_registers(itl,*func);
 
-        if(itl.print_stack_allocation || itl.print_reg_allocation)
+        if(itl.print_reg_allocation)
         {
             putchar('\n');
         }

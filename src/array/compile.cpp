@@ -166,6 +166,7 @@ void compile_array_init(Interloper& itl, Function& func, AstNode* node,ArrayType
 
 void compile_array_decl(Interloper& itl, Function& func, const DeclNode* decl_node, const Symbol& array)
 {
+    auto& reg = reg_from_slot(itl,func,array.reg_slot);
 
     // allocate fixed array if needed, and initialize it to its data pointer
     if(is_fixed_array(array.type))
@@ -173,19 +174,19 @@ void compile_array_decl(Interloper& itl, Function& func, const DeclNode* decl_no
         const auto [arr_size,arr_count] = calc_arr_allocation(itl,array.type);
 
         // we have the allocation information now complete it
-        switch(array.reg.segment)
+        switch(reg.segment)
         {
             case reg_segment::local:
             {
-                alloc_local_array(itl,func,array.reg.slot,arr_size,arr_count);
+                alloc_local_array(itl,func,reg.reg_slot,arr_size,arr_count);
                 break;
             }
 
             // just dump addr
             case reg_segment::global:
             {
-                const u32 alloc_idx = allocate_global_array(itl.global_alloc,itl.symbol_table,array.reg.slot.sym_slot,arr_size,arr_count);
-                alloc_global_array(itl,func,array.reg.slot,alloc_idx);
+                const u32 alloc_idx = allocate_global_array(itl.global_alloc,itl.symbol_table,reg.reg_slot,arr_size,arr_count);
+                alloc_global_array(itl,func,reg.reg_slot,alloc_idx);
                 break;
             }
 
@@ -201,10 +202,10 @@ void compile_array_decl(Interloper& itl, Function& func, const DeclNode* decl_no
     // VLA allocate the struct
     else
     {
-        alloc_slot(itl,func,array.reg.slot,true);
+        alloc_slot(itl,func,reg.reg_slot,true);
     }
 
-    auto addr_slot = is_runtime_size(array.type)? make_struct_addr(array.reg.slot,0) : make_pointer_addr(array.reg.slot,0);
+    auto addr_slot = is_runtime_size(array.type)? make_struct_addr(reg.reg_slot,0) : make_pointer_addr(reg.reg_slot,0);
 
     // Default init
     if(!decl_node->expr)

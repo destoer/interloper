@@ -214,8 +214,8 @@ void compile_range_for_array(Interloper& itl, Function& func, ForRangeNode* rang
     const b32 track_idx = (range->flags & RANGE_FOR_ARRAY_IDX) == RANGE_FOR_ARRAY_IDX;
     const b32 take_pointer = (range->flags & RANGE_FOR_TAKE_POINTER) == RANGE_FOR_TAKE_POINTER;
 
-    RegSlot data = make_sym_reg_slot(range->sym_one.slot);
-    RegSlot index = make_sym_reg_slot(range->sym_two.slot);
+    RegSlot data = range->sym_one.slot;
+    RegSlot index = range->sym_two.slot;
 
     
     if(track_idx)

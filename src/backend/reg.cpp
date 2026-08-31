@@ -249,7 +249,7 @@ RegSlot add_untyped_local_reg(Function& func, u32 size, u32 flags)
     const LocalSlot tmp_slot = {count(func.local.registers)};
     const RegSlot reg_slot = tmp_slot;
 
-    const auto reg = make_reg(reg_slot,size,flags);
+    const auto reg = make_reg(reg_slot,size,flags | REG_TMP);
     push_var(func.local.registers,reg);
 
     return reg_slot;
@@ -286,7 +286,9 @@ TypedReg new_typed_tmp(Interloper& itl,Function& func, Type* type)
     const LocalSlot tmp_slot = {count(func.local.registers)};
     const RegSlot reg_slot = tmp_slot;
 
-    const auto reg = make_reg(itl,reg_slot,type);
+    auto reg = make_reg(itl,reg_slot,type);
+    reg.flags |= REG_TMP;
+
     push_var(func.local.registers,reg);
 
     return TypedReg { reg_slot, type };    

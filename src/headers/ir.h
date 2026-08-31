@@ -34,6 +34,7 @@ static constexpr u32 STACK_ARG = 1 << 5;
 static constexpr u32 REG_FLOAT = 1 << 6;
 static constexpr u32 STACK_ALLOCATED = 1 << 7;
 static constexpr u32 GLOBALLY_ALLOCATED = 1 << 8;
+static constexpr u32 REG_TMP = 1 << 9;
 
 
 // TODO:

@@ -35,7 +35,7 @@ u32 pass_args(Interloper& itl, Function& func, ArgPass& pass)
     // Move the passed args into place
     for(u32 a = 0; a < count(pass.args); a++)
     {
-        const RegSlot arg_slot = make_spec_reg_slot(pass.fixed_args[a].spec);
+        const RegSlot arg_slot = pass.fixed_args[a].spec;
         mov_reg(itl,func,arg_slot,pass.args[a]);
     }
 
@@ -72,7 +72,7 @@ void compile_return(Interloper &itl,Function &func, AstNode* stmt)
             }
 
             const auto src = compile_oper(itl,func,ret_node->expr[r]);
-            const TypedReg ptr = {make_sym_reg_slot(func.sig.args[r]),func.sig.return_type[r]};
+            const TypedReg ptr = {func.sig.args_reg[r],func.sig.return_type[r]};
             do_ptr_store(itl,func,src,ptr);
         }
 
@@ -167,7 +167,7 @@ void push_struct(Interloper& itl, Function& func, ArgPass& pass, StructType* arg
     alloc_stack(itl,func,aligned_size);
 
     // need to save SP as it will get pushed last
-    const RegSlot dst_ptr = copy_reg(itl,func,make_spec_reg_slot(spec_reg::sp));
+    const RegSlot dst_ptr = copy_reg(itl,func,spec_reg::sp);
     const auto dst_addr = make_pointer_addr(dst_ptr,0);
 
     const auto src_addr = make_struct_addr(arg_reg.slot,0);
@@ -279,7 +279,7 @@ void push_va_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* 
 
     alloc_stack(itl,func,any_arr_size);
 
-    const auto any_arr_ptr = copy_reg(itl,func,make_spec_reg_slot(spec_reg::sp));
+    const auto any_arr_ptr = copy_reg(itl,func,spec_reg::sp);
     auto addr_slot = make_pointer_addr(any_arr_ptr, 0);
 
     for(AstNode* node: any_args)
@@ -294,11 +294,9 @@ void push_va_args(Interloper& itl, Function& func, ArgPass& pass, FuncCallNode* 
     // and store it
     const RegSlot any_len_slot = mov_imm_res(itl,func,any_args.size);
 
-    const auto SP_SLOT = make_spec_reg_slot(spec_reg::sp);
-
     // store data
-    store_ptr(itl,func,any_arr_ptr,SP_SLOT,0,GPR_SIZE,false);
-    store_ptr(itl,func,any_len_slot,SP_SLOT,GPR_SIZE,GPR_SIZE,false);      
+    store_ptr(itl,func,any_arr_ptr,spec_reg::sp,0,GPR_SIZE,false);
+    store_ptr(itl,func,any_len_slot,spec_reg::sp,GPR_SIZE,GPR_SIZE,false);      
 
     const u32 total_size = any_arr_size + VLA_SIZE;
     pass.arg_clean += total_size / GPR_SIZE;
@@ -310,19 +308,15 @@ void push_struct_return(Interloper& itl, Function& func, ArgPass& pass,const Fun
 
     switch(dst_slot.kind)
     {
-        case reg_kind::sym:
+        case reg_kind::local:
+        case reg_kind::global:
         {
-            const StructAddr struct_addr = {make_addr(dst_slot,0)};
+            auto& ir_reg = reg_from_slot(itl,func,dst_slot);
+            if(ir_reg.flags & REG_TMP)
+            {
+                alloc_slot(itl,func,dst_slot,true);
+            }
 
-            const RegSlot addr = addrof_res(itl,func,struct_addr);
-            const TypedReg reg = {addr,make_reference(itl,type)};
-            pass_arg(itl,func,pass,reg,0);
-            break;
-        }
-
-        case reg_kind::tmp:
-        {
-            alloc_slot(itl,func,dst_slot,true);
             const StructAddr struct_addr = {make_addr(dst_slot,0)};
 
             const RegSlot addr = addrof_res(itl,func,struct_addr);
@@ -337,7 +331,7 @@ void push_struct_return(Interloper& itl, Function& func, ArgPass& pass,const Fun
             {
                 case spec_reg::rv_struct: 
                 {
-                    const TypedReg reg = {make_sym_reg_slot(func.sig.args[0]),make_reference(itl,type)};
+                    const TypedReg reg = {func.sig.args_reg[0],make_reference(itl,type)};
                     pass_arg(itl,func,pass,reg,0);
                     break;
                 }
@@ -389,7 +383,8 @@ void push_tuple_return(Interloper& itl, Function& func, ArgPass& pass, const Fun
 
                 if(new_decl.handle != INVALID_HANDLE)
                 {
-                    alloc_slot(itl,func,make_sym_reg_slot(new_decl),is_plain_type(expr->expr_type));
+                    auto& sym = sym_from_slot(itl.symbol_table,new_decl);
+                    alloc_slot(itl,func,sym.reg_slot,is_plain_type(expr->expr_type));
                 }
 
                 const auto reg = compile_addrof_res(itl,func,expr);
@@ -473,7 +468,7 @@ void handle_call(Interloper& itl, Function& func, const FuncCall& call_info, Reg
     // store the return value back into a reg (if its actually bound)
     if(returns_value && !is_special_reg(dst_slot,spec_reg::null) && !sig.hidden_args)
     {
-        const RegSlot rv = make_spec_reg_slot(return_reg_from_type(sig.return_type[0]));
+        const RegSlot rv = return_reg_from_type(sig.return_type[0]);
         const TypedReg dst = {dst_slot,sig.return_type[0]};
         const TypedReg src = {rv,sig.return_type[0]};
         compile_move(itl,func,dst,src);
@@ -523,10 +518,10 @@ void compile_function_call_expr(Interloper& itl, Function& func, AstNode* expr, 
 
 void compile_function_call_stmt(Interloper& itl, Function& func, AstNode* stmt)
 {
-    compile_function_call(itl,func,stmt,make_spec_reg_slot(spec_reg::null));
+    compile_function_call(itl,func,stmt,spec_reg::null);
 }
 
 void compile_tuple_assign_stmt(Interloper& itl, Function& func, AstNode* stmt)
 {
-    compile_function_call(itl,func,stmt,make_spec_reg_slot(spec_reg::null));
+    compile_function_call(itl,func,stmt,spec_reg::null);
 }
