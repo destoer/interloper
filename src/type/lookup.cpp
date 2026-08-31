@@ -74,7 +74,8 @@ Type* copy_type(Interloper& itl, const Type* type)
             const auto& sig = func_pointer_type->sig;
             copy->sig = sig;
 
-            copy->sig.args = copy_array(sig.args);
+            copy->sig.args_sym = copy_array(sig.args_sym);
+            copy->sig.args_reg = copy_array(sig.args_reg);
             copy->sig.pass_as_reg = copy_array(sig.pass_as_reg);
 
             copy->sig.return_type = {};

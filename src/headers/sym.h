@@ -63,7 +63,8 @@ struct FuncSig
     Array<Type*> return_type;
 
     // gives slots into the main symbol table
-    Array<SymSlot> args;
+    Array<SymSlot> args_sym;
+    Array<RegSlot> args_reg;
     Array<FixedArg> fixed_args; 
     Array<u32> pass_as_reg;
     

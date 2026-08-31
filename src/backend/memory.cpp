@@ -6,7 +6,7 @@ static constexpr load_type SIGNED_LOAD_TYPE[] = {load_type::lsb,load_type::lsh,l
 
 Addr make_addr(RegSlot base, u32 offset)
 {
-    return {base,make_spec_reg_slot(spec_reg::null),1,offset};
+    return {base,spec_reg::null,1,offset};
 }
 
 // Do not use directly, unless rescaling manually afterwards
@@ -162,8 +162,8 @@ void do_addr_copy(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot src_a
 {
     switch(dst_slot.kind)
     {
-        case reg_kind::sym:
-        case reg_kind::tmp:
+        case reg_kind::local:
+        case reg_kind::global:
         {
             const auto addr = make_struct_addr(dst_slot,0);
             ir_memcpy(itl,func,addr,src_addr,size);
@@ -179,7 +179,7 @@ void do_addr_copy(Interloper &itl,Function &func,RegSlot dst_slot,AddrSlot src_a
                 // copy into hidden pointer
                 case spec_reg::rv_struct:
                 {
-                    const auto dst_addr = make_pointer_addr(make_sym_reg_slot(func.sig.args[0]),0);
+                    const auto dst_addr = make_pointer_addr(func.sig.args_reg[0],0);
                     ir_memcpy(itl,func,dst_addr,src_addr,size);
                     break;
                 }
@@ -350,8 +350,8 @@ void compile_move(Interloper &itl, Function &func, const TypedReg& dst, const Ty
     {
         switch(dst.slot.kind)
         {
-            case reg_kind::tmp:
-            case reg_kind::sym:
+            case reg_kind::local:
+            case reg_kind::global:
             {
                 const TypedAddr struct_addr = typed_addr_from_reg(dst,0);
                 do_addr_store(itl,func,src,struct_addr);
@@ -364,7 +364,7 @@ void compile_move(Interloper &itl, Function &func, const TypedReg& dst, const Ty
                 {
                     case spec_reg::rv_struct:
                     {
-                        const auto addr = make_pointer_addr(make_sym_reg_slot(func.sig.args[0]),0);
+                        const auto addr = make_pointer_addr(func.sig.args_reg[0],0);
                         const TypedAddr struct_addr = {addr,dst.type};
                         do_addr_store(itl,func,src,struct_addr);
                         break;
@@ -383,8 +383,8 @@ void compile_move(Interloper &itl, Function &func, const TypedReg& dst, const Ty
     {
         switch(dst.slot.kind)
         {
-            case reg_kind::sym:
-            case reg_kind::tmp:
+            case reg_kind::local:
+            case reg_kind::global:
             {
                 const auto src_addr = make_struct_addr(src.slot,0);
                 const auto dst_addr = make_struct_addr(dst.slot,0);
