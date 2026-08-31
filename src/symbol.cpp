@@ -319,9 +319,15 @@ TypedAddr typed_addr(const Symbol& sym)
     return TypedAddr{make_struct_addr(sym.reg_slot,0),sym.type};
 }
 
+Reg& reg_from_global(SymbolTable& symbol_table, GlobalSlot slot)
+{
+    return symbol_table.global.registers[slot.handle];
+}
+
+
 Reg& reg_from_global(Interloper& itl, GlobalSlot slot)
 {
-    return itl.symbol_table.global.registers[slot.handle];
+    return reg_from_global(itl.symbol_table,slot);
 }
 
 Reg& reg_from_local(Function& func, LocalSlot slot)

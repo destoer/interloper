@@ -83,12 +83,12 @@ void mark_used(RegisterFile& regs, u32 reg)
     regs.used_set = set_bit(regs.used_set,reg);
 }
 
-LinearAlloc make_linear_alloc(b32 print_reg,b32 print_stack, b32 stack_only, b32 debug, RegTable local, SymbolTable* table,arch_target arch)
+LinearAlloc make_linear_alloc(b32 print_reg,b32 stack_only, b32 debug, RegTable local, SymbolTable* table,arch_target arch)
 {
     LinearAlloc alloc;
 
     alloc.print = print_reg;
-    alloc.stack_alloc = make_stack_alloc(print_stack,debug);
+    alloc.stack_alloc = make_stack_alloc(debug);
 
     alloc.arch = arch;
     alloc.local = local;
@@ -271,7 +271,7 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
 void free_reg(RegisterFile& regs,u32 reg)
 {
     regs.free_set = set_bit(regs.free_set,reg);
-    regs.allocated[reg] = make_spec_reg_slot(spec_reg::null);
+    regs.allocated[reg] = spec_reg::null;
 }
 
 void lock_reg(RegisterFile& regs, u32 reg)
@@ -383,7 +383,7 @@ bool is_dirty(RegisterFile& regs, u32 reg)
 void assign_local_reg(RegisterFile& regs,Reg& ir_reg, u32 reg)
 {
     ir_reg.local_reg = reg;
-    regs.allocated[ir_reg.local_reg] = ir_reg.slot;
+    regs.allocated[ir_reg.local_reg] = ir_reg.reg_slot;
 
     // Newly assigned register mark it is clean
     mark_clean(regs,reg);
@@ -422,7 +422,7 @@ bool alloc_ir_reg(RegisterFile& regs, Reg& ir_reg)
 
 void reserve_offset(LinearAlloc& alloc, Reg& ir_reg,u32 reg)
 {
-    log_reg(alloc,"reserve offset for %r in %s\n",ir_reg.slot,reg_name(alloc.arch,reg));
+    log_reg(alloc,"reserve offset for %r in %s\n",ir_reg.reg_slot,reg_name(alloc.arch,reg));
     stack_reserve_reg(alloc.stack_alloc,ir_reg);
 }
 
@@ -441,7 +441,7 @@ void spill_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u
 
     if(ir_reg.segment == reg_segment::constant)
     {
-        log_reg(alloc,"Constant %r deallocated from %s (size %d)\n",ir_reg.slot,reg_name(alloc.arch,reg),ir_reg.size);
+        log_reg(alloc,"Constant %r deallocated from %s (size %d)\n",ir_reg.reg_slot,reg_name(alloc.arch,reg),ir_reg.size);
         free_ir_reg(ir_reg,get_register_file(alloc,ir_reg));
         return;
     }
@@ -456,7 +456,7 @@ void spill_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u
         reserve_offset(alloc,ir_reg,reg);
     }
 
-    log_reg(alloc,"spill %r from %s (size %d)\n",ir_reg.slot,reg_name(alloc.arch,reg),ir_reg.size);
+    log_reg(alloc,"spill %r from %s (size %d)\n",ir_reg.reg_slot,reg_name(alloc.arch,reg),ir_reg.size);
 
     auto& regs = get_register_file(alloc,ir_reg);
 
@@ -487,7 +487,7 @@ void spill(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, inser
     }
 
     // reserve a space for this for a later spill
-    else if(is_reg_mem_unallocated(ir_reg))
+    else if(is_mem_unallocated(ir_reg))
     {
         reserve_offset(alloc,ir_reg,REG_FREE);
     }   
@@ -505,7 +505,7 @@ void acquire_local_reg(LinearAlloc& alloc, Reg& ir_reg, RegisterFile& regs,Block
 
     // Spill a register for room
     u32 furthest_use = 0;
-    RegSlot reg = INVALID_SYM_REG_SLOT;
+    RegSlot reg = spec_reg::null;
 
     for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
     {
@@ -571,8 +571,8 @@ void init_regs(LinearAlloc& alloc)
 {
     for(u32 i = 0; i < MACHINE_REG_SIZE; i++)
     {
-        alloc.gpr.allocated[i] = make_spec_reg_slot(spec_reg::null);
-        alloc.fpr.allocated[i] = make_spec_reg_slot(spec_reg::null);
+        alloc.gpr.allocated[i] = spec_reg::null;
+        alloc.fpr.allocated[i] = spec_reg::null;
     }
 
     alloc.fpr.dirty = 0;
@@ -759,7 +759,7 @@ void reload_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, 
 {
     auto& ir_reg = reg_from_slot(slot,alloc);
     const auto opcode = make_load(reg,slot,alloc.stack_alloc.stack_offset);
-    log_reg(alloc,"reload %r to %s (size %d)\n",ir_reg.slot,reg_name(alloc.arch,reg),ir_reg.size);
+    log_reg(alloc,"reload %r to %s (size %d)\n",ir_reg.reg_slot,reg_name(alloc.arch,reg),ir_reg.size);
 
     // Just loaded this register is clean
     auto& reg_file = get_register_file(alloc,ir_reg);
@@ -824,7 +824,7 @@ void alloc_regs_from_live_in(LinearAlloc& alloc, const Set<RegSlot>& live_in)
         if(is_reg_globally_allocated(ir_reg))
         {
             auto& reg_file = get_register_file(alloc,ir_reg);
-            log_reg(alloc,"%r is live in on %s\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.global_reg));
+            log_reg(alloc,"%r is live in on %s\n",ir_reg.reg_slot,reg_name(alloc.arch,ir_reg.global_reg));
             take_local_reg(reg_file,ir_reg,ir_reg.global_reg);
         }
     }
@@ -915,7 +915,7 @@ void clean_dead_regs(LinearAlloc& alloc)
             continue;
         }
 
-        log_reg(alloc,"Expiring %r from %s\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.local_reg));
+        log_reg(alloc,"Expiring %r from %s\n",ir_reg.reg_slot,reg_name(alloc.arch,ir_reg.local_reg));
 
         clear_arr(ir_reg.local_uses);
 
@@ -985,7 +985,7 @@ lowered_reg_t allocate_var(LinearAlloc& alloc,Block& block,OpcodeNode* node, Reg
     if(!is_reg_locally_allocated(ir_reg))
     {
         acquire_local_reg(alloc,ir_reg,reg_file,block,node);
-        log_reg(alloc,"Allocated %s to %r\n",reg_name(alloc.arch,ir_reg.local_reg),ir_reg.slot);
+        log_reg(alloc,"Allocated %s to %r\n",reg_name(alloc.arch,ir_reg.local_reg),ir_reg.reg_slot);
 
         // src do a reload
         if(is_src) 
@@ -1001,17 +1001,17 @@ lowered_reg_t allocate_var(LinearAlloc& alloc,Block& block,OpcodeNode* node, Reg
         ir_reg.cur_local_uses = 0;
 
         // We still need to clear out the local uses!
-        if(contains(block.live_out,ir_reg.slot))
+        if(contains(block.live_out,ir_reg.reg_slot))
         {
             clear_arr(ir_reg.local_uses);
         }
 
         else
         {
-            log_reg(alloc,"Mark %r in %s for expiry\n",ir_reg.slot,reg_name(alloc.arch,ir_reg.local_reg));
+            log_reg(alloc,"Mark %r in %s for expiry\n",ir_reg.reg_slot,reg_name(alloc.arch,ir_reg.local_reg));
 
             // Don't terminate the regs during it as we need them allocated
-            alloc.dead_slot[alloc.dead_count++] = ir_reg.slot;
+            alloc.dead_slot[alloc.dead_count++] = ir_reg.reg_slot;
         }            
     }
 
@@ -1081,8 +1081,8 @@ lowered_reg_t linear_allocate_reg(LinearAlloc& alloc,Block& block,OpcodeNode* no
 {
     switch(reg.kind)
     {
-        case reg_kind::sym:
-        case reg_kind::tmp:
+        case reg_kind::local:
+        case reg_kind::global:
         {
             return allocate_var(alloc,block,node,reg,arg_kind);
         }
@@ -1130,7 +1130,7 @@ void finish_alloc(Reg& reg,LinearAlloc& alloc)
 
     finalise_offset(alloc.stack_alloc,reg);
 
-    log_reg(alloc,"final offset %r = [%x,%x] -> 0x%x\n",reg.slot,reg.size,reg.count,reg.offset);
+    log_reg(alloc,"final offset %r = [%x,%x] -> 0x%x\n",reg.reg_slot,reg.size,reg.count,reg.offset);
 }
 
 void finish_stack_alloc(LinearAlloc& alloc)
@@ -1203,7 +1203,7 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
                 {
                     if(is_reg_locally_allocated(ir_reg))
                     {
-                        spill_reg(alloc,block,block.list.finish,ir_reg.slot,ir_reg.local_reg,insert_type);
+                        spill_reg(alloc,block,block.list.finish,ir_reg.reg_slot,ir_reg.local_reg,insert_type);
                     }
 
                     remove_out_of_place(misplaced,m);
@@ -1216,7 +1216,7 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
                     // If this is not locally allocated we need to issue a reload into it.
                     if(!is_reg_locally_allocated(ir_reg))
                     {
-                        reload_reg(alloc,block,block.list.finish,ir_reg.slot,ir_reg.global_reg,insert_type);
+                        reload_reg(alloc,block,block.list.finish,ir_reg.reg_slot,ir_reg.global_reg,insert_type);
                     }
 
                     // Otherwise just move it
@@ -1225,7 +1225,7 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
                         const auto opcode = make_mov_reg_lowered_instr(ir_reg.global_reg,ir_reg.local_reg,rtype_from_ir(ir_reg));
                         insert_node(block.list,block.list.finish,opcode,insert_type);
 
-                        log_reg(alloc,"Copying %r from %s to %s\n",ir_reg.slot,
+                        log_reg(alloc,"Copying %r from %s to %s\n",ir_reg.reg_slot,
                             reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,ir_reg.global_reg));
 
                         free_ir_reg(ir_reg,reg_file);
@@ -1337,8 +1337,8 @@ void unlock_into_reg(LinearAlloc& alloc,RegisterFile& reg_file, RegSlot dst,u32 
             break;
         }
 
-        case reg_kind::sym:
-        case reg_kind::tmp:
+        case reg_kind::local:
+        case reg_kind::global:
         {
             auto& ir_reg = reg_from_slot(dst,alloc);
 

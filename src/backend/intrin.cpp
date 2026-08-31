@@ -66,7 +66,7 @@ void call_intrin_func(Interloper& itl, Function& func, const Function& func_call
     // store the return value back into a reg (if its actually bound)
     if(returns_value && !is_special_reg(dst_slot,spec_reg::null))
     {
-        const RegSlot rv = make_spec_reg_slot(return_reg_from_type(sig.return_type[0]));
+        const RegSlot rv = return_reg_from_type(sig.return_type[0]);
         const TypedReg dst = {dst_slot,sig.return_type[0]};
         const TypedReg src = {rv,sig.return_type[0]};
         compile_move(itl,func,dst,src);
@@ -77,7 +77,7 @@ void call_intrin_func(Interloper& itl, Function& func, const Function& func_call
 
 void call_intrin_func_no_return(Interloper& itl, Function& func, const Function& func_call, const ConstSpan<TypedReg>& regs)
 {
-    call_intrin_func(itl,func,func_call,regs,make_spec_reg_slot(spec_reg::null));
+    call_intrin_func(itl,func,func_call,regs,spec_reg::null);
 }
 
 void ir_mem_equal(Interloper& itl, Function& func, AddrSlot v1_addr, AddrSlot v2_addr, u32 size, RegSlot dst_slot)
@@ -235,7 +235,7 @@ void compile_syscall(Interloper &itl,Function &func,FuncCallNode *func_call, Reg
     lock_reg(itl,func,spec_reg::rax);
     const auto syscall_value = func_call->args[0]->known_value.gpr;
 
-    mov_imm(itl,func,make_spec_reg_slot(spec_reg::rax),syscall_value);
+    mov_imm(itl,func,spec_reg::rax,syscall_value);
     u32 unlock_set = set_bit(0,special_reg_to_reg(itl.arch,spec_reg::rax));
 
     
@@ -249,7 +249,7 @@ void compile_syscall(Interloper &itl,Function &func,FuncCallNode *func_call, Reg
             lock_reg(itl,func,locked_reg);
             unlock_set = set_bit(unlock_set,special_reg_to_reg(itl.arch,locked_reg));
 
-            compile_expression(itl,func,func_call->args[arg],make_spec_reg_slot(locked_reg));
+            compile_expression(itl,func,func_call->args[arg],locked_reg);
         }
     }
 
@@ -258,7 +258,7 @@ void compile_syscall(Interloper &itl,Function &func,FuncCallNode *func_call, Reg
     if(!is_special_reg(dst_slot,spec_reg::null))
     {
         // move result
-        mov_reg(itl,func,dst_slot,make_spec_reg_slot(spec_reg::rax));
+        mov_reg(itl,func,dst_slot,spec_reg::rax);
     }
     
     unlock_reg_set(itl,func,unlock_set);    

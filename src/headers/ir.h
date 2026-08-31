@@ -52,7 +52,7 @@ struct Reg
     // Where is this register allocated
     reg_segment segment = reg_segment::local;
 
-    // what slot does this symbol hold inside the ir?
+    // what slot does this register hold
     RegSlot reg_slot;
 
     // What symbol does is this for if any?
@@ -179,7 +179,7 @@ struct IrEmitter
 
 struct ArrayAllocation
 {
-    SymSlot slot;
+    RegSlot slot;
     u32 stack_offset = 0;
     u32 offset = 0;
     u32 size = 0;

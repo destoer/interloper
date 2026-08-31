@@ -23,7 +23,6 @@ struct StackAlloc
     Array<RegSlot> pending_allocation;
 
     b32 print = false;
-    b32 debug = false;
 };
 
 

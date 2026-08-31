@@ -49,11 +49,7 @@ OpcodeNode* lower_directive_addr_pass(Interloper& itl, LinearAlloc& alloc,Block&
 
             allocation.offset = finalise_offset(alloc.stack_alloc,allocation.offset,allocation.size);
 
-            if(alloc.stack_alloc.print)
-            {
-                auto& sym = sym_from_slot(itl.symbol_table,allocation.slot);
-                printf("final array offset %s = [%x,%x] -> (%x)\n",sym.name.buf,allocation.size,allocation.count,allocation.offset);
-            }
+            log_reg(alloc,"final array offset %r = [%x,%x] -> (%x)\n",allocation.slot,allocation.size,allocation.count,allocation.offset);
 
             // NOTE: this is allways on the stack, globals handle their own allocation...
             node->value = make_lowered_lea_instr(dst,arch_sp(itl.arch),u32(spec_reg::null),1,allocation.offset + allocation.stack_offset);
@@ -145,7 +141,7 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, LinearAlloc& alloc,Block& 
             auto& section = pool_section_from_slot(itl.const_pool,pool_slot);
 
             const auto dst = directive.operand[0].ir_reg;
-            const auto addr = make_addr(make_spec_reg_slot(spec_reg::const_seg),section.offset);
+            const auto addr = make_addr(spec_reg::const_seg,section.offset);
             node->value = Opcode(make_addr_op<Load>(dst,addr,load_type::lf),opcode_state::ir);
 
             allocate_and_rewrite_opcode(alloc,block,node);
@@ -257,7 +253,7 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, LinearAlloc& alloc,Block& 
             // clean up args
             const auto stack_clean = GPR_SIZE * directive.operand[0].imm;
 
-            node->value = Opcode(make_arith_imm2(make_spec_reg_slot(spec_reg::sp),stack_clean,arith_bin_op::add_t),opcode_state::ir);
+            node->value = Opcode(make_arith_imm2(spec_reg::sp,stack_clean,arith_bin_op::add_t),opcode_state::ir);
             alloc.stack_alloc.stack_offset -= stack_clean;
 
             // adjust opcode for reg alloc
@@ -278,7 +274,7 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, LinearAlloc& alloc,Block& 
                 return remove(block.list,node);
             }
 
-            node->value = Opcode(make_arith_imm2(make_spec_reg_slot(spec_reg::sp),size,arith_bin_op::sub_t),opcode_state::ir);
+            node->value = Opcode(make_arith_imm2(spec_reg::sp,size,arith_bin_op::sub_t),opcode_state::ir);
             allocate_and_rewrite_opcode(alloc,block,node);
 
             alloc.stack_alloc.stack_offset += size;
@@ -315,7 +311,7 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, LinearAlloc& alloc,Block& 
             const u32 count = directive.operand[2].imm;
             const auto reg = directive.operand[0].ir_reg;
 
-            const u32 offset = allocate_stack_array(alloc.stack_alloc,*alloc.table,reg.sym_slot,size,count);
+            const u32 offset = allocate_stack_array(alloc,reg,size,count);
 
             const auto directive = make_directive_two(directive_type::alloc_local_array,make_reg_operand(reg,ir_reg_type::dst),make_imm_operand(offset));
             node->value = directive;

@@ -283,7 +283,7 @@ void setup_passing_constraints(Function& func)
 
 void allocate_registers(Interloper& itl,Function &func)
 {
-    auto alloc = make_linear_alloc(itl.print_reg_allocation,itl.print_stack_allocation,itl.stack_alloc,itl.debug,func.local,&itl.symbol_table,itl.arch);
+    auto alloc = make_linear_alloc(itl.print_reg_allocation,itl.stack_alloc,itl.debug,func.local,&itl.symbol_table,itl.arch);
 
     log(alloc.print,"allocating registers for %s\n",func.name.buf);
 

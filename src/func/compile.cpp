@@ -81,7 +81,7 @@ void compile_return(Interloper &itl,Function &func, AstNode* stmt)
     }
 
 
-    const RegSlot rv = make_spec_reg_slot(return_reg_from_type(func.sig.return_type[0]));
+    const RegSlot rv = return_reg_from_type(func.sig.return_type[0]);
     AstNode* expr = ret_node->expr[0];
 
     switch(rv.spec)
