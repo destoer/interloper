@@ -111,8 +111,12 @@ SymSlot add_symbol_reg(Interloper& itl, Function* func, Symbol& sym, reg_segment
 {
     auto& table = itl.symbol_table;
 
-    const SymSlot sym_slot = {count(table.sym_lookup)};
-    sym.sym_slot = sym_slot;
+    const bool new_table_entry = is_valid_slot(sym.sym_slot);
+
+    if(new_table_entry)
+    {
+        sym.sym_slot  = {count(table.sym_lookup)};
+    }
 
     switch(segment)
     {
@@ -140,14 +144,19 @@ SymSlot add_symbol_reg(Interloper& itl, Function* func, Symbol& sym, reg_segment
         }
     }
 
-    push_var(table.sym_lookup,sym);
+    if(new_table_entry)
+    {
+        push_var(table.sym_lookup,sym);
+    }
 
-    return sym_slot;
+    return sym.sym_slot;
 }
 
-void add_function_arg_reg(Interloper& itl, Function& func, Symbol& sym)
+RegSlot add_function_arg_reg(Interloper& itl, Function& func, Symbol& sym)
 {
     add_symbol_reg(itl,&func,sym,reg_segment::local,STACK_ARG | STACK_ALLOCATED);
+
+    return sym.reg_slot;
 }
 
 

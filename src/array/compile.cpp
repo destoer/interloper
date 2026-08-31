@@ -329,7 +329,7 @@ TypedAddr index_arr(Interloper& itl, Function& func, IndexNode* index)
     {
         case index_type::pointer:
         {
-            return compile_pointer_index(itl,func,index,array.reg.slot);
+            return compile_pointer_index(itl,func,index,array.reg_slot);
         }
 
         case index_type::array:

@@ -75,11 +75,13 @@ Option<itl_error> type_check_function(Interloper& itl, Function& func)
     itl.cur_defer_node = NULL;
 
 
-    // put each arg into scope and copy it regs into args
-    for(u32 a = 0; a < count(func.sig.args); a++)
+    // put each arg into scope and allocated it a register
+    for(u32 a = 0; a < count(func.sig.args_sym); a++)
     {
-        const SymSlot slot = func.sig.args[a];
+        const SymSlot slot = func.sig.args_sym[a];
         auto &sym = sym_from_slot(itl.symbol_table,slot);
+        push_var(func.sig.args_reg,add_function_arg_reg(itl,func,sym));
+
         add_sym_to_scope(itl.symbol_table,sym);
     }
 
@@ -333,13 +335,13 @@ Function* lookup_internal_function(Interloper& itl, const String& name)
 
 void print_func_sig(Interloper& itl, const FuncSig& sig)
 {
-    printf("arg count: %d\n",count(sig.args));
+    printf("arg count: %d\n",count(sig.args_sym));
     printf("hidden args: %d\n",sig.hidden_args);
     printf("va args: %s\n",sig.va_args? "true" : "false");
 
-    for(u32 a = 0; a < count(sig.args); a++)
+    for(u32 a = 0; a < count(sig.args_sym); a++)
     {
-        const SymSlot slot = sig.args[a];
+        const SymSlot slot = sig.args_sym[a];
         auto &sym = sym_from_slot(itl.symbol_table,slot);
 
         print(itl,sym); 
@@ -360,6 +362,13 @@ void print_func_decl(Interloper& itl,const Function &func)
     print_func_sig(itl,func.sig);
 }
 
+
+void add_var(SymbolTable& table, Symbol& sym)
+{
+    sym.sym_slot = {count(table.sym_lookup)};
+
+    push_var(table.sym_lookup,sym);
+}
 
 void add_sig_arg(Interloper& itl, FuncSig& sig, const String& name, Type* type, u32* arg_offset)
 {
