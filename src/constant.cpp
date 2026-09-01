@@ -326,6 +326,8 @@ Option<itl_error> compile_constant_initializer(Interloper& itl,Symbol& symbol, A
 
     const auto data = *data_res;
 
+    auto& reg = reg_from_global(itl.symbol_table,symbol.reg_slot.global);
+
     switch(symbol.type->kind)
     {
         case type_class::builtin_t:
@@ -337,13 +339,13 @@ Option<itl_error> compile_constant_initializer(Interloper& itl,Symbol& symbol, A
         case type_class::struct_t:
         {
             // assign offset
-            symbol.reg.offset = data.data_pointer.slot.handle;
+            reg.offset = data.data_pointer.slot.handle;
             break;
         }
 
         case type_class::array_t:
         {
-            symbol.reg.offset = data.data_pointer.slot.handle;
+            reg.offset = data.data_pointer.slot.handle;
             break;            
         }
 
@@ -382,10 +384,11 @@ Option<itl_error> compile_constant_decl(Interloper& itl, DeclNode* decl_node, b3
     }
 
     auto& sym = sym_from_slot(itl.symbol_table,*sym_res);
+    auto& reg = reg_from_global(itl.symbol_table,sym.reg_slot.global);
 
     // make sure this is marked as constant
     // incase it is declared locally
-    sym.reg.segment = reg_segment::constant;
+    reg.segment = reg_segment::constant;
 
     // compile the expression
     return compile_constant_initializer(itl,sym,decl_node->expr);    
@@ -409,10 +412,11 @@ Option<itl_error> add_compiler_constant(Interloper& itl, const String& name, bui
     }
 
     auto& sym = sym_from_slot(itl.symbol_table,*sym_res);
+    auto& reg = reg_from_global(itl.symbol_table,sym.reg_slot.global);
 
     // push to const pool and save handle as offset for later loading...
     const auto slot = push_const_pool(itl.const_pool,pool_type::var,&value,builtin_size(builtin));
-    sym.reg.offset = slot.handle;    
+    reg.offset = slot.handle;    
     sym.known_value = value;
 
     return option::none;

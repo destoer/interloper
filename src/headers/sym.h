@@ -31,7 +31,7 @@ struct Symbol
 
 struct SymbolNode;
 RegResult symbol(Interloper &itl, SymbolNode* sym_node);
-Result<SymSlot,itl_error> add_symbol(Interloper &itl,const String &name, Type *type);
+Result<SymSlot,itl_error> add_symbol(Interloper &itl,Function* func,reg_segment segment,const String &name, Type *type);
 Result<SymSlot,itl_error> add_global(Interloper& itl,const String &name, Type *type, b32 constant);
 
 struct Label 

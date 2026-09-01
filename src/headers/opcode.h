@@ -223,6 +223,18 @@ inline bool operator == (const RegSlot& v1, const RegSlot &v2)
     assert(false);
 }
 
+u32 hash_slot(u32 size, RegSlot slot)
+{
+    switch(slot.kind)
+    {
+        case reg_kind::local: return hash_slot(size,slot.local);
+        case reg_kind::global: return hash_slot(size,slot.global);
+        case reg_kind::spec: return u32_hash_func(size,u32(slot.spec));
+    }
+
+    assert(false);
+}
+
 static constexpr u32 MAX_OPCODE_REGS = 8;
 
 struct IrRegSpanStorage
