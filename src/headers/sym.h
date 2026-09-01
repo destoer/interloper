@@ -214,7 +214,7 @@ enum class func_sig_kind
     generic,
 };
 
-Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node, func_sig_kind kind);
+Option<itl_error> parse_func_sig(Interloper& itl,RegTable* local,NameSpace* name_space,FuncSig& sig,const FuncNode& node, func_sig_kind kind);
 
 struct Interloper;
 

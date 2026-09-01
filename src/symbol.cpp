@@ -107,24 +107,19 @@ Reg make_reg_sym(Interloper& itl, RegSlot reg_slot, Symbol& sym, u32 flags)
     return reg;
 }
 
-SymSlot add_symbol_reg(Interloper& itl, Function* func, Symbol& sym, reg_segment segment, u32 flags = 0)
+// NOTE: This must be a global reg segment if local is not passed
+SymSlot add_symbol_reg(Interloper& itl,RegTable* local, Symbol& sym, reg_segment segment, u32 flags = 0)
 {
     auto& table = itl.symbol_table;
-
-    const bool new_table_entry = is_valid_slot(sym.sym_slot);
-
-    if(new_table_entry)
-    {
-        sym.sym_slot  = {count(table.sym_lookup)};
-    }
-
+    sym.sym_slot  = {count(table.sym_lookup)};
+    
     switch(segment)
     {
         case reg_segment::local:
         {
-            LocalSlot local = {count(func->local.registers)};
+            LocalSlot local_slot = {count(local->registers)};
 
-            push_var(func->local.registers,make_reg_sym(itl,local,sym,flags));
+            push_var(local->registers,make_reg_sym(itl,local_slot,sym,flags));
             break;
         }
 
@@ -144,17 +139,14 @@ SymSlot add_symbol_reg(Interloper& itl, Function* func, Symbol& sym, reg_segment
         }
     }
 
-    if(new_table_entry)
-    {
-        push_var(table.sym_lookup,sym);
-    }
+    push_var(table.sym_lookup,sym);
 
     return sym.sym_slot;
 }
 
-RegSlot add_function_arg_reg(Interloper& itl, Function& func, Symbol& sym)
+RegSlot add_function_stack_arg_reg(Interloper& itl, RegTable* local, Symbol& sym)
 {
-    add_symbol_reg(itl,&func,sym,reg_segment::local,STACK_ARG | STACK_ALLOCATED);
+    add_symbol_reg(itl,local,sym,reg_segment::local,STACK_ARG | STACK_ALLOCATED);
 
     return sym.reg_slot;
 }
@@ -198,7 +190,7 @@ Result<SymSlot,itl_error> add_symbol(Interloper &itl,Function* func,reg_segment 
     }
 
     auto sym = make_sym(itl,name,type);
-    add_symbol_reg(itl,func,sym,segment);
+    add_symbol_reg(itl,&func->local,sym,segment);
 
     add_sym_to_scope(sym_table,sym);
 

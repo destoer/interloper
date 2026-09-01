@@ -250,7 +250,7 @@ void access_enum_struct_member(Interloper& itl,Function& func, const AccessMembe
     const auto enum_table_slot = pool_addr_res(itl,func,enumeration.struct_slot,0);
 
     // get the enum index
-    RegSlot enum_slot = INVALID_SYM_REG_SLOT;
+    RegSlot enum_slot = spec_reg::null;
     
     // we allready directly have the enum
     if(struct_addr->addr_slot.struct_addr)
@@ -304,7 +304,7 @@ TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode*
             // along with the derefed type
             if(is_pointer(sym.type))
             {
-                struct_addr = {make_pointer_addr(sym.reg.slot,0),deref_pointer(sym.type)};
+                struct_addr = {make_pointer_addr(sym.reg_slot,0),deref_pointer(sym.type)};
             }
 
             else
