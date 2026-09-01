@@ -197,6 +197,11 @@ Result<SymSlot,itl_error> add_symbol(Interloper &itl,Function* func,reg_segment 
     return sym.sym_slot;
 }
 
+Result<SymSlot,itl_error> add_local_symbol(Interloper &itl,Function& func,const String &name, Type *type)
+{
+    return add_symbol(itl,&func,reg_segment::local,name,type);
+}
+
 Result<SymSlot,itl_error> add_global(Interloper& itl,const String &name, Type *type, b32 constant)
 {
     if(symbol_exists(itl.symbol_table,name))

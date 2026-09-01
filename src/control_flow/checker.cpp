@@ -64,7 +64,7 @@ Option<itl_error> type_check_for_range_idx(Interloper& itl,Function& func, ForRa
         return index_res.error();
     }
 
-    const auto sym_res = add_symbol(itl,range->sym_one.name,*index_res);
+    const auto sym_res = add_local_symbol(itl,func,range->sym_one.name,*index_res);
     if(!sym_res)
     {
         return sym_res.error();
@@ -97,7 +97,7 @@ Option<itl_error> type_check_for_range_arr(Interloper& itl, Function& func, ForR
 
     const bool pointer = (range->flags & RANGE_FOR_TAKE_POINTER) == RANGE_FOR_TAKE_POINTER;
 
-    const auto var_res = add_symbol(itl,range->sym_one.name,pointer? make_reference(itl,contained_type) : contained_type);
+    const auto var_res = add_local_symbol(itl,func,range->sym_one.name,pointer? make_reference(itl,contained_type) : contained_type);
     if(!var_res)
     {
         return var_res.error();
@@ -108,7 +108,7 @@ Option<itl_error> type_check_for_range_arr(Interloper& itl, Function& func, ForR
     // Add the index variable if it is there.
     if(range->flags & RANGE_FOR_ARRAY_IDX)
     {
-        const auto idx_res = add_symbol(itl,range->sym_two.name,itl.const_usize_type);
+        const auto idx_res = add_local_symbol(itl,func,range->sym_two.name,itl.const_usize_type);
         if(!idx_res)
         {
             return idx_res.error();

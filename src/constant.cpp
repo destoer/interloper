@@ -377,7 +377,7 @@ Option<itl_error> compile_constant_decl(Interloper& itl, DeclNode* decl_node, b3
     Type* type = *type_res;
 
     // add into table
-    const auto sym_res = global? add_global(itl,name,type,true) : add_symbol(itl,name,type);
+    const auto sym_res = global? add_global(itl,name,type,true) : add_symbol(itl,nullptr,reg_segment::constant,name,type);
     if(!sym_res)
     {
         return sym_res.error();
