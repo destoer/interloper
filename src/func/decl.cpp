@@ -393,7 +393,6 @@ void add_sig_arg(Interloper& itl, RegTable* local, FuncSig& sig, const String& n
         add_var(itl.symbol_table,sym);
     }
 
-    push_var(sig.args_sym,sym.sym_slot);
 
     if(is_trivial_copy(type) && !is_float(type) && count(sig.pass_as_reg) < 2)
     {
@@ -407,6 +406,7 @@ void add_sig_arg(Interloper& itl, RegTable* local, FuncSig& sig, const String& n
         if(local)
         {
             add_symbol_reg(itl,local,sym,reg_segment::local);
+            push_var(sig.args_reg,sym.reg_slot);
 
             // Make symbol likely to be directly allocated
             auto& ir_reg = reg_from_local(*local,sym.reg_slot.local);
@@ -434,6 +434,8 @@ void add_sig_arg(Interloper& itl, RegTable* local, FuncSig& sig, const String& n
 
         push_var(sig.pass_as_reg,NON_ARG);
     }
+
+    push_var(sig.args_sym,sym.sym_slot);
 }
 
 // add hidden arg pointers for return
