@@ -131,7 +131,7 @@ TypeResult type_check_array_index(Interloper& itl, AstNode* expr)
 
     const auto arr = *arr_ptr;
 
-    index->sym_slot = arr.reg.slot.sym_slot;
+    index->sym_slot = arr.sym_slot;
 
     return type_check_index_internal(itl,index,arr.type);
 }
@@ -308,7 +308,7 @@ TypeResult type_check_array_slice_expr(Interloper& itl, AstNode* expr)
     }
 
     const auto sym = *arr_ptr;
-    slice->sym.slot = sym.reg.slot.sym_slot;    
+    slice->sym.slot = sym.sym_slot;    
 
     if(!is_array(sym.type))
     {

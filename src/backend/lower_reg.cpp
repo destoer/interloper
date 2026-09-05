@@ -55,7 +55,7 @@ void lower_addr_reg_pass(LinearAlloc& alloc, AddrOpcode<op_type,IS_LOAD,IS_STRUC
         addr_op.addr.base_ir = base;
         auto& reg = reg_from_slot(base,alloc);
 
-        if(is_reg_mem_unallocated(reg))
+        if(is_mem_unallocated(reg))
         {
             assert(stored_in_mem(reg));
 
@@ -251,7 +251,7 @@ void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan&
             const auto base = opcode.addrof.addr_ir.base;
             const auto dst = opcode.addrof.v1;
 
-            log_reg(alloc.print,*alloc.table,"addrof %r <- %r\n",dst,base);
+            log_reg(alloc,"addrof %r <- %r\n",dst,base);
             lower_addr_reg_pass(alloc,opcode.addrof,regs);
             break;
         }

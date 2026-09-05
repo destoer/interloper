@@ -2,7 +2,8 @@
 enum class slot_type
 {
     symbol,
-    tmp,
+    local,
+    global,
     spec,
     label,
     block,
@@ -19,7 +20,8 @@ struct Slot
 };
 
 using SymSlot = Slot<slot_type::symbol>;
-using TmpSlot = Slot<slot_type::tmp>;
+using LocalSlot = Slot<slot_type::local>;
+using GlobalSlot = Slot<slot_type::global>;
 using LabelSlot = Slot<slot_type::label>;
 using BlockSlot = Slot<slot_type::block>;
 using PoolSlot = Slot<slot_type::pool>;
@@ -69,8 +71,8 @@ enum class reg_type
 
 enum class reg_kind
 {
-    sym,
-    tmp,
+    global,
+    local,
     spec,
 };
 
@@ -186,19 +188,23 @@ b32 is_raw_special_reg(lowered_reg_t reg)
 }
 
 
-
 struct RegSlot
 {
+    RegSlot() = default;
+
+    RegSlot(LocalSlot local) : local(local), kind(reg_kind::local) {}
+    RegSlot(GlobalSlot global) : global(global), kind(reg_kind::global) {}
+    RegSlot(spec_reg spec) : spec(spec), kind(reg_kind::spec) {}
+
     union 
     {
-        TmpSlot tmp_slot;
-        SymSlot sym_slot;
+        LocalSlot local;
+        GlobalSlot global;
         spec_reg spec;
     };
 
     reg_kind kind;
 };
-
 
 inline bool operator == (const RegSlot& v1, const RegSlot &v2)
 {
@@ -209,8 +215,8 @@ inline bool operator == (const RegSlot& v1, const RegSlot &v2)
 
     switch(v1.kind)
     {
-        case reg_kind::sym: return v1.sym_slot == v2.sym_slot;
-        case reg_kind::tmp: return v1.tmp_slot == v2.tmp_slot;
+        case reg_kind::local: return v1.local == v2.local;
+        case reg_kind::global: return v1.global == v2.global;
         case reg_kind::spec: return v1.spec == v2.spec;
     }
 
@@ -221,41 +227,12 @@ u32 hash_slot(u32 size, RegSlot slot)
 {
     switch(slot.kind)
     {
-        case reg_kind::tmp: return hash_slot(size,slot.tmp_slot);
-        case reg_kind::sym: return hash_slot(size,slot.sym_slot);
+        case reg_kind::local: return hash_slot(size,slot.local);
+        case reg_kind::global: return hash_slot(size,slot.global);
         case reg_kind::spec: return u32_hash_func(size,u32(slot.spec));
     }
 
     assert(false);
-}
-
-RegSlot make_sym_reg_slot(SymSlot slot)
-{
-    RegSlot handle;
-    handle.sym_slot = slot;
-    handle.kind = reg_kind::sym;
-
-    return handle;
-}
-
-const RegSlot INVALID_SYM_REG_SLOT = make_sym_reg_slot({INVALID_HANDLE});
-
-RegSlot make_tmp_reg_slot(TmpSlot slot)
-{
-    RegSlot handle;
-    handle.tmp_slot = slot;
-    handle.kind = reg_kind::tmp;
-
-    return handle;
-}
-
-RegSlot make_spec_reg_slot(spec_reg reg)
-{
-    RegSlot handle;
-    handle.spec = reg;
-    handle.kind = reg_kind::spec;
-
-    return handle;
 }
 
 static constexpr u32 MAX_OPCODE_REGS = 8;
@@ -353,8 +330,8 @@ struct ConstLoweredRegSpan
 
 struct Addr
 {
-    RegSlot base = make_spec_reg_slot(spec_reg::null);
-    RegSlot index = make_spec_reg_slot(spec_reg::null);
+    RegSlot base = spec_reg::null;
+    RegSlot index = spec_reg::null;
     u32 scale = 1;
     u32 offset = 0;
 };
@@ -367,7 +344,7 @@ struct LoweredAddr
     u32 offset = 0;
 
     // Copy for struct addrs
-    RegSlot base_ir = {INVALID_SYM_REG_SLOT};
+    RegSlot base_ir = spec_reg::null;
 };
 
 // Subtyped for passing to emitters to ensure context is correct.
@@ -843,7 +820,7 @@ struct DirectiveOperand
         f64 decimal;
         u64 imm;
         u64 reg_set;
-        RegSlot ir_reg = {INVALID_SYM_REG_SLOT};
+        RegSlot ir_reg = spec_reg::null;
         LabelSlot label;
         PoolSlot pool;
         lowered_reg_t reg;

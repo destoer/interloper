@@ -15,55 +15,44 @@ void destroy_scope(SymbolTable &sym_table)
     }
 }
 
-SymSlot slot_from_sym(const Symbol& sym)
-{
-    return sym.reg.slot.sym_slot;
-}
-
-u32 handle_from_sym(const Symbol& sym)
-{
-    return slot_from_sym(sym).handle;
-}
 
 // NOTE: reference may move, hold the slot if needed for extended periods
 Symbol& sym_from_slot(SymbolTable &table, SymSlot slot)
 {
-    return table.slot_lookup[slot.handle]; 
+    return table.sym_lookup[slot.handle]; 
 }
 
 const Symbol& sym_from_slot(const SymbolTable &table, SymSlot slot)
 {
-    return table.slot_lookup[slot.handle]; 
+    return table.sym_lookup[slot.handle]; 
 }
 
-Reg& reg_from_slot(SymbolTable &table,Array<Reg> &tmp_regs, const RegSlot& slot)
+Reg& reg_from_slot(SymbolTable &table,RegTable& local, const RegSlot& slot)
 {
     switch(slot.kind)
     {
-        case reg_kind::tmp:
+        case reg_kind::local:
         {
-            return tmp_regs[slot.tmp_slot.handle];
+            return local.registers[slot.local.handle];
         }
 
-        case reg_kind::sym:
+        case reg_kind::global:
         {
-            return sym_from_slot(table,slot.sym_slot).reg;
+            return table.global.registers[slot.global.handle];
         }
 
         // These don't have registers backing them
-        case reg_kind::spec:
+        default:
         {
             assert(false);
-            break;
         }
     }
 
-    assert(false);
 }
 
 Reg& reg_from_slot(SymbolTable &table,Function& func, const RegSlot& slot)
 {
-    return reg_from_slot(table,func.registers,slot);
+    return reg_from_slot(table,func.local,slot);
 }
 
 Reg& reg_from_slot(Interloper& itl,Function& func, const RegSlot& slot)
@@ -104,19 +93,73 @@ b32 symbol_exists(SymbolTable &sym_table,const String &sym)
 }
 
 
-Symbol make_sym(Interloper& itl,const String& name, Type* type)
+Reg make_reg_sym(Interloper& itl, RegSlot reg_slot, Symbol& sym, u32 flags)
+{
+    auto reg = make_reg(itl,reg_slot,sym.type);
+    reg.flags |= flags;
+
+    reg.sym_slot = sym.sym_slot;
+    reg.reg_slot = reg_slot;
+
+    sym.reg_slot = reg_slot;
+
+
+    return reg;
+}
+
+// NOTE: This must be a global reg segment if local is not passed
+SymSlot add_symbol_reg(Interloper& itl,RegTable* local, Symbol& sym, reg_segment segment, u32 flags = 0)
 {
     auto& table = itl.symbol_table;
+    sym.sym_slot  = {count(table.sym_lookup)};
+    
+    switch(segment)
+    {
+        case reg_segment::local:
+        {
+            LocalSlot local_slot = {count(local->registers)};
 
-    const SymSlot sym_slot = {count(table.slot_lookup)};
+            push_var(local->registers,make_reg_sym(itl,local_slot,sym,flags));
+            break;
+        }
+
+        case reg_segment::global:
+        case reg_segment::constant:
+        {
+            GlobalSlot global = {count(table.global.registers)};
+
+            auto reg = make_reg_sym(itl,global,sym,flags);
+            if(segment == reg_segment::global)
+            {
+                reserve_global_alloc(itl,reg);
+            }
+
+            push_var(table.global.registers,reg);
+            break;
+        }
+    }
+
+    push_var(table.sym_lookup,sym);
+
+    return sym.sym_slot;
+}
+
+RegSlot add_function_stack_arg_reg(Interloper& itl, RegTable* local, Symbol& sym)
+{
+    add_symbol_reg(itl,local,sym,reg_segment::local,STACK_ARG | STACK_ALLOCATED);
+
+    return sym.reg_slot;
+}
+
+
+Symbol make_sym(Interloper& itl, const String& name, Type* type)
+{
+    auto& table = itl.symbol_table;
 
     Symbol symbol = {};
     symbol.name = copy_string(*table.string_allocator,name);
     symbol.type = type;
 
-    const auto reg_slot = make_sym_reg_slot(sym_slot);
-
-    symbol.reg = make_reg(itl,reg_slot,type);
     symbol.ctx = itl.ctx;
     symbol.arg_offset = NON_ARG;
 
@@ -126,28 +169,19 @@ Symbol make_sym(Interloper& itl,const String& name, Type* type)
 Symbol make_sym_arg(Interloper& itl,const String& name, Type* type, u32 arg_offset)
 {
     auto sym = make_sym(itl,name,type);
-
     sym.arg_offset = arg_offset;
-    sym.reg.flags |= (STACK_ARG | STACK_ALLOCATED);
     
     return sym;
-}
-
-
-// add symbol to slot lookup
-void add_var(SymbolTable &sym_table,Symbol &sym)
-{
-    push_var(sym_table.slot_lookup,sym);    
 }
 
 // add symbol to the scope table
 void add_sym_to_scope(SymbolTable &sym_table, Symbol &sym)
 {
-    const DefInfo info = {definition_type::variable,{handle_from_sym(sym)}};
+    const DefInfo info = {definition_type::variable,{sym.sym_slot.handle}};
     add(sym_table.ctx->name_space->table,sym.name, info);
 }    
 
-Result<SymSlot,itl_error> add_symbol(Interloper &itl,const String &name, Type *type)
+Result<SymSlot,itl_error> add_symbol(Interloper &itl,Function* func,reg_segment segment,const String &name, Type *type)
 {
     auto& sym_table = itl.symbol_table;
     if(symbol_exists(itl.symbol_table,name))
@@ -156,39 +190,30 @@ Result<SymSlot,itl_error> add_symbol(Interloper &itl,const String &name, Type *t
     }
 
     auto sym = make_sym(itl,name,type);
-
-    push_var(sym_table.slot_lookup,sym);
+    add_symbol_reg(itl,&func->local,sym,segment);
 
     add_sym_to_scope(sym_table,sym);
 
-    return slot_from_sym(sym);
+    return sym.sym_slot;
+}
+
+Result<SymSlot,itl_error> add_local_symbol(Interloper &itl,Function& func,const String &name, Type *type)
+{
+    return add_symbol(itl,&func,reg_segment::local,name,type);
 }
 
 Result<SymSlot,itl_error> add_global(Interloper& itl,const String &name, Type *type, b32 constant)
 {
-    auto& sym_table = itl.symbol_table;
     if(symbol_exists(itl.symbol_table,name))
     {
         return compile_error(itl,itl_error::redeclaration,"symbol '%S' is already declared",name);
     }
 
-
     auto sym = make_sym(itl,name,type);
-    sym.reg.segment = constant? reg_segment::constant : reg_segment::global;
-
-    reserve_global_alloc(itl,sym);
-
-    push_var(sym_table.slot_lookup,sym);
-
-    const auto slot = slot_from_sym(sym);
-
-    if(!constant)
-    {
-        push_var(sym_table.global,slot);
-    }
+    const auto slot = add_symbol_reg(itl,nullptr,sym,constant? reg_segment::constant : reg_segment::global);
 
     // add this into the top level scope
-    const DefInfo info = {definition_type::variable,{handle_from_sym(sym)}};
+    const DefInfo info = {definition_type::variable,{slot.handle}};
     add(itl.global_namespace->table,sym.name, info);    
 
     return slot;
@@ -215,22 +240,21 @@ LabelSlot add_label(SymbolTable &sym_table,const String &name)
     return label_from_idx(handle);
 }
 
-void destroy_sym_table(SymbolTable &sym_table)
+void destroy_register_table(RegTable& table)
 {
-    for(auto& sym : sym_table.slot_lookup)
+    for(auto& reg : table.registers)
     {
-        destroy_reg(sym.reg);
+        destroy_reg(reg);
     }
 
-    destroy_arr(sym_table.slot_lookup);
-    destroy_arr(sym_table.label_lookup);
-    destroy_arr(sym_table.global);
+    destroy_arr(table.registers);
 }
 
-
-bool is_stack_arg(const Symbol &sym)
+void destroy_sym_table(SymbolTable &sym_table)
 {
-    return sym.reg.flags & STACK_ARG;
+    destroy_register_table(sym_table.global);
+    destroy_arr(sym_table.sym_lookup);
+    destroy_arr(sym_table.label_lookup);
 }
 
 void print(Interloper& itl,const Symbol& sym)
@@ -238,14 +262,13 @@ void print(Interloper& itl,const Symbol& sym)
     printf("name: %s\n",sym.name.buf);
     printf("type: %s\n",type_name(itl,sym.type).buf);
     printf("arg_offset: %x\n",sym.arg_offset);
-    print(sym.reg);
 }
 
-void dump_slots(Interloper& itl,SlotLookup &slot_lookup)
+void dump_slots(Interloper& itl,SymLookup &sym_lookup)
 {
-    for(u32 i = 0; i < count(slot_lookup); i++)
+    for(u32 i = 0; i < count(sym_lookup); i++)
     {
-        print(itl,slot_lookup[i]);
+        print(itl,sym_lookup[i]);
     }
 }
 
@@ -283,7 +306,7 @@ String alloc_name_space_name(ArenaAllocator& allocator,const String& name_space,
 
 TypedReg typed_reg(const Symbol& sym)
 {
-    return TypedReg{sym.reg.slot,sym.type};
+    return TypedReg{sym.reg_slot,sym.type};
 }
 
 TypedAddr typed_addr_from_reg(const TypedReg& reg, u32 offset)
@@ -296,10 +319,41 @@ TypedAddr typed_addr(const Symbol& sym)
     // A fixed array is not a real struct so we have to lie.
     if(is_fixed_array(sym.type))
     {
-        return TypedAddr{make_pointer_addr(sym.reg.slot,0),sym.type};
+        return TypedAddr{make_pointer_addr(sym.reg_slot,0),sym.type};
     }
 
-    return TypedAddr{make_struct_addr(sym.reg.slot,0),sym.type};
+    return TypedAddr{make_struct_addr(sym.reg_slot,0),sym.type};
+}
+
+Reg& reg_from_global(SymbolTable& symbol_table, GlobalSlot slot)
+{
+    return symbol_table.global.registers[slot.handle];
+}
+
+
+Reg& reg_from_global(Interloper& itl, GlobalSlot slot)
+{
+    return reg_from_global(itl.symbol_table,slot);
+}
+
+Reg& reg_from_local(RegTable& local, LocalSlot slot)
+{
+    return local.registers[slot.handle];
+}
+
+Reg& reg_from_local(Function& func, LocalSlot slot)
+{
+    return reg_from_local(func.local,slot);
+}
+
+Reg& local_reg_from_sym(Function& func, const Symbol& sym)
+{
+    return reg_from_local(func,sym.reg_slot.local);
+}
+
+Reg& global_reg_from_sym(Interloper& itl, const Symbol& sym)
+{
+    return reg_from_global(itl,sym.reg_slot.global);
 }
 
 

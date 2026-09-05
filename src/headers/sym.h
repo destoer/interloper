@@ -18,7 +18,8 @@ struct Symbol
     String name;
     Type* type;
 
-    Reg reg;
+    RegSlot reg_slot;
+    SymSlot sym_slot;
 
     u32 arg_offset = NON_ARG;
     u32 references = 0;
@@ -30,7 +31,8 @@ struct Symbol
 
 struct SymbolNode;
 RegResult symbol(Interloper &itl, SymbolNode* sym_node);
-Result<SymSlot,itl_error> add_symbol(Interloper &itl,const String &name, Type *type);
+Result<SymSlot,itl_error> add_local_symbol(Interloper &itl,Function& func,const String &name, Type *type);
+Result<SymSlot,itl_error> add_symbol(Interloper &itl,Function* func,reg_segment segment,const String &name, Type *type);
 Result<SymSlot,itl_error> add_global(Interloper& itl,const String &name, Type *type, b32 constant);
 
 struct Label 
@@ -62,7 +64,8 @@ struct FuncSig
     Array<Type*> return_type;
 
     // gives slots into the main symbol table
-    Array<SymSlot> args;
+    Array<SymSlot> args_sym;
+    Array<RegSlot> args_reg;
     Array<FixedArg> fixed_args; 
     Array<u32> pass_as_reg;
     
@@ -125,8 +128,7 @@ struct Function
 
     FuncSig sig;
 
-    // tmp's in the function
-    Array<Reg> registers;
+    RegTable local;
 
     // IR code for function
     IrEmitter emitter;
@@ -213,14 +215,13 @@ enum class func_sig_kind
     generic,
 };
 
-Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node, func_sig_kind kind);
+Option<itl_error> parse_func_sig(Interloper& itl,RegTable* local,NameSpace* name_space,FuncSig& sig,const FuncNode& node, func_sig_kind kind);
 
 struct Interloper;
 
 void mark_used(Interloper& itl, Function& func);
 
 
-using SlotLookup = Array<Symbol>;
 using LabelLookup = Array<Label>;
 
 enum class definition_type
@@ -264,10 +265,12 @@ struct NameSpace
 
 struct FileContext;
 
+using SymLookup = Array<Symbol>;
+
 struct SymbolTable
 {
-    SlotLookup slot_lookup;
-    Array<SymSlot> global;
+    RegTable global;
+    SymLookup sym_lookup;
 
     // offset is the block slot until full resolution
     // after label resolution this holds the address of the label

@@ -106,8 +106,7 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, co
             // alloc the struct size for our copy
             alloc_stack(itl,func,rtti.any_size);
 
-            const RegSlot SP_SLOT = make_spec_reg_slot(spec_reg::sp);
-            const auto addr_slot = make_pointer_addr(SP_SLOT, 0);
+            const auto addr_slot = make_pointer_addr(spec_reg::sp, 0);
             make_any(itl,func,addr_slot,reg);
         }
 
@@ -134,7 +133,7 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, co
             alloc_stack(itl,func,stack_size);
 
             // need to save SP as it will get pushed last
-            const RegSlot dst_ptr = copy_reg(itl,func,make_spec_reg_slot(spec_reg::sp));
+            const RegSlot dst_ptr = copy_reg(itl,func,spec_reg::sp);
             const auto dst_addr = make_pointer_addr(dst_ptr,0);
 
             const auto src_addr = make_struct_addr(arg_reg.slot,0);
@@ -159,7 +158,7 @@ void compile_any_internal(Interloper& itl, Function& func, AstNode* arg_node, co
         // alloc the struct size for our copy
         alloc_stack(itl,func,stack_size);
 
-        const auto dst_addr = make_pointer_addr(make_spec_reg_slot(spec_reg::sp),0);
+        const auto dst_addr = make_pointer_addr(spec_reg::sp,0);
         make_any(itl,func,dst_addr,arg_reg);
     }
 

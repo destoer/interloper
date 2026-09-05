@@ -1,35 +1,8 @@
-// TODO: we need to handle 16 byte alignment
-// if we need to call external functions or use sse
-
-struct StackAlloc
-{
-    Array<ArrayAllocation> array_allocation;
-
-    // how much has our stack been screwed up by function calls etc
-    // so how much do we need to offset accesses to variables
-    u32 stack_offset = 0;
-
-    // where does each section for alloc start?
-    u32 stack_alloc[4] = {0};
-
-    // how much of each type of var is there at the moment?
-    u32 size_count[4] = {0};
-
-    // what is the total amount of space that this functions stack requires!
-    u32 stack_size = 0;
-
-    Array<RegSlot> pending_allocation;
-
-    b32 print = false;
-    b32 debug = false;
-};
-
-StackAlloc make_stack_alloc(b32 print, b32 debug)
+StackAlloc make_stack_alloc(b32 debug)
 {
     StackAlloc alloc = {};
 
-    alloc.print = print;
-    alloc.debug = debug;
+    alloc.print = debug;
 
     return alloc;
 }
@@ -52,24 +25,22 @@ u32 stack_reserve_internal(StackAlloc& alloc, u32 size, u32 count)
     return cur;    
 }
 
-u32 allocate_stack_array(StackAlloc& alloc,SymbolTable& table, SymSlot slot, u32 size, u32 alloc_count)
+u32 allocate_stack_array(LinearAlloc& alloc, RegSlot slot, u32 size, u32 alloc_count)
 {
+    auto& stack_alloc = alloc.stack_alloc;
+
     ArrayAllocation allocation;
     allocation.slot = slot;
     allocation.size = size;
     allocation.count = alloc_count;
-    allocation.stack_offset = alloc.stack_offset;
-    allocation.offset = stack_reserve_internal(alloc,size,alloc_count);
+    allocation.stack_offset = stack_alloc.stack_offset;
+    allocation.offset = stack_reserve_internal(stack_alloc,size,alloc_count);
 
-    const u32 idx = count(alloc.array_allocation);
+    const u32 idx = count(stack_alloc.array_allocation);
 
-    if(alloc.print)
-    {
-        auto& sym = sym_from_slot(table,slot);
-        printf("initial array stack offset: %s [%x,%x] -> %x\n",sym.name.buf,size,alloc_count,allocation.offset);
-    }
+    log_reg(alloc,"initial array stack offset: %r [%x,%x] -> %x\n",slot,size,alloc_count,allocation.offset);
 
-    push_var(alloc.array_allocation,allocation);
+    push_var(stack_alloc.array_allocation,allocation);
 
     return idx;
 }
@@ -84,10 +55,10 @@ void stack_reserve_reg(StackAlloc& alloc, Reg& ir_reg)
     ir_reg.flags |= STACK_ALLOCATED;
     ir_reg.flags |= PENDING_STACK_ALLOCATION;
 
-    log(alloc.print,"initial stack offset for register at %x allocated\n",ir_reg.slot,ir_reg.offset);
+    log(alloc.print,"initial stack offset for register at %x allocated\n",ir_reg.offset);
 
     // mark this so we can finalise these later
-    push_var(alloc.pending_allocation,ir_reg.slot);
+    push_var(alloc.pending_allocation,ir_reg.reg_slot);
 }
 
 
@@ -188,25 +159,25 @@ void calc_allocation(StackAlloc& alloc)
 
 // TODO: need to rethink this when we do register passing
 // and when we push off determining stack size to a later pass
-void alloc_args(Function &func, StackAlloc& alloc, SymbolTable& table, u32 saved_regs_offset)
+void alloc_args(Function &func, LinearAlloc& alloc, SymbolTable& table, u32 saved_regs_offset)
 {
     const u32 FRAME_OFFSET = alloc.debug? GPR_SIZE * 2 : GPR_SIZE;
 
-    for(u32 a = 0; a < count(func.sig.args); a++)
+    for(u32 a = 0; a < count(func.sig.args_sym); a++)
     {
         if(is_set(func.sig.locked_args,a))
         {
             continue;
         }
 
-        const SymSlot slot = func.sig.args[a];
-
+        const SymSlot slot = func.sig.args_sym[a];
         auto &sym = sym_from_slot(table,slot);
+        auto &reg = reg_from_local(func,sym.reg_slot.local);
 
         // alloc above the stack frame
-        sym.reg.offset = sym.arg_offset + alloc.stack_size + saved_regs_offset + FRAME_OFFSET;
+        reg.offset = sym.arg_offset + alloc.stack_alloc.stack_size + saved_regs_offset + FRAME_OFFSET;
 
-        log_reg(alloc.print,table,"Arg offset %r(0x%x) -> 0x%x\n",slot,sym.arg_offset,sym.reg.offset);
+        log_reg(alloc,"Arg offset %r(0x%x) -> 0x%x\n",slot,sym.arg_offset,reg.offset);
     }           
 }
 
@@ -224,13 +195,13 @@ u32 global_alloc_internal(GlobalAlloc& alloc, u32 size, u32 count)
     return offset;
 }
 
-void reserve_global_alloc(Interloper& itl, Symbol& sym)
+void reserve_global_alloc(Interloper& itl, Reg& reg)
 {
-    sym.reg.offset = global_alloc_internal(itl.global_alloc,sym.reg.size,sym.reg.count);
-    sym.reg.flags |= GLOBALLY_ALLOCATED;
+    reg.offset = global_alloc_internal(itl.global_alloc,reg.size,reg.count);
+    reg.flags |= GLOBALLY_ALLOCATED;
 }
 
-u32 allocate_global_array(GlobalAlloc& alloc,SymbolTable& table ,SymSlot slot, u32 size, u32 alloc_count)
+u32 allocate_global_array(GlobalAlloc& alloc,SymbolTable& table ,RegSlot slot, u32 size, u32 alloc_count)
 {
     ArrayAllocation allocation;
     allocation.slot = slot;
@@ -242,7 +213,8 @@ u32 allocate_global_array(GlobalAlloc& alloc,SymbolTable& table ,SymSlot slot, u
 
     if(alloc.print_global)
     {
-        auto& sym = sym_from_slot(table,slot);
+        auto& reg = reg_from_global(table,slot.global);
+        auto& sym = sym_from_slot(table,reg.sym_slot);
         printf("initial array global offset: %s [%x,%x] -> %x\n",sym.name.buf,size,alloc_count,allocation.offset);
     }
 
@@ -268,15 +240,19 @@ void finalise_global_offset(Interloper& itl)
     // now we need to give each symbol is final offset from the start of the global table
     
     // by definition globals (if any) will be stored inside the "top" symbol table
-    for(u32 g = 0; g < count(itl.symbol_table.global); g++)
+    for(auto& reg : itl.symbol_table.global.registers)
     {
-        const auto slot = itl.symbol_table.global[g];
-        auto& sym = sym_from_slot(itl.symbol_table,slot);
+        // Don't allocate constants
+        if(reg.segment != reg_segment::global)
+        {
+            continue;
+        }
 
-        const auto [size,count] = std::pair{sym.reg.size,sym.reg.count};
+        auto& sym = sym_from_slot(itl.symbol_table,reg.sym_slot);
+        const auto [size,count] = std::pair{reg.size,reg.count};
 
-        sym.reg.offset = calc_final_offset(itl.global_alloc.start,size,sym.reg.offset);
-        log(alloc.print_global,"Final offset for %s : %x (%x,%x)\n",sym.name.buf,sym.reg.offset,size,count);
+        reg.offset = calc_final_offset(itl.global_alloc.start,size,reg.offset);
+        log(alloc.print_global,"Final offset for %s : %x (%x,%x)\n",sym.name.buf,reg.offset,size,count);
     }
 
     // finalised offsets on any fixed size array allocations handled by global_array_alloc

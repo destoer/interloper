@@ -254,6 +254,7 @@ struct CastNode
     cast_oper oper = cast_oper::move;
 };
 
+// TODO: We may want to cache teh reg slot here?
 union NamedSymbol 
 {
     // Before type checking

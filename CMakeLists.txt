@@ -27,7 +27,7 @@ target_link_libraries(interloper destoer)
 if(WIN32)
 
 else()
-target_compile_options(interloper PRIVATE -g -Werror -fno-exceptions -pedantic -fno-rtti  -fomit-frame-pointer -Wall -Wextra -O0 -march=native)
+target_compile_options(interloper PRIVATE -g -Werror -fno-exceptions -pedantic -fno-rtti -fno-omit-frame-pointer -Wall -Wextra -O0 -march=native)
 endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

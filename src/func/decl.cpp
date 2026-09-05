@@ -74,11 +74,10 @@ Option<itl_error> type_check_function(Interloper& itl, Function& func)
     push_var(itl.defer_stack,itl.cur_defer_node);
     itl.cur_defer_node = NULL;
 
-
-    // put each arg into scope and copy it regs into args
-    for(u32 a = 0; a < count(func.sig.args); a++)
+    // put each arg into scope
+    for(u32 a = 0; a < count(func.sig.args_sym); a++)
     {
-        const SymSlot slot = func.sig.args[a];
+        const SymSlot slot = func.sig.args_sym[a];
         auto &sym = sym_from_slot(itl.symbol_table,slot);
         add_sym_to_scope(itl.symbol_table,sym);
     }
@@ -165,7 +164,7 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
         func.root->generic_call_filename = itl.ctx.filename;
 
 
-        const auto sig_err = parse_func_sig(itl,func_def.name_space,func.sig,*func.root,func_sig_kind::generic);
+        const auto sig_err = parse_func_sig(itl,&func.local,func_def.name_space,func.sig,*func.root,func_sig_kind::generic);
         if(sig_err)
         {
             destroy_func(func);
@@ -184,7 +183,7 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
     // parse in function signature on demand
     else if(func.root)
     {
-        const auto sig_err = parse_func_sig(itl,func_def.name_space,func.sig,*func.root,func_sig_kind::function);
+        const auto sig_err = parse_func_sig(itl,&func.local,func_def.name_space,func.sig,*func.root,func_sig_kind::function);
         if(sig_err)
         {
             return *sig_err;
@@ -333,13 +332,13 @@ Function* lookup_internal_function(Interloper& itl, const String& name)
 
 void print_func_sig(Interloper& itl, const FuncSig& sig)
 {
-    printf("arg count: %d\n",count(sig.args));
+    printf("arg count: %d\n",count(sig.args_sym));
     printf("hidden args: %d\n",sig.hidden_args);
     printf("va args: %s\n",sig.va_args? "true" : "false");
 
-    for(u32 a = 0; a < count(sig.args); a++)
+    for(u32 a = 0; a < count(sig.args_sym); a++)
     {
-        const SymSlot slot = sig.args[a];
+        const SymSlot slot = sig.args_sym[a];
         auto &sym = sym_from_slot(itl.symbol_table,slot);
 
         print(itl,sym); 
@@ -361,7 +360,15 @@ void print_func_decl(Interloper& itl,const Function &func)
 }
 
 
-void add_sig_arg(Interloper& itl, FuncSig& sig, const String& name, Type* type, u32* arg_offset)
+void add_var(SymbolTable& table, Symbol& sym)
+{
+    sym.sym_slot = {count(table.sym_lookup)};
+
+    push_var(table.sym_lookup,sym);
+}
+
+// NOTE: If local is non null add the register otherwise this is just a function pointer and we don't need to.
+void add_sig_arg(Interloper& itl, RegTable* local, FuncSig& sig, const String& name, Type* type, u32* arg_offset)
 {
     // Automatically make a const reference under the hood.
     if(is_struct(type))
@@ -376,6 +383,18 @@ void add_sig_arg(Interloper& itl, FuncSig& sig, const String& name, Type* type, 
         }
     }
 
+    Symbol sym = make_sym_arg(itl,name,type,*arg_offset);
+
+
+    // This is for a func sig just add a symbol for reference
+    // It needs no reg.
+    if(!local)
+    {
+        add_var(itl.symbol_table,sym);
+    }
+
+    push_var(sig.args_sym,sym.sym_slot);
+
     if(is_trivial_copy(type) && !is_float(type) && count(sig.pass_as_reg) < 2)
     {
         const auto spec = spec_reg(SPECIAL_REG_ARG_START + sig.max_reg_pass);
@@ -384,16 +403,18 @@ void add_sig_arg(Interloper& itl, FuncSig& sig, const String& name, Type* type, 
         sig.locked_regs = set_bit(sig.locked_regs,location);
         sig.locked_args = set_bit(sig.locked_args,count(sig.pass_as_reg));
 
-        Symbol sym = make_sym(itl,name,type);
-        
-        // Make symbol likely to be directly allocated
-        sym.reg.hint = (1 << location);
 
-        add_var(itl.symbol_table,sym);
-        push_var(sig.args,sym.reg.slot.sym_slot);
+        if(local)
+        {
+            add_symbol_reg(itl,local,sym,reg_segment::local);
+
+            // Make symbol likely to be directly allocated
+            auto& ir_reg = reg_from_local(*local,sym.reg_slot.local);
+            ir_reg.hint = (1 << location);
+        }
 
         // Note which args are fixed
-        const FixedArg fixed = {spec,sym.reg.slot};
+        const FixedArg fixed = {spec,sym.reg_slot};
         push_var(sig.fixed_args,fixed);
 
         // Reverse lookup to fixed_args
@@ -403,10 +424,11 @@ void add_sig_arg(Interloper& itl, FuncSig& sig, const String& name, Type* type, 
 
     else
     {
-        Symbol sym = make_sym_arg(itl,name,type,*arg_offset);
-        add_var(itl.symbol_table,sym);
-
-        push_var(sig.args,sym.reg.slot.sym_slot);
+        if(local)
+        {
+            const auto reg = add_function_stack_arg_reg(itl,local,sym);
+            push_var(sig.args_reg,reg);
+        }
 
         *arg_offset += promote_size(type_size(itl,type));
 
@@ -415,15 +437,15 @@ void add_sig_arg(Interloper& itl, FuncSig& sig, const String& name, Type* type, 
 }
 
 // add hidden arg pointers for return
-void add_hidden_return(Interloper& itl, FuncSig& sig, const String& name, Type* return_type, u32* arg_offset)
+void add_hidden_return(Interloper& itl, RegTable* local, FuncSig& sig, const String& name, Type* return_type, u32* arg_offset)
 {
     Type* ptr_type = make_reference(itl,return_type);
 
-    add_sig_arg(itl,sig,name,ptr_type,arg_offset);
+    add_sig_arg(itl,local,sig,name,ptr_type,arg_offset);
     sig.hidden_args++;
 }
 
-Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& sig,const FuncNode& node, func_sig_kind kind)
+Option<itl_error> parse_func_sig(Interloper& itl,RegTable* local, NameSpace* name_space,FuncSig& sig,const FuncNode& node, func_sig_kind kind)
 {
     // about to move to a different context
     const auto context_guard = switch_context(itl,node.filename,name_space,(AstNode*)&node);
@@ -448,7 +470,7 @@ Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& 
         // TODO: if the struct is small enough we should not return it in this manner
         if(type_size(itl,sig.return_type[0]) > GPR_SIZE || is_struct(sig.return_type[0]))
         {
-            add_hidden_return(itl,sig,"_struct_ret_ptr",sig.return_type[0],&arg_offset);
+            add_hidden_return(itl,local,sig,"_struct_ret_ptr",sig.return_type[0],&arg_offset);
         }   
     }
 
@@ -469,7 +491,7 @@ Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& 
             char name[40] = {0};
             sprintf(name,"_tuple_ret_0x%x",a);
 
-            add_hidden_return(itl,sig,name,sig.return_type[a],&arg_offset);
+            add_hidden_return(itl,local,sig,name,sig.return_type[a],&arg_offset);
         }
     }
 
@@ -499,7 +521,7 @@ Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& 
             return type_res.error();
         }
 
-        add_sig_arg(itl,sig,name,*type_res,&arg_offset);
+        add_sig_arg(itl,local,sig,name,*type_res,&arg_offset);
     }
 
     for(auto& attr : sig.attribute.attr)
@@ -530,7 +552,7 @@ Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& 
         Type* type = make_struct(itl,itl.rtti_cache.any_idx,true);
         Type* array_type = make_array(itl,type,RUNTIME_SIZE);
 
-        add_sig_arg(itl,sig,node.args_name,array_type,&arg_offset);
+        add_sig_arg(itl,local,sig,node.args_name,array_type,&arg_offset);
         sig.va_args = true;
     }
 
@@ -538,7 +560,7 @@ Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& 
     // To make sure these are referenced.
     if(kind == func_sig_kind::function_pointer)
     {
-        for(auto& slot : sig.args)
+        for(auto& slot : sig.args_sym)
         {
             auto& sym = sym_from_slot(itl.symbol_table,slot);
             sym.references += 1;
@@ -552,12 +574,12 @@ Option<itl_error> parse_func_sig(Interloper& itl,NameSpace* name_space,FuncSig& 
 
 ConstSpan<SymSlot> sig_user_span(const FuncSig& sig)
 {
-    const u32 user_arg_len = count(sig.args) - (u32(sig.va_args) + sig.hidden_args);
-    return make_const_span(sig.args, sig.hidden_args, user_arg_len);    
+    const u32 user_arg_len = count(sig.args_sym) - (u32(sig.va_args) + sig.hidden_args);
+    return make_const_span(sig.args_sym, sig.hidden_args, user_arg_len);    
 }
 
 ConstSpan<AstNode*> sig_any_span(const FuncSig& sig, const Array<AstNode*>& args)
 {
-    const u32 any_arg_len = count(sig.args) - (u32(sig.va_args) + sig.hidden_args);
+    const u32 any_arg_len = count(sig.args_sym) - (u32(sig.va_args) + sig.hidden_args);
     return make_const_span(args, any_arg_len, count(args) - any_arg_len);      
 }

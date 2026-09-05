@@ -1,4 +1,5 @@
 #include <ir.h>
+#include <reg_alloc.h>
 
 void destroy_reg(Reg& ir_reg)
 {
@@ -10,9 +11,6 @@ u32 gpr_count(u32 size)
     return size / GPR_SIZE;
 }
 
-
-
-
 b32 is_mem_allocated(Reg& reg)
 {
     return reg.flags & (STACK_ALLOCATED | GLOBALLY_ALLOCATED);
@@ -21,11 +19,6 @@ b32 is_mem_allocated(Reg& reg)
 b32 is_mem_unallocated(Reg& reg)
 {
     return !is_mem_allocated(reg);
-}
-
-b32 is_reg_mem_unallocated(Reg& reg)
-{
-    return is_mem_unallocated(reg) && (reg.slot.kind == reg_kind::sym || reg.slot.kind == reg_kind::tmp);
 }
 
 
@@ -151,17 +144,8 @@ Reg make_reg(Interloper& itl, const RegSlot& slot, const Type* type)
 {
     Reg reg;
 
-    reg.slot = slot;
-
+    reg.reg_slot = slot;
     u32 size = type_size(itl,type);
-
-    // tmp's derived from expression are always atleast gpr sized
-    // this ensures that intermediate results always get stored at 
-    // "max" precision
-    if(slot.kind == reg_kind::tmp && size < GPR_SIZE)
-    {
-        size = GPR_SIZE;
-    }
 
     assign_reg_size(reg,size);
 
@@ -196,7 +180,7 @@ Reg make_reg(Interloper& itl, const RegSlot& slot, const Type* type)
 Reg make_reg(const RegSlot& slot, u32 size, u32 flags)
 {
     Reg reg;
-    reg.slot = slot;
+    reg.reg_slot = slot;
 
     assign_reg_size(reg,size);
     reg.flags = flags;
@@ -208,8 +192,9 @@ Reg make_reg(const RegSlot& slot, u32 size, u32 flags)
 void print(const Reg& reg)
 {
     const char* KIND_NAMES[] = {"local","global","constant","tmp"};
-    printf("kind: %s\n",KIND_NAMES[u32(reg.slot.kind)]);
-    printf("slot: 0x%x\n",reg.slot.kind == reg_kind::tmp? reg.slot.tmp_slot.handle : reg.slot.sym_slot.handle);
+    const auto reg_slot = reg.reg_slot;
+    printf("kind: %s\n",KIND_NAMES[u32(reg_slot.kind)]);
+    printf("slot: 0x%x\n",reg_slot.kind == reg_kind::local? reg_slot.local.handle : reg_slot.global.handle);
 
     printf("size: %d\n",reg.size);
     printf("count: %d\n",reg.count);
@@ -259,50 +244,31 @@ const char* reg_name(arch_target arch, u32 reg)
     return nullptr;
 }
 
-RegSlot new_tmp(Function& func, u32 size)
+RegSlot add_untyped_local_reg(Function& func, u32 size, u32 flags)
 {
-    const TmpSlot tmp_slot = {count(func.registers)};
+    const LocalSlot tmp_slot = {count(func.local.registers)};
+    const RegSlot reg_slot = tmp_slot;
 
-    const auto reg_slot = make_tmp_reg_slot(tmp_slot);
-
-    const auto reg = make_reg(reg_slot,size,0);
-    push_var(func.registers,reg);
+    const auto reg = make_reg(reg_slot,size,flags | REG_TMP);
+    push_var(func.local.registers,reg);
 
     return reg_slot;
 }
 
-TypedReg new_typed_tmp(Interloper& itl,Function& func, Type* type)
+
+RegSlot new_tmp(Function& func, u32 size)
 {
-    const TmpSlot tmp_slot = {count(func.registers)};
-    const auto reg_slot = make_tmp_reg_slot(tmp_slot);
-
-    const auto reg = make_reg(itl,reg_slot,type);
-    push_var(func.registers,reg);
-
-    return TypedReg { reg_slot, type };    
+    return add_untyped_local_reg(func,size,0);
 }
 
 RegSlot new_struct(Function& func, u32 size)
 {
-    const TmpSlot tmp_slot = {count(func.registers)};
-
-    const auto reg_slot = make_tmp_reg_slot(tmp_slot);
-
-    const auto reg = make_reg(reg_slot,size,STORED_IN_MEM);
-    push_var(func.registers,reg);
-
-    return reg_slot;
+    return add_untyped_local_reg(func,size,STORED_IN_MEM);
 }
 
 RegSlot new_float(Function& func)
 {
-    const TmpSlot tmp_slot = {count(func.registers)};
-    const auto reg_slot = make_tmp_reg_slot(tmp_slot);
-
-    auto reg = make_reg(reg_slot,sizeof(f64),REG_FLOAT);
-    push_var(func.registers,reg);
-
-    return reg_slot;  
+    return add_untyped_local_reg(func,sizeof(f64),REG_FLOAT);
 }
 
 RegSlot new_max_tmp(Function& func,reg_type rtype)
@@ -313,6 +279,19 @@ RegSlot new_max_tmp(Function& func,reg_type rtype)
 RegSlot new_tmp_ptr(Function &func)
 {
     return new_tmp(func,GPR_SIZE);
+}
+
+TypedReg new_typed_tmp(Interloper& itl,Function& func, Type* type)
+{
+    const LocalSlot tmp_slot = {count(func.local.registers)};
+    const RegSlot reg_slot = tmp_slot;
+
+    auto reg = make_reg(itl,reg_slot,type);
+    reg.flags |= REG_TMP;
+
+    push_var(func.local.registers,reg);
+
+    return TypedReg { reg_slot, type };    
 }
 
 bool is_local_reg(const Reg &reg)
@@ -336,8 +315,23 @@ b32 is_callee_saved(arch_target arch,u32 reg_idx)
 }
 
 
+void print_reg_name_internal(const Reg& reg,SymbolTable& table)
+{   
+    if(!is_valid_slot(reg.sym_slot))
+    {
+        const auto reg_slot = reg.reg_slot;
+        printf("t%d",reg.reg_slot.kind == reg_kind::local? reg_slot.local.handle : reg_slot.global.handle);
+    }
 
-void print_reg_name(SymbolTable& table, RegSlot slot)
+    else
+    {
+        auto& sym = sym_from_slot(table,reg.sym_slot);
+        printf("%s",sym.name.buf);
+    }
+}
+
+
+void print_reg_name(LinearAlloc& alloc, RegSlot slot)
 {
     switch(slot.kind)
     {
@@ -347,24 +341,19 @@ void print_reg_name(SymbolTable& table, RegSlot slot)
             break;
         }
 
-        case reg_kind::sym:
+        case reg_kind::local:
+        case reg_kind::global:
         {
-            const auto &sym = sym_from_slot(table,slot.sym_slot);
-            printf("%s",sym.name.buf);
-            break;
-        }
-
-        case reg_kind::tmp:
-        {
-            printf("t%d",slot.tmp_slot.handle);
+            const auto &reg = reg_from_slot(*alloc.table,alloc.local,slot);
+            print_reg_name_internal(reg,*alloc.table);
             break;
         }
     }
 }
 
-void log_reg(b32 print,SymbolTable& table, const String fmt_string, ...)
+void log_reg(LinearAlloc& alloc, const String fmt_string, ...)
 {  
-    if(!print)
+    if(!alloc.print)
     {
         return;
     }
@@ -408,7 +397,7 @@ void log_reg(b32 print,SymbolTable& table, const String fmt_string, ...)
                 case 'r':
                 {
                     const auto slot = va_arg(args,RegSlot);
-                    print_reg_name(table,slot);
+                    print_reg_name(alloc,slot);
                     break;
                 }
 

@@ -1,6 +1,6 @@
 Result<Function*,itl_error> check_startup_func(Interloper& itl, const String& name, NameSpace* name_space);
 TypeResult type_check_expr(Interloper& itl, AstNode* expr);
-void reserve_global_alloc(Interloper& itl, Symbol& sym);
+void reserve_global_alloc(Interloper& itl, Reg& reg);
 TypeResult assign_expr_type(AstNode* node, TypeResult result);
 SymbolScopeGuard enter_new_anon_scope(SymbolTable& sym_table);
 
@@ -113,7 +113,7 @@ TypeResult type_check_type_operator(Interloper& itl, AstNode* expr)
 
 Option<itl_error> check_struct_init_ref(Interloper& itl, Type* type);
 
-Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
+Option<itl_error> type_check_decl(Interloper &itl,Function* func, DeclNode* decl, bool global)
 {
     auto type_res = get_type(itl,decl->type);
     if(!type_res)
@@ -158,7 +158,7 @@ Option<itl_error> type_check_decl(Interloper &itl, DeclNode* decl, bool global)
 
     if(!global)
     {
-        auto sym_res = add_symbol(itl,decl->sym.name,ltype);
+        auto sym_res = add_local_symbol(itl,*func,decl->sym.name,ltype);
         if(!sym_res)
         {
             return sym_res.error();
@@ -195,7 +195,7 @@ Option<itl_error> type_check_decl_stmt(Interloper &itl,Function& func, AstNode* 
 {
     UNUSED(func);
 
-    return type_check_decl(itl,(DeclNode*)node,false);
+    return type_check_decl(itl,&func,(DeclNode*)node,false);
 }
 
 Option<itl_error> type_check_auto_decl(Interloper &itl,Function& func, AstNode* stmt)
@@ -219,7 +219,7 @@ Option<itl_error> type_check_auto_decl(Interloper &itl,Function& func, AstNode* 
         return compile_error(itl,itl_error::pointer_type_error,"Cannot auto assign struct value reference %t",rtype);
     }
 
-    const auto sym_res = add_symbol(itl,decl->sym.name,rtype);
+    const auto sym_res = add_local_symbol(itl,func, decl->sym.name,rtype);
     if(!sym_res)
     {
         return sym_res.error();
@@ -284,7 +284,7 @@ TypeResult type_check_sym(Interloper& itl, AstNode* expr)
 
     const auto &sym = *sym_ptr;
 
-    sym_node->sym_slot = sym.reg.slot.sym_slot;
+    sym_node->sym_slot = sym.sym_slot;
     sym_node->type = sym_node_type::sym_slot;
     sym_node->node.known_value = sym.known_value;
 
@@ -426,7 +426,7 @@ Option<itl_error> type_check_globals(Interloper& itl)
     for(GlobalDeclNode* decl_node : itl.global_decl)
     {
         auto context_guard = switch_context(itl,decl_node->filename,decl_node->name_space,(AstNode*)decl_node);
-        const auto decl_err = type_check_decl(itl,decl_node->decl,true);
+        const auto decl_err = type_check_decl(itl,nullptr,decl_node->decl,true);
         if(decl_err)
         {
             return decl_err;
@@ -488,9 +488,9 @@ Option<itl_error> type_check_ast(Interloper& itl)
     }
 
     // Check all declared symbols are used.
-    for(auto& sym : itl.symbol_table.slot_lookup)
+    for(auto& sym : itl.symbol_table.sym_lookup)
     {
-        if(sym.references == 0 && sym.reg.segment == reg_segment::local && sym.name[0] != '_')
+        if(sym.references == 0 && sym.reg_slot.kind == reg_kind::local && sym.name[0] != '_')
         {
             trash_context(itl,sym.ctx);
             return compile_error(itl,itl_error::unused_symbol,"Symbol %S is never used",sym.name);

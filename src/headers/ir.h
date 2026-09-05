@@ -16,7 +16,7 @@ using RegResult = destoer::Result<TypedReg,itl_error>;
 
 inline bool is_direct_addr(const AddrSlot& addr_slot)
 {
-    return addr_slot.struct_addr && addr_slot.addr.index == make_spec_reg_slot(spec_reg::null) && addr_slot.addr.offset == 0;
+    return addr_slot.struct_addr && addr_slot.addr.index == spec_reg::null && addr_slot.addr.offset == 0;
 }
 
 
@@ -34,6 +34,7 @@ static constexpr u32 STACK_ARG = 1 << 5;
 static constexpr u32 REG_FLOAT = 1 << 6;
 static constexpr u32 STACK_ALLOCATED = 1 << 7;
 static constexpr u32 GLOBALLY_ALLOCATED = 1 << 8;
+static constexpr u32 REG_TMP = 1 << 9;
 
 
 // TODO:
@@ -52,15 +53,18 @@ struct Reg
     // Where is this register allocated
     reg_segment segment = reg_segment::local;
 
-    // what slot does this symbol hold inside the ir?
-    RegSlot slot;
+    // what slot does this register hold
+    RegSlot reg_slot;
+
+    // What symbol does is this for if any?
+    SymSlot sym_slot = {INVALID_HANDLE};
 
     // how much memory does this thing use GPR_SIZE max (spilled into count if larger)
     // i.e this is for stack allocation to get actual var sizes use type_size();
     u32 size = 0;
     u32 count = 0;
 
-    // intialized during register allocation
+    // initialized during register allocation
 
     // where is the current offset for its section?
     u32 offset = 0;
@@ -79,6 +83,12 @@ struct Reg
 
     u32 flags = 0;
 };
+
+struct RegTable
+{
+    Array<Reg> registers;
+};
+
 
 reg_type rtype_from_ir(const struct Reg& reg)
 {
@@ -170,7 +180,7 @@ struct IrEmitter
 
 struct ArrayAllocation
 {
-    SymSlot slot;
+    RegSlot slot;
     u32 stack_offset = 0;
     u32 offset = 0;
     u32 size = 0;

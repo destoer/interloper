@@ -273,7 +273,7 @@ void connect_node(Function& func,BlockSlot slot)
 }
 
 
-void print_ir_set(Interloper& itl, const Set<RegSlot>& set, const char* tag)
+void print_ir_set(Interloper& itl, Function& func, const Set<RegSlot>& set, const char* tag)
 {
     printf("%s: {",tag);
 
@@ -281,17 +281,11 @@ void print_ir_set(Interloper& itl, const Set<RegSlot>& set, const char* tag)
     {
         switch(slot.kind)
         {
-            case reg_kind::sym:
+            case reg_kind::local:
+            case reg_kind::global:
             {
-                auto& sym = sym_from_slot(itl.symbol_table,slot.sym_slot);
-                printf("%s,",sym.name.buf);
-                break;
-            }
-
-            case reg_kind::tmp:
-            {
-                printf("t%d,",slot.tmp_slot.handle);
-                break;
+                const auto &reg = reg_from_slot(itl.symbol_table,func.local,slot);
+                print_reg_name_internal(reg,itl.symbol_table);
             }
 
             // This should not flow through blocks
@@ -349,10 +343,10 @@ void dump_cfg(Interloper& itl, Function& func)
 
         print_block_connection(func,block.entry,"entry: ");
 
-        print_ir_set(itl,block.use,"use: ");
-        print_ir_set(itl,block.def,"def: ");
-        print_ir_set(itl,block.live_in,"live in: ");
-        print_ir_set(itl,block.live_out,"live out: ");
+        print_ir_set(itl,func,block.use,"use: ");
+        print_ir_set(itl,func,block.def,"def: ");
+        print_ir_set(itl,func,block.live_in,"live in: ");
+        print_ir_set(itl,func,block.live_out,"live out: ");
 
         print_block_connection(func,block.exit,"exit: ");
 
