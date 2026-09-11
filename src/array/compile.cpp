@@ -537,7 +537,7 @@ void compile_array_slice(Interloper& itl, Function& func, SliceNode* slice, cons
 void compile_array_slice_expr(Interloper& itl, Function& func, AstNode* expr, RegSlot dst_slot)
 {
     SliceNode* slice = (SliceNode*)expr;
-    auto& arr = sym_from_slot(itl.symbol_table,slice->sym.slot);
+    auto& arr = sym_from_slot(itl.symbol_table,slice->sym.slot.sym);
 
     compile_array_slice(itl,func,slice,typed_addr(arr),dst_slot);
 }

@@ -259,8 +259,13 @@ union NamedSymbol
 {
     // Before type checking
     String name = "";
-    // After type checking
-    SymSlot slot;
+
+    struct
+    {
+        // After type checking
+        RegSlot reg;
+        SymSlot sym;
+    } slot;
 };
 
 

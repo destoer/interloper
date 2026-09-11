@@ -134,7 +134,9 @@ Option<itl_error> type_check_decl(Interloper &itl,Function* func, DeclNode* decl
             return sym_res.error();
         }
 
-        decl->sym.slot = *sym_res;
+        auto& sym = sym_from_slot(itl.symbol_table,*sym_res);
+        decl->sym.slot.reg = sym.reg_slot;
+        decl->sym.slot.sym = sym.sym_slot;
     }
 
     
@@ -167,7 +169,9 @@ Option<itl_error> type_check_decl(Interloper &itl,Function* func, DeclNode* decl
 
         printf("Decl checked %s %s %d\n",func->name.buf,decl->sym.name.buf,count(func->local.registers));
 
-        decl->sym.slot = *sym_res;
+        auto& sym = sym_from_slot(itl.symbol_table,*sym_res);
+        decl->sym.slot.reg = sym.reg_slot;
+        decl->sym.slot.sym = sym.sym_slot;
     }
 
 
@@ -224,7 +228,9 @@ Option<itl_error> type_check_auto_decl(Interloper &itl,Function& func, AstNode* 
         return sym_res.error();
     }
 
-    decl->sym.slot = *sym_res;
+    auto& sym = sym_from_slot(itl.symbol_table,*sym_res);
+    decl->sym.slot.reg = sym.reg_slot;
+    decl->sym.slot.sym = sym.sym_slot;
 
     return option::none;
 }

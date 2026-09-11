@@ -70,8 +70,13 @@ Option<itl_error> type_check_for_range_idx(Interloper& itl,Function& func, ForRa
         return sym_res.error();
     }
 
-    range->sym_one.slot = *sym_res;
-    range->sym_two.slot = {INVALID_HANDLE};
+    auto& sym = sym_from_slot(itl.symbol_table,*sym_res);
+
+    range->sym_one.slot.sym = sym.sym_slot;
+    range->sym_two.slot.reg = sym.reg_slot;
+
+    range->sym_two.slot.sym = {INVALID_HANDLE};
+    range->sym_two.slot.reg = spec_reg::null;
 
 
     return type_check_block(itl,func,range->block);
@@ -103,7 +108,9 @@ Option<itl_error> type_check_for_range_arr(Interloper& itl, Function& func, ForR
         return var_res.error();
     }
 
-    range->sym_one.slot = *var_res;
+    auto& var = sym_from_slot(itl.symbol_table,*var_res);
+    range->sym_one.slot.sym = var.sym_slot;
+    range->sym_one.slot.reg = var.reg_slot;
 
     // Add the index variable if it is there.
     if(range->flags & RANGE_FOR_ARRAY_IDX)
@@ -113,13 +120,16 @@ Option<itl_error> type_check_for_range_arr(Interloper& itl, Function& func, ForR
         {
             return idx_res.error();
         }
+        auto& idx = sym_from_slot(itl.symbol_table,*idx_res);
 
-        range->sym_two.slot = *idx_res;
+        range->sym_two.slot.sym = idx.sym_slot;
+        range->sym_two.slot.reg = idx.reg_slot;
     }
 
     else
     {
-        range->sym_two.slot = {INVALID_HANDLE};
+        range->sym_two.slot.sym = {INVALID_HANDLE};
+        range->sym_two.slot.reg = spec_reg::null;
     }
 
     return type_check_block(itl,func,range->block);

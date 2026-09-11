@@ -1349,12 +1349,12 @@ String named_symbol_name(Interloper& itl, const AstNode* node, const NamedSymbol
 {
     if(node->expr_type)
     {
-        if(named_sym.slot.handle == INVALID_HANDLE)
+        if(named_sym.slot.sym.handle == INVALID_HANDLE)
         {
             return "";
         }
 
-        Symbol& sym = sym_from_slot(itl.symbol_table,named_sym.slot);
+        Symbol& sym = sym_from_slot(itl.symbol_table,named_sym.slot.sym);
         return sym.name;
     }
 

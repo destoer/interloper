@@ -308,7 +308,8 @@ TypeResult type_check_array_slice_expr(Interloper& itl, AstNode* expr)
     }
 
     const auto sym = *arr_ptr;
-    slice->sym.slot = sym.sym_slot;    
+    slice->sym.slot.sym = sym.sym_slot;
+    slice->sym.slot.reg = sym.reg_slot;    
 
     if(!is_array(sym.type))
     {

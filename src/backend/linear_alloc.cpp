@@ -83,12 +83,12 @@ void mark_used(RegisterFile& regs, u32 reg)
     regs.used_set = set_bit(regs.used_set,reg);
 }
 
-LinearAlloc make_linear_alloc(b32 print_reg,b32 stack_only, b32 debug, RegTable local, SymbolTable* table,arch_target arch)
+LinearAlloc make_linear_alloc(b32 print,b32 stack_only, b32 debug, RegTable local, SymbolTable* table,arch_target arch)
 {
     LinearAlloc alloc;
 
-    alloc.print = print_reg;
-    alloc.stack_alloc = make_stack_alloc(debug);
+    alloc.print = print;
+    alloc.stack_alloc = make_stack_alloc(print);
 
     alloc.arch = arch;
     alloc.local = local;

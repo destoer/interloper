@@ -249,7 +249,7 @@ void compile_decl(Interloper &itl,Function &func,AstNode* stmt)
 {
     DeclNode* decl_node = (DeclNode*)stmt;
 
-    auto& sym = sym_from_slot(itl.symbol_table,decl_node->sym.slot);
+    auto& sym = sym_from_slot(itl.symbol_table,decl_node->sym.slot.sym);
 
 
     switch(sym.type->kind)
@@ -278,7 +278,7 @@ void compile_auto_decl(Interloper &itl,Function &func, AstNode* stmt)
 {
     AutoDeclNode* auto_decl = (AutoDeclNode*)stmt;
 
-    auto& sym = sym_from_slot(itl.symbol_table,auto_decl->sym.slot);
+    auto& sym = sym_from_slot(itl.symbol_table,auto_decl->sym.slot.sym);
 
     // save the alloc node so we can fill the info in later
     alloc_slot(itl,func,sym.reg_slot,!is_plain_type(sym.type));
