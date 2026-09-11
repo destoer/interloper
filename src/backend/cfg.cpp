@@ -286,6 +286,7 @@ void print_ir_set(Interloper& itl, Function& func, const Set<RegSlot>& set, cons
             {
                 const auto &reg = reg_from_slot(itl.symbol_table,func.local,slot);
                 print_reg_name_internal(reg,itl.symbol_table);
+                break;
             }
 
             // This should not flow through blocks

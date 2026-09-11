@@ -231,9 +231,6 @@ void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_no
         return;
     }
 
-    printf("Compiling assign %s %d: %s %d\n",func.name.buf,count(func.local.registers),sym.name.buf,sym.reg_slot.local.handle);
-
-
     // normal assign
     compile_expression(itl,func,decl_node->expr,slot);
 

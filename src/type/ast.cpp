@@ -167,8 +167,6 @@ Option<itl_error> type_check_decl(Interloper &itl,Function* func, DeclNode* decl
             return sym_res.error();
         }
 
-        printf("Decl checked %s %s %d\n",func->name.buf,decl->sym.name.buf,count(func->local.registers));
-
         auto& sym = sym_from_slot(itl.symbol_table,*sym_res);
         decl->sym.slot.reg = sym.reg_slot;
         decl->sym.slot.sym = sym.sym_slot;
