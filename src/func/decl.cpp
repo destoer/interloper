@@ -244,9 +244,9 @@ Result<Function*,itl_error> finalise_func(Interloper& itl, FunctionDef& func_def
         push_var(itl.func_table.unused,func_ptr);
     }
 
-    if(func.root)
+    if(func_ptr->root)
     {
-        const auto block_err = type_check_function(itl,func);
+        const auto block_err = type_check_function(itl,*func_ptr);
         if(block_err)
         {
             return *block_err;

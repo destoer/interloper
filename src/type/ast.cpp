@@ -113,7 +113,8 @@ TypeResult type_check_type_operator(Interloper& itl, AstNode* expr)
 
 Option<itl_error> check_struct_init_ref(Interloper& itl, Type* type);
 
-Option<itl_error> type_check_decl(Interloper &itl,Function* func, DeclNode* decl, bool global)
+// NOTE: This will be bound to the global scope without a func
+Option<itl_error> type_check_decl(Interloper &itl,Function* func, DeclNode* decl)
 {
     auto type_res = get_type(itl,decl->type);
     if(!type_res)
@@ -125,7 +126,7 @@ Option<itl_error> type_check_decl(Interloper &itl,Function* func, DeclNode* decl
     decl->node.expr_type = ltype;
 
     // Have to add this before checking the init expr or it may fail for globals
-    if(global)
+    if(!func)
     {
         auto sym_res = add_global(itl,decl->sym.name,ltype,false);
         if(!sym_res)
@@ -156,13 +157,15 @@ Option<itl_error> type_check_decl(Interloper &itl,Function* func, DeclNode* decl
     }
 
 
-    if(!global)
+    if(func)
     {
         auto sym_res = add_local_symbol(itl,*func,decl->sym.name,ltype);
         if(!sym_res)
         {
             return sym_res.error();
         }
+
+        printf("Decl checked %s %s %d\n",func->name.buf,decl->sym.name.buf,count(func->local.registers));
 
         decl->sym.slot = *sym_res;
     }
@@ -193,15 +196,11 @@ Option<itl_error> type_check_decl(Interloper &itl,Function* func, DeclNode* decl
 
 Option<itl_error> type_check_decl_stmt(Interloper &itl,Function& func, AstNode* node)
 {
-    UNUSED(func);
-
-    return type_check_decl(itl,&func,(DeclNode*)node,false);
+    return type_check_decl(itl,&func,(DeclNode*)node);
 }
 
 Option<itl_error> type_check_auto_decl(Interloper &itl,Function& func, AstNode* stmt)
 {
-    UNUSED(func);
-
     AutoDeclNode* decl = (AutoDeclNode*)stmt;
 
     const auto decl_res = type_check_expr(itl,decl->expr);
@@ -426,7 +425,7 @@ Option<itl_error> type_check_globals(Interloper& itl)
     for(GlobalDeclNode* decl_node : itl.global_decl)
     {
         auto context_guard = switch_context(itl,decl_node->filename,decl_node->name_space,(AstNode*)decl_node);
-        const auto decl_err = type_check_decl(itl,nullptr,decl_node->decl,true);
+        const auto decl_err = type_check_decl(itl,nullptr,decl_node->decl);
         if(decl_err)
         {
             return decl_err;

@@ -118,7 +118,6 @@ SymSlot add_symbol_reg(Interloper& itl,RegTable* local, Symbol& sym, reg_segment
         case reg_segment::local:
         {
             LocalSlot local_slot = {count(local->registers)};
-
             push_var(local->registers,make_reg_sym(itl,local_slot,sym,flags));
             break;
         }
@@ -181,7 +180,7 @@ void add_sym_to_scope(SymbolTable &sym_table, Symbol &sym)
     add(sym_table.ctx->name_space->table,sym.name, info);
 }    
 
-Result<SymSlot,itl_error> add_symbol(Interloper &itl,Function* func,reg_segment segment,const String &name, Type *type)
+Result<SymSlot,itl_error> add_symbol(Interloper &itl,RegTable* local,reg_segment segment,const String &name, Type *type)
 {
     auto& sym_table = itl.symbol_table;
     if(symbol_exists(itl.symbol_table,name))
@@ -190,7 +189,7 @@ Result<SymSlot,itl_error> add_symbol(Interloper &itl,Function* func,reg_segment 
     }
 
     auto sym = make_sym(itl,name,type);
-    add_symbol_reg(itl,&func->local,sym,segment);
+    add_symbol_reg(itl,local,sym,segment);
 
     add_sym_to_scope(sym_table,sym);
 
@@ -199,7 +198,7 @@ Result<SymSlot,itl_error> add_symbol(Interloper &itl,Function* func,reg_segment 
 
 Result<SymSlot,itl_error> add_local_symbol(Interloper &itl,Function& func,const String &name, Type *type)
 {
-    return add_symbol(itl,&func,reg_segment::local,name,type);
+    return add_symbol(itl,&func.local,reg_segment::local,name,type);
 }
 
 Result<SymSlot,itl_error> add_global(Interloper& itl,const String &name, Type *type, b32 constant)
