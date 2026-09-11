@@ -296,6 +296,8 @@ void print_ir_set(Interloper& itl, Function& func, const Set<RegSlot>& set, cons
                 break;
             }
         }
+
+        printf(",");
     }
 
     printf("}\n");

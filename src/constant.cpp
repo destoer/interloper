@@ -384,11 +384,6 @@ Option<itl_error> compile_constant_decl(Interloper& itl, DeclNode* decl_node, b3
     }
 
     auto& sym = sym_from_slot(itl.symbol_table,*sym_res);
-    auto& reg = reg_from_global(itl.symbol_table,sym.reg_slot.global);
-
-    // make sure this is marked as constant
-    // incase it is declared locally
-    reg.segment = reg_segment::constant;
 
     // compile the expression
     return compile_constant_initializer(itl,sym,decl_node->expr);    

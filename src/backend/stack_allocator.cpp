@@ -177,7 +177,7 @@ void alloc_args(Function &func, LinearAlloc& alloc, SymbolTable& table, u32 save
         // alloc above the stack frame
         reg.offset = sym.arg_offset + alloc.stack_alloc.stack_size + saved_regs_offset + FRAME_OFFSET;
 
-        log_reg(alloc,"Arg offset %r(0x%x) -> 0x%x\n",slot,sym.arg_offset,reg.offset);
+        log_reg(alloc,"Arg offset %r(0x%x) -> 0x%x\n",reg.reg_slot,sym.arg_offset,reg.offset);
     }           
 }
 
