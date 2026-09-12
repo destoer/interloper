@@ -298,10 +298,10 @@ TypedAddr compute_member_addr(Interloper& itl, Function& func, StructAccessNode*
         case ast_type::symbol:
         {
             SymbolNode* sym_node = (SymbolNode*)struct_access->expr;
-            const auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
+            const auto& sym = sym_from_slot(itl.symbol_table,sym_node->slot.sym);
 
             // allready a pointer so just return the slot
-            // along with the derefed type
+            // along with the dereferenced type
             if(is_pointer(sym.type))
             {
                 struct_addr = {make_pointer_addr(sym.reg_slot,0),deref_pointer(sym.type)};

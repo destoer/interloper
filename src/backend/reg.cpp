@@ -613,3 +613,39 @@ std::pair<u32,lowered_reg_t> reg_offset(Interloper& itl,const Reg& ir_reg, u32 s
 
     assert(false);
 }
+
+
+LocalRegSet make_local_reg_set(const RegTable& local)
+{
+    LocalRegSet reg_set;
+    reg_set.bit_set = make_bit_set(count(local.registers));
+
+    return reg_set;
+}
+
+
+void clear_local_reg_set(LocalRegSet& reg_set)
+{
+    memset(&reg_set.bit_set.set[0],0,reg_set.bit_set.set.size);
+}
+
+void destroy_local_reg_set(LocalRegSet& reg_set)
+{
+    destroy_bit_set(reg_set.bit_set);
+}
+
+bool contains(const LocalRegSet& reg_set, LocalSlot local)
+{
+    return test_bit_set(reg_set.bit_set,local.handle);
+}
+
+bool contains(const LocalRegSet& reg_set, RegSlot slot)
+{
+    return slot.kind == reg_kind::local && test_bit_set(reg_set.bit_set,slot.local.handle);
+}
+
+
+void add(LocalRegSet& reg_set, LocalSlot local)
+{
+    set_bit_set(reg_set.bit_set,local.handle);
+}

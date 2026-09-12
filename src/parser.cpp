@@ -1429,7 +1429,7 @@ void print_internal(Interloper& itl,const AstNode *root, int depth)
 
                 case sym_node_type::sym_slot:
                 {
-                    auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
+                    auto& sym = sym_from_slot(itl.symbol_table,sym_node->slot.sym);
                     name = sym.name;
                     break;
                 }

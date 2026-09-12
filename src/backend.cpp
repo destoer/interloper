@@ -96,11 +96,11 @@ TypedReg compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
 
 TypedReg typed_reg_from_sym(Interloper& itl, Function& func, SymbolNode* sym_node)
 {
-    UNUSED(func);
+    UNUSED(func); UNUSED(itl);
+
     if(sym_node->type == sym_node_type::sym_slot)
     {
-        const auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
-        return typed_reg(sym);
+        return TypedReg{sym_node->slot.reg,sym_node->node.expr_type};
     }
 
     unimplemented("Func pointer sym");
@@ -292,12 +292,11 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
         case ast_type::symbol:
         {
             SymbolNode* sym_node = (SymbolNode*)assign->left;
-            auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
-            auto& reg = reg_from_slot(itl,func,sym.reg_slot);
+            const auto slot = sym_node->slot.reg;
+            auto& reg = reg_from_slot(itl,func,slot);
 
-            const RegSlot slot = reg.reg_slot;
             const u32 size = reg.size;
-            const Type *ltype = sym.type;
+            const Type *ltype = sym_node->node.expr_type;
 
             compile_expression(itl,func,assign->right,slot);
 
@@ -451,17 +450,10 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
         return opt_err;
     }
 
-    const auto func_err = graph_pass_functions(itl);
-    if(func_err)
-    {
-        return func_err;
-    }
-
     if(itl.print_ir)
     {
         dump_itl_ir(itl);
-    }
-    
+    }    
 
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -473,6 +465,12 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
             rewrite_x86_ir(itl);
             break;
         }
+    }
+
+    const auto func_err = graph_pass_functions(itl);
+    if(func_err)
+    {
+        return func_err;
     }
 
     // perform register allocation on used functions

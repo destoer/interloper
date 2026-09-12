@@ -287,7 +287,8 @@ TypeResult type_check_sym(Interloper& itl, AstNode* expr)
 
     const auto &sym = *sym_ptr;
 
-    sym_node->sym_slot = sym.sym_slot;
+    sym_node->slot.sym = sym.sym_slot;
+    sym_node->slot.reg = sym.reg_slot;
     sym_node->type = sym_node_type::sym_slot;
     sym_node->node.known_value = sym.known_value;
 

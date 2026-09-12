@@ -7,11 +7,6 @@ Block make_block(LabelSlot label_slot,BlockSlot block_slot,ArenaAllocator* list_
     block.label_slot = label_slot;
     block.block_slot = block_slot;
 
-    block.use = make_set<RegSlot>();
-    block.def = make_set<RegSlot>();
-    block.live_in = make_set<RegSlot>();
-    block.live_out = make_set<RegSlot>();
-
     return block;
 }
 
@@ -273,30 +268,14 @@ void connect_node(Function& func,BlockSlot slot)
 }
 
 
-void print_ir_set(Interloper& itl, Function& func, const Set<RegSlot>& set, const char* tag)
+void print_ir_set(Interloper& itl, Function& func, const LocalRegSet& reg_set, const char* tag)
 {
     printf("%s: {",tag);
 
-    for(const auto slot : set)
+    for(const auto slot : reg_set)
     {
-        switch(slot.kind)
-        {
-            case reg_kind::local:
-            case reg_kind::global:
-            {
-                const auto &reg = reg_from_slot(itl.symbol_table,func.local,slot);
-                print_reg_name_internal(reg,itl.symbol_table);
-                break;
-            }
-
-            // This should not flow through blocks
-            case reg_kind::spec:
-            {
-                assert(false);
-                break;
-            }
-        }
-
+        const auto &reg = reg_from_slot(itl.symbol_table,func.local,slot);
+        print_reg_name_internal(reg,itl.symbol_table);
         printf(",");
     }
 
@@ -380,44 +359,49 @@ void connect_flow_graph(Interloper& itl,Function& func)
     }
 }
 
-void handle_src_regs(Interloper& itl, Function& func, Block& block, const ConstSpan<RegSlot>& src_span)
+void handle_src_regs(Function& func, Block& block, const ConstSpan<RegSlot>& src_span)
 {
     for(const auto& src : src_span)
     {
-        // Not interested in special regs
-        if(is_special_reg(src))
+        // Only interested in local registers
+        if(src.kind != reg_kind::local)
         {
             continue;
         }
 
-        auto& ir_reg = reg_from_slot(itl.symbol_table,func,src);
+        const auto local = src.local;
+        auto& ir_reg = reg_from_local(func,local);
 
         // ir reg, that is not stored in memory
-        if(!stored_in_mem(ir_reg) && !contains(block.def,src))
+        if(!stored_in_mem(ir_reg) && !contains(block.def,local))
         {
             // used as src, without a def -> use
-            add(block.use,src); 
+            add(block.use,local); 
         }
     }
 }
 
 
-void handle_dst_regs(Interloper& itl, Function& func, Block& block, const ConstSpan<RegSlot>& dst_span)
+void handle_dst_regs(Function& func, Block& block, const ConstSpan<RegSlot>& dst_span)
 {
     for(const auto& dst : dst_span)
     {
-        // Not interested in special regs
-        if(is_special_reg(dst))
+        // Only interested in local registers
+        if(dst.kind != reg_kind::local)
         {
             continue;
         }
 
-        auto& ir_reg = reg_from_slot(itl.symbol_table,func,dst);
+        const auto local = dst.local;
+        assert(local.handle < count(func.local.registers));
+        auto& ir_reg = reg_from_local(func,local);
+
+        
 
         // used as dst before use, def 
-        if(!stored_in_mem(ir_reg) && !contains(block.use,dst))
+        if(!stored_in_mem(ir_reg) && !contains(block.use,local))
         {
-            add(block.def,dst);
+            add(block.def,local);
         }
     }
 }
@@ -426,9 +410,17 @@ void handle_dst_regs(Interloper& itl, Function& func, Block& block, const ConstS
 // TODO: would it be cheaper to do this inside the emitter?
 void compute_use_def(Interloper& itl,Function& func)
 {
+    UNUSED(itl);
+
     // each block
     for(auto& block : func.emitter.program)
     {
+        block.live_in = make_local_reg_set(func.local);
+        block.live_out = make_local_reg_set(func.local);
+        block.def = make_local_reg_set(func.local);
+        block.use = make_local_reg_set(func.local);
+
+
         // ignore empty blocks
         if(!block.list.start)
         {
@@ -440,15 +432,15 @@ void compute_use_def(Interloper& itl,Function& func)
         {
             const auto regs = opcode_ir_reg_span(node.value,itl.reg_span);
 
-            handle_src_regs(itl,func,block,regs.src);
-            handle_src_regs(itl,func,block,regs.dst_src);
+            handle_src_regs(func,block,regs.src);
+            handle_src_regs(func,block,regs.dst_src);
 
-            handle_dst_regs(itl,func,block,regs.dst);
+            handle_dst_regs(func,block,regs.dst);
         }
 
         // if block has a use of a var it must be an input
         // computed here for speed rather than in liveness func
-        set_union(block.live_in,block.use);        
+        bit_set_union(block.live_in.bit_set,block.use.bit_set);        
     }
 }
 
@@ -519,18 +511,12 @@ void compute_var_live(Interloper& itl, Function& func)
             for(const auto& block_slot : block.exit)
             {
                 const auto& exit = block_from_slot(func,block_slot);
-                modified |= set_union(block.live_out,exit.live_in);
+                modified |= bit_set_union(block.live_out.bit_set,exit.live_in.bit_set);
             }
 
             // finally if there is no def for an output 
             // then it must be an input (the value must arise somewhere)  
-            for(const RegSlot slot : block.live_out)
-            {
-                if(!contains(block.def,slot))
-                {
-                    modified |= add(block.live_in,slot);
-                }
-            }
+            modified |= bit_set_difference(block.live_in.bit_set,block.live_out.bit_set,block.def.bit_set);
 
             push_worklist(to_visit,seen,block.entry);
             push_worklist(to_visit,seen,block.exit);
@@ -549,14 +535,14 @@ void compute_var_live(Interloper& itl, Function& func)
 
 void destroy_block_use_def(Block& block)
 {
-    clear_set(block.def);
-    clear_set(block.use);
+    destroy_local_reg_set(block.def);
+    destroy_local_reg_set(block.use);
 }
 
 void destroy_block_liveness(Block& block)
 {
-    clear_set(block.live_in);
-    clear_set(block.live_out);
+    destroy_local_reg_set(block.live_in);
+    destroy_local_reg_set(block.live_out);
 }
 
 void destroy_liveness_info(Function& func)
