@@ -145,76 +145,37 @@ using OpcodeList = List<Opcode>;
 
 struct RegSetIterator
 {
-    void skip_empty_bits()
-    {
-        b32 done = false;
+    RegSetIterator(const BitSet& bit_set) : bit_set_iter(bit_set) {}
 
-        while(!done)
-        {
-            u64 entry = this->bit_set.set[this->scanned_bits / BITS_PER_ENTRY];
-            const u32 cur_bit = this->scanned_bits % BITS_PER_ENTRY;
-
-            // unset every bit inclusive of the last one we scanned
-            entry = (entry >> cur_bit) << cur_bit;
-
-            this->scanned_bits += ffs(entry) - cur_bit;
-
-            if(scanned_bits == this->bit_set.capacity)
-            {
-                done = true;
-            }
-
-            // If we have actually hit a bit then we are done
-            else if(test_bit_set(this->bit_set,scanned_bits))
-            {
-                // We need to skip this next time.
-                this->scanned_bits += 1;
-                done = true;
-            }
-        }
-    }
-
-    RegSetIterator(BitSet bit_set)
-    {
-        this->bit_set = bit_set;
-        skip_empty_bits();
-    }
-
-    u32 scanned_bits = 0;
-    BitSet bit_set;
+    BitSetIterator bit_set_iter;
 
     bool operator==(const RegSetIterator& it) const 
     {
-        return this->scanned_bits == it.scanned_bits;
+        return this->bit_set_iter == it.bit_set_iter;
     }
 
     RegSetIterator& operator++()
     {
-        skip_empty_bits();
+        ++this->bit_set_iter;
         return *this;
     }
 
     // The slot is always the one we have just scanned.
     LocalSlot operator*()
     {
-        return LocalSlot {this->scanned_bits - 1};
+        return LocalSlot{*this->bit_set_iter};
     }
 
     LocalSlot operator*() const
     {
-        return LocalSlot {this->scanned_bits - 1};
+        return LocalSlot{*this->bit_set_iter};
+    }
+
+    void skip_end()
+    {
+        this->bit_set_iter.scanned_bits = this->bit_set_iter.bit_set.capacity;
     }
 };
-
-
-RegSetIterator end_iter(const BitSet& bit_set)
-{
-    RegSetIterator it(bit_set);
-    it.scanned_bits = bit_set.capacity;
-
-    return it;
-}
-
 
 struct LocalRegSet
 {
@@ -222,24 +183,27 @@ struct LocalRegSet
 
     RegSetIterator begin()
     {
-        return RegSetIterator(bit_set);
+        return RegSetIterator(this->bit_set);
     }
 
     RegSetIterator end()
     {
-        return end_iter(bit_set);
+        auto iter = RegSetIterator(this->bit_set);
+        iter.skip_end();
+        return iter;
     }
 
     const RegSetIterator begin() const
     {
-        return RegSetIterator(bit_set);
+        return RegSetIterator(this->bit_set);
     }
 
     const RegSetIterator end() const
     {
-        return end_iter(bit_set);
+        auto iter = RegSetIterator(this->bit_set);
+        iter.skip_end();
+        return iter;
     }
-
 };
 
 
