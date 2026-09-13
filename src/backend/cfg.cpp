@@ -215,24 +215,77 @@ void emit_branch(Interloper& itl, Function& func, BlockSlot block,BlockSlot targ
 }
 
 
-void connect_node(Function& func,BlockSlot slot)
+struct BlockWorkList
 {
+    Array<BlockSlot> to_visit;
+    BitSet seen;
+};
+
+void destroy_block_worklist(BlockWorkList& work_list)
+{
+    destroy_arr(work_list.to_visit);
+    destroy_bit_set(work_list.seen);
+}
+
+
+bool push_worklist(BlockWorkList& work_list, BlockSlot slot)
+{
+    if(!set_bit_set(work_list.seen,slot.handle))
+    {
+        return false;
+    }
+
+    push_var(work_list.to_visit,slot);
+    return true;
+}
+
+
+void reset_block_worklist(BlockWorkList& work_list, BlockSlot slot)
+{
+    clear_arr(work_list.to_visit);
+    clear_bit_set(work_list.seen);
+
+    push_worklist(work_list,slot);
+}
+
+
+BlockWorkList make_block_worklist(const Function& func)
+{
+    BlockWorkList work_list;
+
+    work_list.seen = make_bit_set(count(func.emitter.program));
+    return work_list;
+}
+
+BlockWorkList make_block_worklist(const Function& func, BlockSlot entry)
+{
+    BlockWorkList work_list = make_block_worklist(func);
+    push_worklist(work_list,entry);
+
+    return work_list;
+}
+
+
+void append_worklist(BlockWorkList& work_list, const Array<BlockSlot>& list)
+{
+    for(const BlockSlot slot : list)
+    {
+        push_worklist(work_list,slot);
+    }
+}
+
+void connect_node(Function& func,BlockWorkList& work_list, BlockSlot slot)
+{
+    // Reset the worklist with our current block entry
+    // We do this to avoid making extra allocations.
+    reset_block_worklist(work_list,slot);
     auto& block = block_from_slot(func,slot);
-
-    // Which nodes have we allready looked at?
-    Set<BlockSlot> seen = make_set<BlockSlot>();
-
-    // setup intial scan
-    Array<BlockSlot> scan;
-    // note this is not added as seen
-    // so we can add it later if its a loop
-    push_var(scan,slot);
-
+    
     // while we still have unseen nodes
-    while(count(scan))
+    while(work_list.to_visit)
     {
         // get next scan
-        const BlockSlot cur = pop(scan);
+        const BlockSlot cur = pop(work_list.to_visit);
         const auto& scan_block = block_from_slot(func,cur);
 
         // iter over edges add any unseen
@@ -249,22 +302,13 @@ void connect_node(Function& func,BlockSlot slot)
                 block.flags |= REACH_FUNC_EXIT;
             }
 
-            if(!contains(seen,edge_slot))
+            if(push_worklist(work_list,edge_slot))
             {
-                // add as a scan target
-                add(seen,edge_slot);
-                push_var(scan,edge_slot);
-                
-
                 // add as new link
                 push_var(block.links,edge_slot);
             }
         }
     }
-
-    
-    destroy_set(seen);
-    destroy_arr(scan);
 }
 
 
@@ -305,18 +349,12 @@ void dump_cfg(Interloper& itl, Function& func)
 
     printf("\ncfg for function %s:\n",func.name.buf);
 
-    Set<BlockSlot> seen = make_set<BlockSlot>();
-    Array<BlockSlot> to_visit;
-
-    // print from start
     BlockSlot start = block_from_idx(0);
-    add(seen,start);
-    push_var(to_visit,start);
-
+    BlockWorkList work_list = make_block_worklist(func,start);
     
-    while(count(to_visit))
+    while(work_list.to_visit)
     {
-        const BlockSlot cur = pop(to_visit);
+        const BlockSlot cur = pop(work_list.to_visit);
         const auto& block = block_from_slot(func,cur); 
 
         // print cur
@@ -332,31 +370,28 @@ void dump_cfg(Interloper& itl, Function& func)
 
         print_block_connection(func,block.exit,"exit: ");
 
-        // add any we havent seen for a print
-        for(const BlockSlot exit : block.exit)
-        {
-            if(!contains(seen,exit))
-            {
-                add(seen,exit);
-                push_var(to_visit,exit);            
-            }
-        }      
+        // add any we haven't seen for a print
+        append_worklist(work_list,block.exit);     
     }
+
+    destroy_block_worklist(work_list);
 }
 
 
 // after we have finished emitting the IR we need to mark which nodes can be reached
 // from any one node
-void connect_flow_graph(Interloper& itl,Function& func)
+void connect_flow_graph(Function& func)
 {
-    UNUSED(itl);
+    BlockWorkList work_list = make_block_worklist(func);
 
     // TODO: we can do better than redoing the entire graph for each node
     for(u32 b = 0; b < count(func.emitter.program); b++)
     {
         const BlockSlot slot = block_from_idx(b);
-        connect_node(func,slot);
+        connect_node(func,work_list,slot);
     }
+
+    destroy_block_worklist(work_list);
 }
 
 void handle_src_regs(Function& func, Block& block, const ConstSpan<RegSlot>& src_span)
@@ -396,8 +431,6 @@ void handle_dst_regs(Function& func, Block& block, const ConstSpan<RegSlot>& dst
         assert(local.handle < count(func.local.registers));
         auto& ir_reg = reg_from_local(func,local);
 
-        
-
         // used as dst before use, def 
         if(!stored_in_mem(ir_reg) && !contains(block.use,local))
         {
@@ -410,8 +443,6 @@ void handle_dst_regs(Function& func, Block& block, const ConstSpan<RegSlot>& dst
 // TODO: would it be cheaper to do this inside the emitter?
 void compute_use_def(Interloper& itl,Function& func)
 {
-    UNUSED(itl);
-
     // each block
     for(auto& block : func.emitter.program)
     {
@@ -419,7 +450,6 @@ void compute_use_def(Interloper& itl,Function& func)
         block.live_out = make_local_reg_set(func.local);
         block.def = make_local_reg_set(func.local);
         block.use = make_local_reg_set(func.local);
-
 
         // ignore empty blocks
         if(!block.list.start)
@@ -444,32 +474,8 @@ void compute_use_def(Interloper& itl,Function& func)
     }
 }
 
-void push_worklist(Array<BlockSlot>& to_visit, Set<BlockSlot>& seen, const Array<BlockSlot>& list)
+BlockSlot find_last_reachable_block(Function& func)
 {
-    for(const BlockSlot slot : list)
-    {
-        if(!contains(seen,slot))
-        {
-            add(seen,slot);
-            push_var(to_visit,slot);            
-        }
-    }
-}
-
-void compute_var_live(Interloper& itl, Function& func)
-{
-    // empty function we are done!!
-    if(!count(func.emitter.program))
-    {
-        return;
-    }
-
-    // first compute a use def chain for each block
-    compute_use_def(itl,func);
-
-    // backprop until we get no changes to account for loops!
-    b32 modified = true;
-
     // Find last node that is reachable from the first node
     const BlockSlot entry_slot = block_from_idx(0);
     auto& entry_block = block_from_slot(func,entry_slot);
@@ -484,22 +490,37 @@ void compute_var_live(Interloper& itl, Function& func)
         }
     }
 
+    return last_reachable_block;
+}
+
+void compute_var_live(Interloper& itl, Function& func)
+{
+    // empty function we are done!!
+    if(!count(func.emitter.program))
+    {
+        return;
+    }
+
+    // first compute a use def chain for each block
+    compute_use_def(itl,func);
+
+    const auto last_reachable_block = find_last_reachable_block(func);
+
+    // run a liveness pass
+    BlockWorkList work_list = make_block_worklist(func);
+
+    // backprop until we get no changes to account for loops!
+    b32 modified = true;
+
     while(modified)
     {
         modified = false;
-
-        // run a liveness pass
-        auto seen = make_set<BlockSlot>();
-        Array<BlockSlot> to_visit;
-
-        // run complete analysis from last node
-        add(seen,last_reachable_block);
-        push_var(to_visit,last_reachable_block);
+        reset_block_worklist(work_list,last_reachable_block);
 
         // run pass on cur block
-        while(count(to_visit))
+        while(work_list.to_visit)
         {
-            const BlockSlot cur = pop(to_visit);
+            const BlockSlot cur = pop(work_list.to_visit);
             auto& block = block_from_slot(func,cur);
 
             // used as a use -> input
@@ -518,14 +539,13 @@ void compute_var_live(Interloper& itl, Function& func)
             // then it must be an input (the value must arise somewhere)  
             modified |= bit_set_difference(block.live_in.bit_set,block.live_out.bit_set,block.def.bit_set);
 
-            push_worklist(to_visit,seen,block.entry);
-            push_worklist(to_visit,seen,block.exit);
+            append_worklist(work_list,block.entry);
+            append_worklist(work_list,block.exit);
         }
-
-        // cleanup mem for current pass
-        destroy_set(seen);
-        destroy_arr(to_visit);
     }
+
+    destroy_block_worklist(work_list);
+
 
     if(itl.print_ir)
     {

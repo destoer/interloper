@@ -48,7 +48,7 @@ Option<itl_error> func_graph_pass(Interloper& itl, Function& func)
     }
 
     // connect up the cfg
-    connect_flow_graph(itl,func); 
+    connect_flow_graph(func); 
 
     // do liveness analysis
     compute_var_live(itl,func);
