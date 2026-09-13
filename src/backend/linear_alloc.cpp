@@ -686,7 +686,7 @@ void alloc_range(LinearAlloc& alloc,Interloper& itl, Function& func, ActiveReg& 
         cur.global_reg = reg;
         ir_reg.global_reg = cur.global_reg;
 
-        log_reg(alloc,"%r globally allocated to %s\n",cur.slot,X86_NAMES[reg]);
+        log_reg(alloc,"%r globally allocated to %s\n",RegSlot(cur.slot),X86_NAMES[reg]);
 
         // add to active register set 
         add_active(active,cur);
@@ -1105,6 +1105,7 @@ ConstLoweredRegSpan linear_allocate_registers(LinearAlloc& alloc,Block& block,Op
 
 void finish_alloc(Reg& reg,LinearAlloc& alloc)
 {
+    log_reg(alloc,"pending stack alloc %r\n",reg.reg_slot);
     assert(pending_stack_allocation(reg));
 
     finalise_offset(alloc.stack_alloc,reg);
@@ -1151,8 +1152,9 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
 
         if(ir_reg.local_reg != ir_reg.global_reg)
         {
-            push_var(misplaced,RegSlot(slot));
-            log_reg(alloc,"misplaced %r %s %s\n",slot,reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,ir_reg.global_reg));
+            const auto reg = RegSlot(slot);
+            push_var(misplaced,reg);
+            log_reg(alloc,"misplaced %r %s %s\n",reg,reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,ir_reg.global_reg));
             assert(!is_locked(get_register_file(alloc,ir_reg),ir_reg.global_reg));
         }
     }
