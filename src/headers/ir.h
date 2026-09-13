@@ -126,11 +126,8 @@ inline const char *block_names[] =
 
 static constexpr u32 SPECIAL_PURPOSE_BLOCK_START_HANDLE = 0xffff'fff0;
 static constexpr u32 INVALID_BLOCK_HANDLE = SPECIAL_PURPOSE_BLOCK_START_HANDLE + 0;
-static constexpr u32 BLOCK_FUNC_EXIT_HANDLE = SPECIAL_PURPOSE_BLOCK_START_HANDLE + 1;
 
 static constexpr BlockSlot INVALID_BLOCK = {INVALID_BLOCK_HANDLE};
-static constexpr BlockSlot BLOCK_FUNC_EXIT = {BLOCK_FUNC_EXIT_HANDLE}; 
-
 
 static constexpr u32 HAS_FUNC_EXIT = 1 << 0;
 static constexpr u32 REACH_FUNC_EXIT = 1 << 1;
@@ -213,6 +210,7 @@ struct Block
     OpcodeList list;
     u32 branch_count = 0;
 
+    // Kept as centralized copies in the emitter sets
     u32 flags = 0;
 
     // what is the corresponding label for this block?
@@ -232,8 +230,7 @@ struct Block
     LocalRegSet def;
     LocalRegSet use;
 
-    // what blocks are reachable from this block?
-    Array<BlockSlot> links;
+    BitSet links;
 };
 
 void add_func_exit(Function& func, BlockSlot slot);
@@ -241,9 +238,10 @@ void add_func_exit(Function& func, BlockSlot slot);
 struct IrEmitter
 {
     Array<Block> program;
-
+    BitSet reach_func_exit;
+    BitSet has_func_exit;
+    BitSet in_loop;
 };
-
 
 struct ArrayAllocation
 {

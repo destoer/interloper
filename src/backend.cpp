@@ -56,30 +56,14 @@ Option<itl_error> func_graph_pass(Interloper& itl, Function& func)
 
     // now check a function exit is reachable from the entry block of the function
     // for a void func this should always be possible as everything should hit the bottom return
-    // that does not have an early return...
+    // that does not have an early return.
 
     auto& start_block = func.emitter.program[0];
 
-    // check the start block can reach one
-    if(!can_reach_exit(start_block))
+    if(!test_bit_set_intersection(start_block.links,func.emitter.reach_func_exit))
     {
-        auto& label = label_from_slot(itl.symbol_table.label_lookup,start_block.label_slot);
-
         itl.ctx.expr = (AstNode*)func.root;
-        return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function %S at: %S",func.name,label.name); 
-    }
-
-    for(BlockSlot slot : start_block.links)
-    {
-        // TODO: have this print the source line of the block
-        if(!can_reach_exit(func,slot))
-        {
-            auto& block = block_from_slot(func,slot);
-            auto& label = label_from_slot(itl.symbol_table.label_lookup,block.label_slot);
-
-            itl.ctx.expr = (AstNode*)func.root;   
-            return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function %S at: %S",func.name,label.name);
-        }
+        return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function %S",func.name);      
     }
 
     return option::none;

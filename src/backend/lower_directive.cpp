@@ -297,7 +297,7 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, LinearAlloc& alloc,Block& 
             log_reg(alloc,"alloc slot: %r : %s\n",slot,force_lower? "forced" : "unforced");
 
             // explicitly force a stack alloc now
-            if(force_lower && reg.segment != reg_segment::global)
+            if(force_lower && reg.segment == reg_segment::local)
             {
                 stack_reserve_reg(alloc.stack_alloc,reg);
             }

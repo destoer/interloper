@@ -187,7 +187,7 @@ void destroy_block(Block& block)
     destroy_local_reg_set(block.def);
     destroy_local_reg_set(block.use);
 
-    destroy_arr(block.links);
+    destroy_bit_set(block.links);
 }
 
 void destroy_emitter(IrEmitter& emitter)
@@ -198,4 +198,8 @@ void destroy_emitter(IrEmitter& emitter)
     }
 
     destroy_arr(emitter.program);
+
+    destroy_bit_set(emitter.reach_func_exit);
+    destroy_bit_set(emitter.has_func_exit);
+    destroy_bit_set(emitter.in_loop);
 }

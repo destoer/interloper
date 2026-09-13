@@ -16,7 +16,9 @@ BlockSlot new_block(ArenaAllocator* list_allocator,Function& func,LabelSlot labe
     const BlockSlot block_slot = block_from_idx(handle);
 
     push_var(func.emitter.program,make_block(label_slot,block_slot,list_allocator));
-
+    
+    const auto new_size = count(func.emitter.program);
+    grow_bit_set(func.emitter.has_func_exit,new_size);
 
     return block_slot; 
 }
@@ -72,21 +74,21 @@ BlockSlot block_from_label(Interloper& itl, LabelSlot slot)
 }
 
 
-b32 is_func_exit(BlockSlot slot)
+
+bool test_block_set(const BitSet& bit_set,BlockSlot slot)
 {
-    return slot.handle == BLOCK_FUNC_EXIT_HANDLE;
+    return test_bit_set(bit_set,slot.handle);
 }
 
 void add_block_exit(Function& func,BlockSlot slot, BlockSlot exit)
 {
-    auto& block = block_from_slot(func,slot);
-
     // once we have exited the func everything else is unreachable
-    if(block.flags & HAS_FUNC_EXIT)
+    if(test_block_set(func.emitter.has_func_exit,slot))
     {
         return;
     }
 
+    auto& block = block_from_slot(func,slot);
     push_var(block.exit,exit);
 
     // add entry to our target block
@@ -117,30 +119,18 @@ void add_func_exit(Function& func, BlockSlot slot)
         remove_block_exit(func,slot,exit);
     }
 
-    block.flags = block.flags | HAS_FUNC_EXIT | REACH_FUNC_EXIT;
+    set_bit_set(func.emitter.has_func_exit,slot.handle);
+    block.flags |= REACH_FUNC_EXIT | HAS_FUNC_EXIT;
 }
 
 b32 has_func_exit(Function& func, BlockSlot slot)
 {
-    auto& block = block_from_slot(func,slot);
-    return block.flags & HAS_FUNC_EXIT;
+    return test_block_set(func.emitter.has_func_exit,slot);
 }
 
 b32 can_reach_exit(Function& func, BlockSlot slot)
 {
-    auto& block = block_from_slot(func,slot);
-    return block.flags & REACH_FUNC_EXIT;
-}
-
-b32 can_reach_exit(Block& block)
-{
-    return block.flags & REACH_FUNC_EXIT;
-}
-
-
-b32 in_loop(Block& block)
-{
-    return block.flags & IN_LOOP;
+    return test_block_set(func.emitter.reach_func_exit,slot);
 }
 
 void add_branch_exit(Function& func, BlockSlot slot)
@@ -214,7 +204,6 @@ void emit_branch(Interloper& itl, Function& func, BlockSlot block,BlockSlot targ
     check_block_branch(itl,func,block);
 }
 
-
 struct BlockWorkList
 {
     Array<BlockSlot> to_visit;
@@ -281,6 +270,8 @@ void connect_node(Function& func,BlockWorkList& work_list, BlockSlot slot)
     reset_block_worklist(work_list,slot);
     auto& block = block_from_slot(func,slot);
     
+    block.links = make_bit_set(count(func.emitter.program));
+
     // while we still have unseen nodes
     while(work_list.to_visit)
     {
@@ -288,27 +279,32 @@ void connect_node(Function& func,BlockWorkList& work_list, BlockSlot slot)
         const BlockSlot cur = pop(work_list.to_visit);
         const auto& scan_block = block_from_slot(func,cur);
 
+        // Quickly mass mark sets as necessary
+        bit_set_union(work_list.seen,scan_block.links);
+
         // iter over edges add any unseen
         for(const auto& edge_slot : scan_block.exit)
         {
-            // can reach self this means we have a loop!
-            if(slot == edge_slot)
-            {
-                block.flags |= IN_LOOP;
-            }
-
-            if(has_func_exit(func,edge_slot))
-            {
-                block.flags |= REACH_FUNC_EXIT;
-            }
-
-            if(push_worklist(work_list,edge_slot))
-            {
-                // add as new link
-                push_var(block.links,edge_slot);
-            }
+            push_worklist(work_list,edge_slot);
         }
     }
+
+    // If our links have any blocks that can reach an exit then assume we can
+    // We will check this is true for all links later.
+    if(test_bit_set_intersection(block.links,func.emitter.reach_func_exit))
+    {
+        set_bit_set(func.emitter.reach_func_exit,slot.handle);
+        block.flags |= REACH_FUNC_EXIT;
+    }
+
+    // If we have ourself as a link then we are in a loop
+    if(test_block_set(block.links,slot))
+    {
+        set_bit_set(func.emitter.in_loop,slot.handle);
+        block.flags |= IN_LOOP;
+    }
+
+    bit_set_union(block.links,work_list.seen);
 }
 
 
@@ -382,9 +378,16 @@ void dump_cfg(Interloper& itl, Function& func)
 // from any one node
 void connect_flow_graph(Function& func)
 {
+    // We are about to compute these grow the sets.
+    const u32 new_size = count(func.emitter.program);
+    grow_bit_set(func.emitter.reach_func_exit,new_size);
+    grow_bit_set(func.emitter.in_loop,new_size);
+
+    // Any block that has an exit can reach one.
+    bit_set_union(func.emitter.reach_func_exit,func.emitter.has_func_exit);
+
     BlockWorkList work_list = make_block_worklist(func);
 
-    // TODO: we can do better than redoing the entire graph for each node
     for(u32 b = 0; b < count(func.emitter.program); b++)
     {
         const BlockSlot slot = block_from_idx(b);
@@ -480,17 +483,8 @@ BlockSlot find_last_reachable_block(Function& func)
     const BlockSlot entry_slot = block_from_idx(0);
     auto& entry_block = block_from_slot(func,entry_slot);
 
-    BlockSlot last_reachable_block = entry_slot;
-
-    for(const BlockSlot link : entry_block.links)
-    {
-        if(link.handle > last_reachable_block.handle)
-        {
-            last_reachable_block = block_from_idx(link.handle);
-        }
-    }
-
-    return last_reachable_block;
+    const auto bit = bit_set_last(entry_block.links);
+    return block_from_idx(bit);
 }
 
 void compute_var_live(Interloper& itl, Function& func)

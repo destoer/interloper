@@ -47,6 +47,11 @@ u32 allocate_stack_array(LinearAlloc& alloc, RegSlot slot, u32 size, u32 alloc_c
 
 void stack_reserve_reg(StackAlloc& alloc, Reg& ir_reg)
 {
+    if(ir_reg.flags & PENDING_STACK_ALLOCATION)
+    {
+        return;
+    }
+
     // if we attempt to reserve space for a global we have trouble
     assert(is_local(ir_reg));
 
