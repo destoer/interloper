@@ -90,7 +90,7 @@ DirectiveOperand make_label_operand(LabelSlot slot)
 
 DirectiveOperand make_spec_operand(spec_reg reg)
 {
-    return make_reg_operand(make_spec_reg_slot(reg),ir_reg_type::directive);
+    return make_reg_operand(reg,ir_reg_type::directive);
 }
 
 DirectiveOperand make_pool_operand(PoolSlot slot)
@@ -219,7 +219,7 @@ void lock_reg_set(Interloper& itl, Function& func, u64 set)
 
 void lock_reg(Interloper& itl, Function& func, spec_reg reg)
 {
-    const DirectiveReg v1 = {make_spec_reg_slot(reg),ir_reg_type::directive};
+    const DirectiveReg v1 = {reg,ir_reg_type::directive};
     emit_directive_reg1(itl,func,directive_type::lock_reg,v1);
 }
 
@@ -246,7 +246,7 @@ void reload_slot(Interloper& itl, Function& func, const Reg& reg)
         return;
     }
 
-    const DirectiveReg v1 = {reg.slot,ir_reg_type::directive};
+    const DirectiveReg v1 = {reg.reg_slot,ir_reg_type::directive};
     emit_directive_reg1(itl,func,directive_type::reload_slot,v1);
 }
 
@@ -257,14 +257,14 @@ void spill_slot(Interloper& itl, Function& func, const Reg& reg)
         return;
     }
 
-    const DirectiveReg v1 = {reg.slot,ir_reg_type::directive};
+    const DirectiveReg v1 = {reg.reg_slot,ir_reg_type::directive};
     emit_directive_reg1(itl,func,directive_type::spill_slot,v1);
 }
 
 Opcode make_mov_unlock(RegSlot dst, spec_reg spec)
 {
     const DirectiveReg v1 = {dst,ir_reg_type::dst};
-    const DirectiveReg v2 = {make_spec_reg_slot(spec),ir_reg_type::src};
+    const DirectiveReg v2 = {spec,ir_reg_type::src};
     return make_directive_two(directive_type::mov_unlock,make_reg_operand(v1.slot,v1.type),make_reg_operand(v2.slot,v2.type));
 }
 

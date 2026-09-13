@@ -111,7 +111,6 @@ struct Interloper
     b32 print_tokens = false;
     
     b32 print_reg_allocation = false;
-    b32 print_stack_allocation = false; 
 
     b32 print_types = false;
 

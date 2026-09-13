@@ -16,7 +16,7 @@ using RegResult = destoer::Result<TypedReg,itl_error>;
 
 inline bool is_direct_addr(const AddrSlot& addr_slot)
 {
-    return addr_slot.struct_addr && addr_slot.addr.index == make_spec_reg_slot(spec_reg::null) && addr_slot.addr.offset == 0;
+    return addr_slot.struct_addr && addr_slot.addr.index == spec_reg::null && addr_slot.addr.offset == 0;
 }
 
 
@@ -34,6 +34,7 @@ static constexpr u32 STACK_ARG = 1 << 5;
 static constexpr u32 REG_FLOAT = 1 << 6;
 static constexpr u32 STACK_ALLOCATED = 1 << 7;
 static constexpr u32 GLOBALLY_ALLOCATED = 1 << 8;
+static constexpr u32 REG_TMP = 1 << 9;
 
 
 // TODO:
@@ -52,15 +53,18 @@ struct Reg
     // Where is this register allocated
     reg_segment segment = reg_segment::local;
 
-    // what slot does this symbol hold inside the ir?
-    RegSlot slot;
+    // what slot does this register hold
+    RegSlot reg_slot = spec_reg::null;
+
+    // What symbol does is this for if any?
+    SymSlot sym_slot = {INVALID_HANDLE};
 
     // how much memory does this thing use GPR_SIZE max (spilled into count if larger)
     // i.e this is for stack allocation to get actual var sizes use type_size();
     u32 size = 0;
     u32 count = 0;
 
-    // intialized during register allocation
+    // initialized during register allocation
 
     // where is the current offset for its section?
     u32 offset = 0;
@@ -79,6 +83,12 @@ struct Reg
 
     u32 flags = 0;
 };
+
+struct RegTable
+{
+    Array<Reg> registers;
+};
+
 
 reg_type rtype_from_ir(const struct Reg& reg)
 {
@@ -116,11 +126,8 @@ inline const char *block_names[] =
 
 static constexpr u32 SPECIAL_PURPOSE_BLOCK_START_HANDLE = 0xffff'fff0;
 static constexpr u32 INVALID_BLOCK_HANDLE = SPECIAL_PURPOSE_BLOCK_START_HANDLE + 0;
-static constexpr u32 BLOCK_FUNC_EXIT_HANDLE = SPECIAL_PURPOSE_BLOCK_START_HANDLE + 1;
 
 static constexpr BlockSlot INVALID_BLOCK = {INVALID_BLOCK_HANDLE};
-static constexpr BlockSlot BLOCK_FUNC_EXIT = {BLOCK_FUNC_EXIT_HANDLE}; 
-
 
 static constexpr u32 HAS_FUNC_EXIT = 1 << 0;
 static constexpr u32 REACH_FUNC_EXIT = 1 << 1;
@@ -131,11 +138,79 @@ static constexpr u32 BRANCH_EXIT = 1 << 4;
 using OpcodeNode = ListNode<Opcode>;
 using OpcodeList = List<Opcode>;
 
+
+
+struct RegSetIterator
+{
+    RegSetIterator(const BitSet& bit_set) : bit_set_iter(bit_set) {}
+
+    BitSetIterator bit_set_iter;
+
+    bool operator==(const RegSetIterator& it) const 
+    {
+        return this->bit_set_iter == it.bit_set_iter;
+    }
+
+    RegSetIterator& operator++()
+    {
+        ++this->bit_set_iter;
+        return *this;
+    }
+
+    // The slot is always the one we have just scanned.
+    LocalSlot operator*()
+    {
+        return LocalSlot{*this->bit_set_iter};
+    }
+
+    LocalSlot operator*() const
+    {
+        return LocalSlot{*this->bit_set_iter};
+    }
+
+    void skip_end()
+    {
+        this->bit_set_iter.scanned_bits = this->bit_set_iter.bit_set.capacity;
+    }
+};
+
+struct LocalRegSet
+{
+    BitSet bit_set;
+
+    RegSetIterator begin()
+    {
+        return RegSetIterator(this->bit_set);
+    }
+
+    RegSetIterator end()
+    {
+        auto iter = RegSetIterator(this->bit_set);
+        iter.skip_end();
+        return iter;
+    }
+
+    const RegSetIterator begin() const
+    {
+        return RegSetIterator(this->bit_set);
+    }
+
+    const RegSetIterator end() const
+    {
+        auto iter = RegSetIterator(this->bit_set);
+        iter.skip_end();
+        return iter;
+    }
+};
+
+
+
 struct Block
 {
     OpcodeList list;
     u32 branch_count = 0;
 
+    // Kept as centralized copies in the emitter sets
     u32 flags = 0;
 
     // what is the corresponding label for this block?
@@ -150,13 +225,12 @@ struct Block
     // block we exit to
     Array<BlockSlot> exit;
 
-    Set<RegSlot> live_in;
-    Set<RegSlot> live_out;
-    Set<RegSlot> def;
-    Set<RegSlot> use;
+    LocalRegSet live_in;
+    LocalRegSet live_out;
+    LocalRegSet def;
+    LocalRegSet use;
 
-    // what blocks are reachable from this block?
-    Array<BlockSlot> links;
+    BitSet links;
 };
 
 void add_func_exit(Function& func, BlockSlot slot);
@@ -164,13 +238,14 @@ void add_func_exit(Function& func, BlockSlot slot);
 struct IrEmitter
 {
     Array<Block> program;
-
+    BitSet reach_func_exit;
+    BitSet has_func_exit;
+    BitSet in_loop;
 };
-
 
 struct ArrayAllocation
 {
-    SymSlot slot;
+    RegSlot slot;
     u32 stack_offset = 0;
     u32 offset = 0;
     u32 size = 0;

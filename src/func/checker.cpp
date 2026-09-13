@@ -14,7 +14,7 @@ FuncCall call_info_from_func_pointer(Symbol& sym)
 {
     auto call_info = call_info_from_type((FuncPointerType*)sym.type,0);
 
-    call_info.reg_slot = sym.reg.slot;
+    call_info.reg_slot = sym.reg_slot;
     call_info.name = sym.name;
 
     return call_info;
@@ -384,7 +384,7 @@ Option<itl_error> type_check_tuple_assign(Interloper& itl, Function& func, AstNo
             // Handle a auto decl
             if(!sym_ptr)
             {
-                const auto sym_res = add_symbol(itl,sym_node->name,rtype);
+                const auto sym_res = add_local_symbol(itl,func,sym_node->name,rtype);
                 if(!sym_res)
                 {
                     return sym_res.error();

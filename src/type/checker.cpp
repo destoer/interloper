@@ -609,7 +609,7 @@ Option<itl_error> check_assign_plain(Interloper& itl, const Type* ltype, const T
         FuncPointerType* func_ltype = (FuncPointerType*)ltype;
         FuncPointerType* func_rtype = (FuncPointerType*)rtype;
 
-        if(count(func_ltype->sig.args) != count(func_rtype->sig.args))
+        if(count(func_ltype->sig.args_sym) != count(func_rtype->sig.args_sym))
         {
             return compile_error(itl,itl_error::mismatched_args,"func pointers have mismatched arg sizes %t = %t",ltype,rtype);
         }
@@ -623,10 +623,10 @@ Option<itl_error> check_assign_plain(Interloper& itl, const Type* ltype, const T
         // implicit conversions are not valid here!
 
         // check args
-        for(u32 a = 0; a < count(func_ltype->sig.args); a++)
+        for(u32 a = 0; a < count(func_ltype->sig.args_sym); a++)
         {
-            auto& lsym = sym_from_slot(itl.symbol_table,func_ltype->sig.args[a]);
-            auto& rsym = sym_from_slot(itl.symbol_table,func_rtype->sig.args[a]);
+            auto& lsym = sym_from_slot(itl.symbol_table,func_ltype->sig.args_sym[a]);
+            auto& rsym = sym_from_slot(itl.symbol_table,func_rtype->sig.args_sym[a]);
 
             if(!type_equal(lsym.type,rsym.type))
             {

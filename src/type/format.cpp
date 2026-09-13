@@ -136,14 +136,14 @@ String type_name(Interloper& itl,const Type *type)
 
                 // print args
                 // TODO: this should probably hide hidden args...
-                for(u32 a = 0; a < count(sig.args); a++)
+                for(u32 a = 0; a < count(sig.args_sym); a++)
                 {
                     if(a != 0)
                     {
                         push_char(itl.string_allocator,func_name,',');
                     }
 
-                    const auto& sym = sym_from_slot(itl.symbol_table,sig.args[a]);
+                    const auto& sym = sym_from_slot(itl.symbol_table,sig.args_sym[a]);
 
                     push_string(itl.string_allocator,func_name,sym.name);
 

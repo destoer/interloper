@@ -221,7 +221,7 @@ void allocation_addr_pass(Interloper& itl,Function &func, LinearAlloc& alloc)
     log(alloc.print,"saved registers: %d (0x%x) (0x%x)\n",save_count,alloc.gpr.saved_set,alloc.fpr.saved_set);
 
 
-    alloc_args(func,alloc.stack_alloc,itl.symbol_table,GPR_SIZE * save_count);
+    alloc_args(func,alloc,itl.symbol_table,GPR_SIZE * save_count);
 
     // entry point does not need to preserve regs
     auto& start_block = func.emitter.program[0];
@@ -283,7 +283,7 @@ void setup_passing_constraints(Function& func)
 
 void allocate_registers(Interloper& itl,Function &func)
 {
-    auto alloc = make_linear_alloc(itl.print_reg_allocation,itl.print_stack_allocation,itl.stack_alloc,itl.debug,func.registers,&itl.symbol_table,itl.arch);
+    auto alloc = make_linear_alloc(itl.print_reg_allocation,itl.stack_alloc,itl.debug,func.local,&itl.symbol_table,itl.arch);
 
     log(alloc.print,"allocating registers for %s\n",func.name.buf);
 

@@ -254,12 +254,19 @@ struct CastNode
     cast_oper oper = cast_oper::move;
 };
 
+struct SymRegSlot
+{
+    SymSlot sym = {INVALID_HANDLE};
+    RegSlot reg = spec_reg::null;
+};
+
+
+// TODO: We may want to cache teh reg slot here?
 union NamedSymbol 
 {
     // Before type checking
     String name = "";
-    // After type checking
-    SymSlot slot;
+    SymRegSlot slot;
 };
 
 
@@ -288,7 +295,7 @@ struct SymbolNode
     union
     {
         String name;
-        SymSlot sym_slot = {INVALID_HANDLE};
+        SymRegSlot slot;
         Function* func;
     };
 };

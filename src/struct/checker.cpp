@@ -235,7 +235,8 @@ TypeResult type_check_access_slice_member(Interloper& itl, Type* ltype, AccessMe
 
     member_access.expr_type = *slice_res;
     slice->node.expr_type = member_access.expr_type;
-    slice->sym.slot = {INVALID_HANDLE};
+    slice->sym.slot.sym = {INVALID_HANDLE};
+    slice->sym.slot.reg = spec_reg::null;
 
     return member_access.expr_type;
 }

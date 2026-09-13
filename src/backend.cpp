@@ -48,7 +48,7 @@ Option<itl_error> func_graph_pass(Interloper& itl, Function& func)
     }
 
     // connect up the cfg
-    connect_flow_graph(itl,func); 
+    connect_flow_graph(func); 
 
     // do liveness analysis
     compute_var_live(itl,func);
@@ -56,30 +56,14 @@ Option<itl_error> func_graph_pass(Interloper& itl, Function& func)
 
     // now check a function exit is reachable from the entry block of the function
     // for a void func this should always be possible as everything should hit the bottom return
-    // that does not have an early return...
+    // that does not have an early return.
 
     auto& start_block = func.emitter.program[0];
 
-    // check the start block can reach one
-    if(!can_reach_exit(start_block))
+    if(!test_bit_set_intersection(start_block.links,func.emitter.reach_func_exit))
     {
-        auto& label = label_from_slot(itl.symbol_table.label_lookup,start_block.label_slot);
-
         itl.ctx.expr = (AstNode*)func.root;
-        return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function %S at: %S",func.name,label.name); 
-    }
-
-    for(BlockSlot slot : start_block.links)
-    {
-        // TODO: have this print the source line of the block
-        if(!can_reach_exit(func,slot))
-        {
-            auto& block = block_from_slot(func,slot);
-            auto& label = label_from_slot(itl.symbol_table.label_lookup,block.label_slot);
-
-            itl.ctx.expr = (AstNode*)func.root;   
-            return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function %S at: %S",func.name,label.name);
-        }
+        return compile_error(itl,itl_error::missing_return,"[COMPILE]: not all paths return in function %S",func.name);      
     }
 
     return option::none;
@@ -96,11 +80,11 @@ TypedReg compile_expression_tmp(Interloper &itl,Function &func,AstNode *node)
 
 TypedReg typed_reg_from_sym(Interloper& itl, Function& func, SymbolNode* sym_node)
 {
-    UNUSED(func);
+    UNUSED(func); UNUSED(itl);
+
     if(sym_node->type == sym_node_type::sym_slot)
     {
-        const auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
-        return typed_reg(sym);
+        return TypedReg{sym_node->slot.reg,sym_node->node.expr_type};
     }
 
     unimplemented("Func pointer sym");
@@ -206,7 +190,7 @@ Type* compile_expression(Interloper &itl,Function &func,AstNode *node,RegSlot ds
 
 void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_node, const Symbol& sym)
 {
-    const auto slot = sym.reg.slot;
+    const auto slot = sym.reg_slot;
 
     alloc_slot(itl,func,slot,false);
     
@@ -231,14 +215,14 @@ void compile_basic_decl(Interloper& itl, Function& func, const DeclNode* decl_no
         return;
     }
 
-
     // normal assign
     compile_expression(itl,func,decl_node->expr,slot);
 
     // Unknown quantity must be clipped
     if(is_unsigned_integer(sym.type) && !known_gpr_node(decl_node->expr))
     {
-        clip_arith_type(itl,func,slot,slot,sym.reg.size);
+        const auto& reg = reg_from_slot(itl,func,slot);
+        clip_arith_type(itl,func,slot,slot,reg.size);
     }
 }
 
@@ -246,7 +230,7 @@ void compile_decl(Interloper &itl,Function &func,AstNode* stmt)
 {
     DeclNode* decl_node = (DeclNode*)stmt;
 
-    auto& sym = sym_from_slot(itl.symbol_table,decl_node->sym.slot);
+    auto& sym = sym_from_slot(itl.symbol_table,decl_node->sym.slot.sym);
 
 
     switch(sym.type->kind)
@@ -275,11 +259,11 @@ void compile_auto_decl(Interloper &itl,Function &func, AstNode* stmt)
 {
     AutoDeclNode* auto_decl = (AutoDeclNode*)stmt;
 
-    auto& sym = sym_from_slot(itl.symbol_table,auto_decl->sym.slot);
+    auto& sym = sym_from_slot(itl.symbol_table,auto_decl->sym.slot.sym);
 
     // save the alloc node so we can fill the info in later
-    alloc_slot(itl,func,sym.reg.slot,!is_plain_type(sym.type));
-    compile_expression(itl,func,auto_decl->expr,sym.reg.slot);
+    alloc_slot(itl,func,sym.reg_slot,!is_plain_type(sym.type));
+    compile_expression(itl,func,auto_decl->expr,sym.reg_slot);
 }
 
 // TODO: Handle assigns of copied struct parameters
@@ -292,12 +276,11 @@ void compile_assign(Interloper& itl, Function& func, AstNode* stmt)
         case ast_type::symbol:
         {
             SymbolNode* sym_node = (SymbolNode*)assign->left;
-            auto& sym = sym_from_slot(itl.symbol_table,sym_node->sym_slot);
+            const auto slot = sym_node->slot.reg;
+            auto& reg = reg_from_slot(itl,func,slot);
 
-
-            const RegSlot slot = sym.reg.slot;
-            const u32 size = sym.reg.size;
-            const Type *ltype = sym.type;
+            const u32 size = reg.size;
+            const Type *ltype = sym_node->node.expr_type;
 
             compile_expression(itl,func,assign->right,slot);
 
@@ -451,17 +434,10 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
         return opt_err;
     }
 
-    const auto func_err = graph_pass_functions(itl);
-    if(func_err)
-    {
-        return func_err;
-    }
-
     if(itl.print_ir)
     {
         dump_itl_ir(itl);
-    }
-    
+    }    
 
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -475,12 +451,18 @@ Option<itl_error> backend(Interloper& itl, const String& executable_path)
         }
     }
 
+    const auto func_err = graph_pass_functions(itl);
+    if(func_err)
+    {
+        return func_err;
+    }
+
     // perform register allocation on used functions
     for(auto& func : itl.func_table.used)
     {
         allocate_registers(itl,*func);
 
-        if(itl.print_stack_allocation || itl.print_reg_allocation)
+        if(itl.print_reg_allocation)
         {
             putchar('\n');
         }

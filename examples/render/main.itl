@@ -26,16 +26,16 @@ func draw_line(win: gfx::Window@, p1: std::Vec2F, p2: std::Vec2F, colour: u32)
 
     if steep
     {
-        std::swap_f64(&x1,&y1);
-        std::swap_f64(&x2,&y2);
+        std::swap(&x1,&y1);
+        std::swap(&x2,&y2);
     }
 
     // x1 should actually be smaller than x2 as we will
     // iterate over it later.
     if x2 < x1 
     {
-        std::swap_f64(&x1,&x2);
-        std::swap_f64(&y1,&y2);        
+        std::swap(&x1,&x2);
+        std::swap(&y1,&y2);        
     }
 
     y := y1;
