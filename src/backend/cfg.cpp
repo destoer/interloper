@@ -279,7 +279,7 @@ void connect_node(Function& func,BlockWorkList& work_list, BlockSlot slot)
         const BlockSlot cur = pop(work_list.to_visit);
         const auto& scan_block = block_from_slot(func,cur);
 
-        // Quickly mass mark sets as necessary
+        // Propagate existing information
         bit_set_union(work_list.seen,scan_block.links);
 
         // iter over edges add any unseen
@@ -388,7 +388,7 @@ void connect_flow_graph(Function& func)
 
     BlockWorkList work_list = make_block_worklist(func);
 
-    for(u32 b = 0; b < count(func.emitter.program); b++)
+    for(s32 b = count(func.emitter.program) - 1; b >= 0; b--)
     {
         const BlockSlot slot = block_from_idx(b);
         connect_node(func,work_list,slot);
@@ -565,5 +565,6 @@ void destroy_liveness_info(Function& func)
     {
         destroy_block_use_def(block);
         destroy_block_liveness(block);
+        destroy_bit_set(block.links);
     }
 }

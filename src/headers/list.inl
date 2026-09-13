@@ -250,3 +250,11 @@ inline ListNode<T> *remove(List<T> &list, ListNode<T>* node)
         return next;
     }
 }
+
+
+template<typename T>
+inline void empty_list(List<T> &list)
+{
+    list.start = nullptr;
+    list.finish = nullptr;
+}
