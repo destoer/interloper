@@ -535,6 +535,7 @@ lowered_reg_t special_reg_to_reg(arch_target arch,spec_reg spec)
         case spec_reg::r8: return u32(x86_reg::r8);
         case spec_reg::r9: return u32(x86_reg::r9);
         case spec_reg::r10: return u32(x86_reg::r10);
+        case spec_reg::r11: return u32(x86_reg::r11);
 
         case spec_reg::const_seg: return u32(spec_reg::const_seg);
         case spec_reg::null: return u32(spec_reg::null);

@@ -126,19 +126,20 @@ enum class spec_reg
     r8 = SPECIAL_REG_START + 9,
     r9 = SPECIAL_REG_START + 10,
     r10 = SPECIAL_REG_START + 11,
+    r11 = SPECIAL_REG_START + 12,
 
     // Return that requires a memory copy
-    rv_struct = SPECIAL_REG_START + 12,
+    rv_struct = SPECIAL_REG_START + 13,
 
     // dont perform any moves
-    null = SPECIAL_REG_START + 13,
+    null = SPECIAL_REG_START + 14,
 
-    const_seg = SPECIAL_REG_START + 14,
-    global_seg = SPECIAL_REG_START + 15,
+    const_seg = SPECIAL_REG_START + 15,
+    global_seg = SPECIAL_REG_START + 16,
 
     // args
-    a1 = SPECIAL_REG_START + 16,
-    a2 = SPECIAL_REG_START + 17,
+    a1 = SPECIAL_REG_START + 17,
+    a2 = SPECIAL_REG_START + 18,
 };
 
 inline b32 spec_reg_is_gpr(spec_reg reg)
@@ -169,6 +170,7 @@ static const String SPECIAL_REG_NAMES[] =
     "r8",
     "r9",
     "r10",
+    "r11",
 
     "rv_struct",
     "null_slot",
