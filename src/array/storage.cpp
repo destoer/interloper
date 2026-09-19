@@ -79,7 +79,7 @@ void store_arr_data(Interloper& itl, Function& func, RegSlot slot, RegSlot data)
         {
             case spec_reg::rv_struct:
             {
-                store_ptr(itl,func,data,make_sym_reg_slot(func.sig.args[0]),0,GPR_SIZE,false);
+                store_ptr(itl,func,data,func.sig.args_reg[0],0,GPR_SIZE,false);
                 break;
             }
 
@@ -102,7 +102,7 @@ void store_arr_len(Interloper& itl, Function& func, RegSlot slot,RegSlot len)
         {
             case spec_reg::rv_struct:
             {
-                store_ptr(itl,func,len,make_sym_reg_slot(func.sig.args[0]),GPR_SIZE,GPR_SIZE,false);
+                store_ptr(itl,func,len,func.sig.args_reg[0],GPR_SIZE,GPR_SIZE,false);
                 break;
             }
 

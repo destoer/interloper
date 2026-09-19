@@ -64,14 +64,19 @@ Option<itl_error> type_check_for_range_idx(Interloper& itl,Function& func, ForRa
         return index_res.error();
     }
 
-    const auto sym_res = add_symbol(itl,range->sym_one.name,*index_res);
+    const auto sym_res = add_local_symbol(itl,func,range->sym_one.name,*index_res);
     if(!sym_res)
     {
         return sym_res.error();
     }
 
-    range->sym_one.slot = *sym_res;
-    range->sym_two.slot = {INVALID_HANDLE};
+    auto& sym = sym_from_slot(itl.symbol_table,*sym_res);
+
+    range->sym_one.slot.sym = sym.sym_slot;
+    range->sym_two.slot.reg = sym.reg_slot;
+
+    range->sym_two.slot.sym = {INVALID_HANDLE};
+    range->sym_two.slot.reg = spec_reg::null;
 
 
     return type_check_block(itl,func,range->block);
@@ -97,29 +102,34 @@ Option<itl_error> type_check_for_range_arr(Interloper& itl, Function& func, ForR
 
     const bool pointer = (range->flags & RANGE_FOR_TAKE_POINTER) == RANGE_FOR_TAKE_POINTER;
 
-    const auto var_res = add_symbol(itl,range->sym_one.name,pointer? make_reference(itl,contained_type) : contained_type);
+    const auto var_res = add_local_symbol(itl,func,range->sym_one.name,pointer? make_reference(itl,contained_type) : contained_type);
     if(!var_res)
     {
         return var_res.error();
     }
 
-    range->sym_one.slot = *var_res;
+    auto& var = sym_from_slot(itl.symbol_table,*var_res);
+    range->sym_one.slot.sym = var.sym_slot;
+    range->sym_one.slot.reg = var.reg_slot;
 
     // Add the index variable if it is there.
     if(range->flags & RANGE_FOR_ARRAY_IDX)
     {
-        const auto idx_res = add_symbol(itl,range->sym_two.name,itl.const_usize_type);
+        const auto idx_res = add_local_symbol(itl,func,range->sym_two.name,itl.const_usize_type);
         if(!idx_res)
         {
             return idx_res.error();
         }
+        auto& idx = sym_from_slot(itl.symbol_table,*idx_res);
 
-        range->sym_two.slot = *idx_res;
+        range->sym_two.slot.sym = idx.sym_slot;
+        range->sym_two.slot.reg = idx.reg_slot;
     }
 
     else
     {
-        range->sym_two.slot = {INVALID_HANDLE};
+        range->sym_two.slot.sym = {INVALID_HANDLE};
+        range->sym_two.slot.reg = spec_reg::null;
     }
 
     return type_check_block(itl,func,range->block);

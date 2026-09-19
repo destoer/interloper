@@ -287,11 +287,6 @@ Option<itl_error> write_const_data(Interloper& itl, PoolSlot slot, u32 offset, c
     return option::none;
 }
 
-PoolSlot pool_slot_from_sym(const Symbol& sym)
-{
-    return pool_slot_from_idx(sym.reg.offset);
-}
-
 ConstValueResult read_const_pool_mem(Interloper& itl, PoolSlot slot, u32 offset, Type* type)
 {
     const u32 size = type_size(itl,type);
@@ -352,7 +347,8 @@ ConstDataResult read_const_data(Interloper& itl, Type* type, PoolSlot slot, u32 
 
 ConstDataResult read_const_sym(Interloper& itl, Symbol& sym)
 {
-    const auto pool_slot = pool_slot_from_idx(sym.reg.offset);
+    auto& reg = global_reg_from_sym(itl,sym);
+    const auto pool_slot = pool_slot_from_idx(reg.offset);
 
     return read_const_data(itl,sym.type,pool_slot,0);
 }

@@ -1910,7 +1910,7 @@ struct XCreatePixmap
 {
     opcode: u8 = 53;
     depth: u8;
-    request_length: u8 = 4;
+    request_length: u16 = 4;
     pid: u32;
     drawable: u32;
     width: u16;

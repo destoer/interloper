@@ -1,4 +1,3 @@
-
 struct IfCompile
 {
     BlockSlot start_block;
@@ -142,7 +141,7 @@ void compile_range_for_idx(Interloper& itl, Function& func, ForRangeNode* range)
     CmpNode* cmp = (CmpNode*)range->cond;
 
     const auto end = compile_oper(itl,func,cmp->right);
-    const auto index = typed_reg(sym_from_slot(itl.symbol_table,range->sym_one.slot));
+    const auto index = typed_reg(sym_from_slot(itl.symbol_table,range->sym_one.slot.sym));
 
     const auto sign = is_signed(index.type);
 
@@ -214,9 +213,8 @@ void compile_range_for_array(Interloper& itl, Function& func, ForRangeNode* rang
     const b32 track_idx = (range->flags & RANGE_FOR_ARRAY_IDX) == RANGE_FOR_ARRAY_IDX;
     const b32 take_pointer = (range->flags & RANGE_FOR_TAKE_POINTER) == RANGE_FOR_TAKE_POINTER;
 
-    RegSlot data = make_sym_reg_slot(range->sym_one.slot);
-    RegSlot index = make_sym_reg_slot(range->sym_two.slot);
-
+    RegSlot data = range->sym_one.slot.reg;
+    RegSlot index = range->sym_two.slot.reg;
     
     if(track_idx)
     {
@@ -241,7 +239,7 @@ void compile_range_for_array(Interloper& itl, Function& func, ForRangeNode* rang
     }
 
 
-    RegSlot entry_cond = make_spec_reg_slot(spec_reg::null);
+    RegSlot entry_cond = spec_reg::null;
 
     // if this is a fixed size array we dont need to check it
     // on entry apart from the zero check handled above ^

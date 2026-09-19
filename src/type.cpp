@@ -341,7 +341,8 @@ void destroy_attribute(ParsedAttr attribute)
 void destroy_sig(FuncSig& sig)
 {
     destroy_arr(sig.return_type);
-    destroy_arr(sig.args);
+    destroy_arr(sig.args_sym);
+    destroy_arr(sig.args_reg);
     destroy_arr(sig.fixed_args);
     destroy_arr(sig.pass_as_reg);
     destroy_attribute(sig.attribute);
@@ -351,11 +352,11 @@ void destroy_func(Function& func)
 {
     destroy_sig(func.sig);
 
-    for(auto& reg : func.registers)
+    for(auto& reg : func.local.registers)
     {
         destroy_reg(reg);
     }
 
-    destroy_arr(func.registers);
+    destroy_arr(func.local.registers);
     destroy_emitter(func.emitter);
 }

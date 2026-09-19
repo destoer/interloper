@@ -236,7 +236,7 @@ OpcodeNode* lower_push_float_arg_ir(Block& block, OpcodeNode* node)
 
     node->value = make_directive_one(directive_type::alloc_stack,make_imm_operand(8));
 
-    const auto addr = make_addr(make_spec_reg_slot(spec_reg::sp),0);
+    const auto addr = make_addr(spec_reg::sp,0);
     const auto store = make_store(src,addr,store_type::sf);
     node = insert_after(block.list,node,store);
 

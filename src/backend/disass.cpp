@@ -1,8 +1,9 @@
 struct Disass
 {
-    Disass(SymbolTable& src_table, arch_target src_arch) : table(src_table), arch(src_arch) {}
+    Disass(SymbolTable& src_table, RegTable& src_local, arch_target src_arch) : table(src_table), local(src_local), arch(src_arch) {}
 
     SymbolTable& table;
+    RegTable& local;
     arch_target arch;
 };
 
@@ -24,7 +25,7 @@ void print_regm(u64 set)
     printf("}");
 }
 
-void print_ir_reg(const SymbolTable& table, RegSlot reg)
+void print_ir_reg(const Disass& disass, RegSlot reg)
 {
     switch(reg.kind)
     {
@@ -34,19 +35,11 @@ void print_ir_reg(const SymbolTable& table, RegSlot reg)
             break;
         }
 
-        // print a sym
-        case reg_kind::sym:
+        case reg_kind::local:
+        case reg_kind::global:
         {
-            const auto& sym = sym_from_slot(table,reg.sym_slot);
-            const String& name = sym.name;
-
-            printf("%s",name.buf);
-            break;
-        }
-
-        case reg_kind::tmp:
-        {
-            printf("t%d",reg.tmp_slot.handle);
+            const auto &ir_reg = reg_from_slot(disass.table,disass.local,reg);
+            print_reg_name_internal(ir_reg,disass.table);
             break;
         }
     }
@@ -109,7 +102,7 @@ void vprint_disass(const Opcode& opcode, const Disass& disass, const String& fmt
 
                 else
                 {
-                    print_ir_reg(disass.table,reg.ir);
+                    print_ir_reg(disass,reg.ir);
                 }
                 break;
             }
@@ -199,7 +192,7 @@ void disass_directive(const Opcode& opcode, const Disass& disass)
             case directive_operand_type::dst_src:
             case directive_operand_type::directive_reg:
             {
-                print_ir_reg(disass.table,operand.ir_reg);
+                print_ir_reg(disass,operand.ir_reg);
                 break;
             }
 
@@ -441,7 +434,7 @@ void disass_opcode(const Opcode& opcode, const Disass& disass)
 void dump_ir(Interloper& itl,Function &func,SymbolTable& table)
 {
     printf("%s:\n",func.name.buf);
-    Disass disass =  Disass(table,itl.arch);
+    Disass disass =  Disass(table,func.local,itl.arch);
 
     for(auto& block : func.emitter.program)
     {       

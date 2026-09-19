@@ -83,6 +83,8 @@ OpcodeNode* rewrite_x86_fixed_shift(LinearAlloc& alloc,Block& block, OpcodeNode*
         
         // Finally allocate in dst
         fixed.dst.reg = linear_allocate_reg(alloc,block,node,dst,reg_arg_kind::dst_src);
+
+        node->value.state = opcode_state::lowered;
     }
 
     else 

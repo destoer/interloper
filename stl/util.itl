@@ -105,20 +105,6 @@ func rand_range_u32(min : u32, max : u32) u32
     return cast(u32,rand_range_u64(min,max));
 }
 
-func swap_s64(v1: s64@, v2: s64@)
-{
-    tmp := @v1;
-    @v1 = @v2;
-    @v2 = tmp;
-}
-
-func swap_f64(v1: f64@, v2: f64@)
-{
-    tmp := @v1;
-    @v1 = @v2;
-    @v2 = tmp;
-}
-
 func getenv(name: const string) const string
 {
     ptr := hash_table_lookup(std::itl_context.env_vars,&name);

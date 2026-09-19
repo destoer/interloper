@@ -139,12 +139,28 @@ void optimise_block(Interloper& itl, Function& func, Block& block)
 
 void optimise_func(Interloper& itl, Function& func)
 {
+    if(!func.emitter.program)
+    {
+        return;
+    }
+
+    auto& start = func.emitter.program[0];
+
     // for now this is just peephole optimiser
     for(u32 b = 0; b < count(func.emitter.program); b++)
     {
         auto& block = func.emitter.program[b];
 
-        optimise_block(itl,func,block);
+        // If we cannot reach this block then we can get rid of all the machine code
+        if(test_bit_set(start.links,block.block_slot.handle))
+        {
+            optimise_block(itl,func,block);
+        }
+
+        else
+        {
+            empty_list(block.list);
+        }
     }
 }
 
