@@ -140,12 +140,19 @@ b32 is_var(RegSlot slot)
     return !is_special_reg(slot);
 }
 
-Reg make_reg(Interloper& itl, const RegSlot& slot, const Type* type)
+Reg make_reg(Interloper& itl, const RegSlot& slot, const Type* type, u32 flags)
 {
     Reg reg;
+    reg.flags = flags;
 
     reg.reg_slot = slot;
     u32 size = type_size(itl,type);
+
+    // Make sure tmp's are atleast gpr sized
+    if(flags & REG_TMP)
+    {
+        size = size < GPR_SIZE?  GPR_SIZE : size;
+    }
 
     assign_reg_size(reg,size);
 
@@ -286,8 +293,7 @@ TypedReg new_typed_tmp(Interloper& itl,Function& func, Type* type)
     const LocalSlot tmp_slot = {count(func.local.registers)};
     const RegSlot reg_slot = tmp_slot;
 
-    auto reg = make_reg(itl,reg_slot,type);
-    reg.flags |= REG_TMP;
+    auto reg = make_reg(itl,reg_slot,type,REG_TMP);
 
     push_var(func.local.registers,reg);
 

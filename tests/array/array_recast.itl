@@ -10,6 +10,6 @@ func main() s32
 
     reverse := cast(byte[],ints);
 
-    std::println("{x} {x}",sum, ints[1] << 32);
+    // std::println("{x} {x}",sum, ints[1] << 32);
     return cast(s32,len == 2 && sum == 0x807060504020100 && bytes.len == reverse.len);
 }

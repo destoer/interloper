@@ -100,7 +100,7 @@ struct Function;
 struct Type;
 
 Reg make_reg(const RegSlot& slot, u32 size, b32 is_signed, b32 is_float);
-Reg make_reg(Interloper& itl, const RegSlot& slot, const Type* type);
+Reg make_reg(Interloper& itl, const RegSlot& slot, const Type* type, u32 flags = 0);
 void destroy_reg(Reg& ir_reg);
 void print(const Reg& reg);
 
