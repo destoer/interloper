@@ -541,6 +541,19 @@ void insert_relative_opcode(OpcodeList& list,OpcodeNode* node,Opcode& opcode,  i
     insert_node(list,node,opcode,type);
 }
 
+void force_spill_local(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg, insertion_type type)
+{
+    auto& ir_reg = reg_from_slot(slot,alloc);
+
+    if(is_mem_unallocated(ir_reg))
+    {
+        reserve_offset(alloc,ir_reg,reg);
+    }
+
+    auto opcode = make_spill(reg,slot,alloc.stack_alloc.stack_offset);
+    insert_relative_opcode(block.list,node,opcode,type);
+}
+
 // Spill a register to memory
 void spill_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg, insertion_type type)
 {
@@ -1269,9 +1282,14 @@ void finish_stack_alloc(LinearAlloc& alloc)
 
 struct MisplacedAllocation
 {
-    LocalSlot slot;
-    lowered_reg_t local;
+    RegSlot slot;
+
+    // What slot occupies the register
+    // we want
+    RegSlot occupant;
+
     lowered_reg_t global;
+    lowered_reg_t local;
 };
 
 // TODO: I would suspect we are going to need proper critical edge splitting!
@@ -1282,9 +1300,12 @@ struct MisplacedAllocation
 
 void correct_misplaced_registers(OpcodeList& list, OpcodeNode* node, Array<MisplacedAllocation>& misplaced, insertion_type type)
 {
+    UNUSED(list); UNUSED(node); UNUSED(misplaced); UNUSED(type);
+
     // Keep running passes until we are done
     while(count(misplaced))
     {
+        assert(false);
         // TODO: This is just dumb code to prove this will function. this should copy / swap first
         // and we need a data structure for doing so.
 
@@ -1351,7 +1372,11 @@ void correct_live_out(Function& func, LinearAlloc& alloc, Block& entry)
             if(global_reg != ir_reg.local_reg)
             {
                 log_reg(alloc,"misplaced %r %s %s\n",ir_reg.reg_slot,reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,global_reg));
-                const MisplacedAllocation reg_alloc = {local,ir_reg.local_reg,global_reg};
+                
+                auto& register_file = get_register_file(alloc,ir_reg);
+                RegSlot occupant = register_file.allocated[global_reg];
+
+                const MisplacedAllocation reg_alloc = {ir_reg.reg_slot,occupant,ir_reg.local_reg,global_reg};
                 push_var(misplaced, reg_alloc);
             }
         }
