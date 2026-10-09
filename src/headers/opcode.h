@@ -1407,4 +1407,5 @@ struct Opcode
     };
 
     opcode_state state = opcode_state::ir;
+    u32 pc = 0;
 };

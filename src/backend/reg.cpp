@@ -209,7 +209,10 @@ void print(const Reg& reg)
     printf("offset: 0x%x\n",reg.offset);
 
     printf("local reg: r%x\n",reg.local_reg);
-    printf("global reg: r%x\n",reg.global_reg);
+    for(auto& alloc: reg.global_alloc)
+    {
+        printf("global reg[%x,%x]: r%x\n",alloc.start,alloc.end,alloc.reg);
+    }
 
     printf("uses: %d\n",reg.cur_local_uses);
     

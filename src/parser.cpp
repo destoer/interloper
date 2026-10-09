@@ -982,7 +982,7 @@ Option<parse_error> parse_file(Interloper& itl,const String& file, const String&
     reset_parser(parser,filename);
 
     const u32 cur = count(itl.file_tokens);
-    resize(itl.file_tokens,cur + 1);
+    resize_end(itl.file_tokens,1);
 
     const s32 lines = tokenize(file,filename,&parser.alloc->string_allocator,itl.file_tokens[cur]);
     if(lines < 0)

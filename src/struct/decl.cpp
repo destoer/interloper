@@ -341,7 +341,7 @@ Result<TypeDecl*, itl_error> parse_struct_def(Interloper& itl, TypeDecl& decl)
     
     // allocate a reserved slot for the struct
     decl.type_idx = count(itl.struct_table);
-    resize(itl.struct_table,count(itl.struct_table) + 1);
+    resize_end(itl.struct_table,1);
 
 
     structure.name = node->name;

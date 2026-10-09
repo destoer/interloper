@@ -26,7 +26,7 @@ void align_pool(ConstPool& pool, u32 align_size)
     // pool requires alginment
     if(unaligned != 0)
     {
-        resize(pool.buf,count(pool.buf) + (align_size - unaligned));
+        resize_end(pool.buf,align_size - unaligned);
     }
 }
 
@@ -51,7 +51,7 @@ PoolSlot reserve_const_pool_section(ConstPool& pool, pool_type type, u32 size)
     section.slot = slot;
 
     // reserve this section inside the pool
-    resize(pool.buf,count(pool.buf) + size);
+    resize_end(pool.buf,size);
 
     // finally add our section and return back the handle
     push_var(pool.sections,section);

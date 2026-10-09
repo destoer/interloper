@@ -431,7 +431,6 @@ void handle_dst_regs(Function& func, Block& block, const ConstSpan<RegSlot>& dst
         }
 
         const auto local = dst.local;
-        assert(local.handle < count(func.local.registers));
         auto& ir_reg = reg_from_local(func,local);
 
         // used as dst before use, def 

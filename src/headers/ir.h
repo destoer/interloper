@@ -48,6 +48,13 @@ static_assert(MACHINE_REG_SIZE >= 3);
 
 static constexpr lowered_reg_t REG_FREE = 0xffff'ffff;
 
+struct RegAllocation
+{
+    lowered_reg_t reg = REG_FREE;
+    u32 start = 0xffff'ffff;
+    u32 end = 0xffff'ffff;
+};
+
 struct Reg
 {
     // Where is this register allocated
@@ -69,8 +76,9 @@ struct Reg
     // where is the current offset for its section?
     u32 offset = 0;
 
-    // Where is this register globally allocated if at all
-    lowered_reg_t global_reg = REG_FREE;
+    // Where is this register globally allocated for each range
+    Array<RegAllocation> global_alloc;
+
     // Where does this register reside in the current block?
     lowered_reg_t local_reg = REG_FREE;
 
@@ -231,6 +239,8 @@ struct Block
     LocalRegSet use;
 
     BitSet links;
+    u32 pc_start = 0;
+    u32 pc_end = 0;
 };
 
 void add_func_exit(Function& func, BlockSlot slot);

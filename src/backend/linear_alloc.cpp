@@ -6,18 +6,58 @@ struct LinearRange
     u32 end = 0;
     LocalSlot slot = {INVALID_HANDLE};
     u32 global_reg = REG_FREE;
-    OpcodeNode* node = nullptr;
     BlockSlot block_slot = {INVALID_HANDLE};
 };
+
+
+struct LinearVariable
+{
+    Array<LinearRange> range;
+};
+
+struct LinearProgram
+{
+    Array<LinearVariable> var;
+};
+
+enum class usage_type
+{
+    use,
+    def
+};
+
+LinearProgram make_linear_program(Function& func)
+{
+    LinearProgram program;
+
+    resize(program.var,count(func.local.registers));
+
+    return program;
+}
 
 bool is_reg_locally_allocated(const Reg& reg)
 {
     return reg.local_reg != REG_FREE;
 }
 
-bool is_reg_globally_allocated(const Reg& reg)
+// TODO: This needs to be sped up.
+u32 find_reg_allocation(const Reg& ir_reg, u32 pc)
 {
-    return reg.global_reg != REG_FREE;
+    for(const auto& alloc : ir_reg.global_alloc)
+    {
+        if(in_range(pc,alloc.start,alloc.end))
+        {
+            return alloc.reg;
+        }
+    }
+
+    return REG_FREE;
+}
+
+
+bool is_reg_globally_allocated(const Reg& reg, u32 pc)
+{
+    return find_reg_allocation(reg,pc) != REG_FREE;
 }
 
 Reg& reg_from_slot(LocalSlot slot, LinearAlloc& alloc)
@@ -101,25 +141,53 @@ LinearAlloc make_linear_alloc(b32 print,b32 stack_only, b32 debug, RegTable loca
     alloc.stack_only = stack_only;
     alloc.debug = debug;
 
+
     return alloc;
 }
 
-void update_range(Array<LinearRange>& linear_range, LocalSlot slot,Block& block, OpcodeNode* node,u32 pc)
+void collapse_ranges(LinearVariable& variable)
 {
-    auto& range = linear_range[slot.handle];
+    // TODO: There will be more efficient ways to do this
+    for(u32 r = 0; r < count(variable.range) - 1; r++)
+    {
+        auto& cur = variable.range[r];
+        auto& next = variable.range[r + 1];
+
+        if(in_range(cur.start,next.start,next.end) || in_range(next.start,cur.start,cur.end))
+        {
+            cur.end = max(cur.end,next.end);
+            cur.start = min(cur.start,next.start);
+            remove_out_of_place(variable.range,r+1);
+        }
+    }
+}
+
+void update_range(LinearProgram& program, LocalSlot slot, Block& block,u32 pc)
+{
+    auto& variable = program.var[slot.handle];
+
+    const b32 def = contains(block.def,slot);
+
+    // If this is the first range or we have just hit a def then we need to create a new range
+    if(!variable.range || (def && variable.range[count(variable.range) - 1].block_slot != block.block_slot))
+    {
+        resize_end(variable.range,1);
+    }
+
+    auto& range = variable.range[count(variable.range) - 1];
     range.slot = slot;
 
     if(pc < range.start)
     {
         range.block_slot = block.block_slot;
-        range.node = node;
         range.start = pc;
     }
 
     range.end = std::max(range.end,pc);
+    collapse_ranges(variable);
 }
 
-void update_regs_range(Array<LinearRange>& linear_range, Block& block, OpcodeNode* node, u64 pc, const ConstSpan<RegSlot>& regs)
+void update_regs_range(LinearProgram& program, Block& block, u64 pc, const ConstSpan<RegSlot>& regs)
 {
     for(const auto& reg : regs)
     {
@@ -128,16 +196,38 @@ void update_regs_range(Array<LinearRange>& linear_range, Block& block, OpcodeNod
             continue;
         }
 
-        update_range(linear_range,reg.local,block,node,pc);
+        update_range(program,reg.local,block,pc);
+    }
+}
+
+void number_cfg(Function& func)
+{
+    u32 pc = 0;
+
+    // Add in increments of two so we can insert 
+    // spills/loads on odd addresses.
+    for(auto& block : func.emitter.program)
+    {
+        block.pc_start = pc;
+        pc += 2;
+
+        for(auto& node : block.list)
+        {
+            node.value.pc = pc;
+            pc += 2;
+        }
+
+        block.pc_end = pc;
     }
 }
 
 Array<LinearRange> find_range(Interloper& itl, Function& func)
 {
-    Array<LinearRange> linear_range;
-    resize(linear_range,count(func.local.registers));
+    LinearProgram program = make_linear_program(func);
 
-    u32 pc = 0;
+    // First we need a flat view of the program
+    number_cfg(func);
+
 
     // for each block
     for(auto& block : func.emitter.program)
@@ -158,15 +248,15 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
         {
             auto& ir_reg = reg_from_slot(itl,func,slot);
 
-            const auto& range = linear_range[slot.handle];
+            const auto& var = program.var[slot.handle];
 
-            if(is_stack_arg(ir_reg) && !is_valid_slot(range.slot))
+            if(is_stack_arg(ir_reg) && !var.range)
             {
                 const auto live_op = make_directive_one(directive_type::live_var,make_reg_operand(slot,ir_reg_type::directive));
                 node = insert_at(block.list,node,live_op);
             }
 
-            update_range(linear_range,slot,block,node,pc);
+            update_range(program,slot,block,block.pc_start);
         }
 
         // for each opcode
@@ -206,28 +296,64 @@ Array<LinearRange> find_range(Interloper& itl, Function& func)
 
             const auto regs = opcode_ir_reg_span(opcode,itl.reg_span);
 
-            update_regs_range(linear_range,block,node,pc,regs.src);
-            update_regs_range(linear_range,block,node,pc,regs.dst_src);
+            update_regs_range(program,block,opcode.pc,regs.src);
+            update_regs_range(program,block,opcode.pc,regs.dst_src);
 
             // dst only regs have have a later pc
-            pc += 1;
-            update_regs_range(linear_range,block,node,pc,regs.dst);
+            update_regs_range(program,block,opcode.pc + 1,regs.dst);
 
 
             // next opcode
-            pc += 1;
             node = node->next;
         }
         
-        // live out has a higher start point
-        pc += 1;
 
-        OpcodeNode* last = block.list.finish;
-
-        // if its live out then consider it allocated till the end of the block
+        // if its live out then consider it used in every exit of use
+        // TODO: We may want to optimize this with a bit set and?
         for(const LocalSlot slot : block.live_out)
         {
-            update_range(linear_range,slot,block,last,pc);
+            for(const BlockSlot exit: block.exit)
+            {
+                auto& exit_block = block_from_slot(func,exit);
+                if(contains(exit_block.use,slot))
+                {
+                    update_range(program,slot,block,exit_block.pc_start);
+                }
+            }
+        }
+    }
+
+    Array<LinearRange> linear_range;
+
+    // TODO: For debugging maybe we should just combine this at the get go
+    // for(auto& var : program.var)
+    // {
+    //     LinearRange final_range;
+
+    //     for(auto& range: var.range)
+    //     {
+    //         if(range.start < final_range.start)
+    //         {
+    //             final_range.start = range.start;
+    //             final_range.block_slot = range.block_slot;
+    //             final_range.slot = range.slot;
+    //             final_range.node = range.node;
+    //         }
+
+    //         if(range.end > final_range.end)
+    //         {
+    //             final_range.end = range.end;
+    //         }
+    //     }
+
+    //     push_var(linear_range,final_range);
+    // }
+
+    for(auto& var : program.var)
+    {
+        for(auto& range: var.range)
+        {
+            push_var(linear_range,range);
         }
     }
 
@@ -372,13 +498,15 @@ void take_local_reg(RegisterFile& reg_file,Reg& ir_reg, u32 reg)
     mark_dirty(reg_file,reg);   
 }
 
-bool alloc_ir_reg(RegisterFile& regs, Reg& ir_reg)
+bool alloc_ir_reg(RegisterFile& regs, Reg& ir_reg, u32 pc)
 {
+    const u32 global_reg = find_reg_allocation(ir_reg,pc);
+
     // If global register is free prefer its allocation
-    if(is_reg_free(regs,ir_reg.global_reg))
+    if(global_reg != REG_FREE)
     {
-        take_local_reg(regs,ir_reg,ir_reg.global_reg);
-        mark_clean(regs,ir_reg.global_reg);
+        take_local_reg(regs,ir_reg,global_reg);
+        mark_clean(regs,global_reg);
         return true;
     }
 
@@ -404,6 +532,13 @@ void free_ir_reg(Reg& ir_reg,RegisterFile& regs)
 {
     free_reg(regs, ir_reg.local_reg);
     ir_reg.local_reg = REG_FREE;
+}
+
+void insert_relative_opcode(OpcodeList& list,OpcodeNode* node,Opcode& opcode,  insertion_type type)
+{
+    opcode.pc = node->value.pc;
+    opcode.pc += type == insertion_type::before? -1 : +1;
+    insert_node(list,node,opcode,type);
 }
 
 // Spill a register to memory
@@ -435,8 +570,8 @@ void spill_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u
 
     if(is_dirty(regs,reg) || alloc.stack_only)
     {
-        const auto opcode = make_spill(reg,slot,alloc.stack_alloc.stack_offset);
-        insert_node(block.list,node,opcode,type);
+        auto opcode = make_spill(reg,slot,alloc.stack_alloc.stack_offset);
+        insert_relative_opcode(block.list,node,opcode,type);
     }
 
     // Mark the register as freed
@@ -471,7 +606,7 @@ void spill(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, inser
 // We may have to have a look back over our local allocator
 void acquire_local_reg(LinearAlloc& alloc, Reg& ir_reg, RegisterFile& regs,Block& block, OpcodeNode* node)
 {
-    if(alloc_ir_reg(regs,ir_reg))
+    if(alloc_ir_reg(regs,ir_reg,node->value.pc))
     {
         return;
     }
@@ -511,7 +646,7 @@ void acquire_local_reg(LinearAlloc& alloc, Reg& ir_reg, RegisterFile& regs,Block
     assert(furthest_use != 0);
 
     spill(alloc,block,node,reg,insertion_type::before);
-    assert(alloc_ir_reg(regs,ir_reg));
+    assert(alloc_ir_reg(regs,ir_reg,node->value.pc));
 }
 
 void reset_all_regs(LinearAlloc& alloc)
@@ -660,16 +795,21 @@ void add_active(ActiveReg &active, const LinearRange& cur)
     active.size += 1;
 }
 
+RegAllocation reg_alloc_from_range(const LinearRange& cur)
+{
+    RegAllocation alloc;
+    alloc.start = cur.start;
+    alloc.end = cur.end;
+    alloc.reg = cur.global_reg;
+
+    return alloc;
+}
+
 void alloc_range(LinearAlloc& alloc,Interloper& itl, Function& func, ActiveReg& active, LinearRange& cur)
 {
     // actually run the allocation
     auto& ir_reg = reg_from_slot(itl,func,cur.slot);
 
-    // Pre allocated
-    if(ir_reg.global_reg != REG_FREE)
-    {
-        return;
-    }  
 
     // expire any dead sets
     clean_dead_reg(itl,func,alloc,active,cur);
@@ -684,7 +824,8 @@ void alloc_range(LinearAlloc& alloc,Interloper& itl, Function& func, ActiveReg& 
     {
         // set location
         cur.global_reg = reg;
-        ir_reg.global_reg = cur.global_reg;
+
+        push_var(ir_reg.global_alloc,reg_alloc_from_range(cur));
 
         log_reg(alloc,"%r globally allocated to %s\n",RegSlot(cur.slot),X86_NAMES[reg]);
 
@@ -737,14 +878,14 @@ void destroy_linear_alloc(LinearAlloc& alloc)
 void reload_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg,insertion_type type)
 {
     auto& ir_reg = reg_from_slot(slot,alloc);
-    const auto opcode = make_load(reg,slot,alloc.stack_alloc.stack_offset);
+    auto opcode = make_load(reg,slot,alloc.stack_alloc.stack_offset);
     log_reg(alloc,"reload %r to %s (size %d)\n",ir_reg.reg_slot,reg_name(alloc.arch,reg),ir_reg.size);
 
     // Just loaded this register is clean
     auto& reg_file = get_register_file(alloc,ir_reg);
     mark_clean(reg_file,reg);
 
-    insert_node(block.list,node,opcode,type);
+    insert_relative_opcode(block.list,node,opcode,type);
 
     assert(!is_mem_unallocated(ir_reg));
 }
@@ -793,18 +934,19 @@ void save_caller_saved_regs(LinearAlloc& alloc, Block& block, OpcodeNode* node)
     }
 }
 
-void alloc_regs_from_live_in(LinearAlloc& alloc, const LocalRegSet& live_in)
+void alloc_regs_from_live_in(LinearAlloc& alloc, Block& block)
 {
-    for(const LocalSlot slot : live_in)
+    for(const LocalSlot slot : block.live_in)
     {
         // allocate the register into the appropiate register file
         auto& ir_reg = reg_from_slot(slot,alloc);
         
-        if(is_reg_globally_allocated(ir_reg))
+        const u32 global_reg = find_reg_allocation(ir_reg,block.pc_start);
+        if(global_reg != REG_FREE)
         {
             auto& reg_file = get_register_file(alloc,ir_reg);
-            log_reg(alloc,"%r is live in on %s\n",ir_reg.reg_slot,reg_name(alloc.arch,ir_reg.global_reg));
-            take_local_reg(reg_file,ir_reg,ir_reg.global_reg);
+            log_reg(alloc,"%r is live in on %s\n",ir_reg.reg_slot,reg_name(alloc.arch,global_reg));
+            take_local_reg(reg_file,ir_reg,global_reg);
         }
     }
 }
@@ -857,8 +999,7 @@ void linear_setup_new_block(LinearAlloc& alloc, Block& block)
     init_regs(alloc);
 
     // Regs coming rom live in are already allocated
-    alloc_regs_from_live_in(alloc,block.live_in);
-
+    alloc_regs_from_live_in(alloc,block);
     compute_local_uses(alloc,block);
 }
 
@@ -1126,6 +1267,13 @@ void finish_stack_alloc(LinearAlloc& alloc)
     }
 }
 
+struct MisplacedAllocation
+{
+    RegSlot slot;
+    u32 reg;
+};
+
+// TODO: I would suspect we are going to need proper critical edge splitting!
 // TODO: Consider using xchg to swap them
 void correct_live_out(LinearAlloc& alloc, Block& block)
 {
@@ -1143,19 +1291,20 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
 
     log(alloc.print,"Correcting live out on: L%d\n",block.label_slot.handle);
 
-    Array<RegSlot> misplaced;
+    Array<MisplacedAllocation> misplaced;
 
     // Get a list of all register in the wrong position
     for(const LocalSlot slot : block.live_out)
     {
         auto& ir_reg = reg_from_slot(slot,alloc);
 
-        if(ir_reg.local_reg != ir_reg.global_reg)
+        const u32 global_reg = find_reg_allocation(ir_reg,block.pc_end);
+        if(ir_reg.local_reg != global_reg)
         {
-            const auto reg = RegSlot(slot);
-            push_var(misplaced,reg);
-            log_reg(alloc,"misplaced %r %s %s\n",reg,reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,ir_reg.global_reg));
-            assert(!is_locked(get_register_file(alloc,ir_reg),ir_reg.global_reg));
+            const MisplacedAllocation reg_alloc = {RegSlot(slot),global_reg};
+            push_var(misplaced,reg_alloc);
+            log_reg(alloc,"misplaced %r %s %s\n",reg_alloc.slot,reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,global_reg));
+            assert(!is_locked(get_register_file(alloc,ir_reg),global_reg));
         }
     }
 
@@ -1176,11 +1325,12 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
             // First pass are there any registers we can simply copy over a dead register
             for(u32 m = 0; m < count(misplaced); m++)
             {
-                auto& ir_reg = reg_from_slot(misplaced[m],alloc);
+                const auto& reg_alloc = misplaced[m];
+                auto& ir_reg = reg_from_slot(reg_alloc.slot,alloc);
                 auto& reg_file = get_register_file(alloc,ir_reg);
 
                 // Not inside a register just go ahead and spill it.
-                if(!is_reg_globally_allocated(ir_reg))
+                if(reg_alloc.reg == REG_FREE)
                 {
                     if(is_reg_locally_allocated(ir_reg))
                     {
@@ -1192,27 +1342,27 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
                 }
 
                 // Register we want it go into is free
-                else if(is_reg_free(reg_file,ir_reg.global_reg))
+                else if(is_reg_free(reg_file,reg_alloc.reg))
                 {
                     // If this is not locally allocated we need to issue a reload into it.
                     if(!is_reg_locally_allocated(ir_reg))
                     {
-                        reload_reg(alloc,block,block.list.finish,ir_reg.reg_slot,ir_reg.global_reg,insert_type);
+                        reload_reg(alloc,block,block.list.finish,ir_reg.reg_slot,reg_alloc.reg,insert_type);
                     }
 
                     // Otherwise just move it
                     else
                     {
-                        const auto opcode = make_mov_reg_lowered_instr(ir_reg.global_reg,ir_reg.local_reg,rtype_from_ir(ir_reg));
-                        insert_node(block.list,block.list.finish,opcode,insert_type);
+                        auto opcode = make_mov_reg_lowered_instr(reg_alloc.reg,ir_reg.local_reg,rtype_from_ir(ir_reg));
+                        insert_relative_opcode(block.list,block.list.finish,opcode,insert_type);
 
                         log_reg(alloc,"Copying %r from %s to %s\n",ir_reg.reg_slot,
-                            reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,ir_reg.global_reg));
+                            reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,reg_alloc.reg));
 
                         free_ir_reg(ir_reg,reg_file);
                     }
 
-                    take_local_reg(reg_file,ir_reg,ir_reg.global_reg);
+                    take_local_reg(reg_file,ir_reg,reg_alloc.reg);
 
                     remove_out_of_place(misplaced,m);
                     copied_register = true;
@@ -1224,7 +1374,7 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
         // As we have allready done copies any register free that we use will not be needed for live out.
         for(u32 m = 0; m < count(misplaced); m++)
         {
-            auto& ir_reg = reg_from_slot(misplaced[m],alloc);
+            auto& ir_reg = reg_from_slot(misplaced[m].slot,alloc);
             if(is_reg_locally_allocated(ir_reg))
             {
                 auto& reg_file = get_register_file(alloc,ir_reg);
