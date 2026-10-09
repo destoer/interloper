@@ -1269,13 +1269,62 @@ void finish_stack_alloc(LinearAlloc& alloc)
 
 struct MisplacedAllocation
 {
-    RegSlot slot;
-    u32 reg;
+    LocalSlot slot;
+    lowered_reg_t local;
+    lowered_reg_t global;
 };
 
 // TODO: I would suspect we are going to need proper critical edge splitting!
 // TODO: Consider using xchg to swap them
-void correct_live_out(LinearAlloc& alloc, Block& block)
+
+// TODO: We are going to write a really bad version of this to begin with because it will make life easier for testing
+// we can write one that generates nice code later.
+
+void correct_misplaced_registers(OpcodeList& list, OpcodeNode* node, Array<MisplacedAllocation>& misplaced, insertion_type type)
+{
+    // Keep running passes until we are done
+    while(count(misplaced))
+    {
+        // TODO: This is just dumb code to prove this will function. this should copy / swap first
+        // and we need a data structure for doing so.
+
+        // TODO: We may need to use raw primitives here that bypass the reg state
+        // spill the incorrect reg
+
+        // reload into the correct reg
+    }
+
+    clear_arr(misplaced);
+}
+
+void correct_misplaced_block(Block& entry, Block& exit, Array<MisplacedAllocation>& misplaced)
+{
+    UNUSED(misplaced);
+
+    // single exit
+    if(count(entry.exit) == 1)
+    {
+        assert(false);
+    }
+
+    // single entry
+    else if(count(exit.entry) == 1)
+    {
+        // Correct at start of next block
+        correct_misplaced_registers(exit.list,exit.list.start,misplaced,insertion_type::before);
+    }
+
+    // critical edge (rewrite the blocks)
+    // TODO: Technically live out can be broken in the same way across several blocks.
+    // but we will discount this for now
+    else
+    {
+        assert(false);
+    }
+
+}
+
+void correct_live_out(Function& func, LinearAlloc& alloc, Block& entry)
 {
     // No need to correct across blocks
     if(alloc.stack_only)
@@ -1283,108 +1332,36 @@ void correct_live_out(LinearAlloc& alloc, Block& block)
         return;
     }
 
+    Array<MisplacedAllocation> misplaced;
+    
     // nothing to correct
-    if(!block.list.start || block.flags & HAS_FUNC_EXIT)
+    if(!entry.list.start || entry.flags & HAS_FUNC_EXIT)
     {
         return;
     }
 
-    log(alloc.print,"Correcting live out on: L%d\n",block.label_slot.handle);
-
-    Array<MisplacedAllocation> misplaced;
-
-    // Get a list of all register in the wrong position
-    for(const LocalSlot slot : block.live_out)
+    for(auto& exit_slot: entry.exit)
     {
-        auto& ir_reg = reg_from_slot(slot,alloc);
+        auto& exit = block_from_slot(func,exit_slot);
 
-        const u32 global_reg = find_reg_allocation(ir_reg,block.pc_end);
-        if(ir_reg.local_reg != global_reg)
+        for(const auto& local : exit.live_in)
         {
-            const MisplacedAllocation reg_alloc = {RegSlot(slot),global_reg};
-            push_var(misplaced,reg_alloc);
-            log_reg(alloc,"misplaced %r %s %s\n",reg_alloc.slot,reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,global_reg));
-            assert(!is_locked(get_register_file(alloc,ir_reg),global_reg));
-        }
-    }
-
-    alloc.total_misplaced += count(misplaced);
-
-    const insertion_type insert_type = (block.flags & BRANCH_EXIT)? insertion_type::before : insertion_type::after;
-
-    // Keep running passes until we are done
-    while(count(misplaced))
-    {
-        // while we can keep copying regs
-        bool copied_register = true;
-
-        while(copied_register)
-        {
-            copied_register = false;
-
-            // First pass are there any registers we can simply copy over a dead register
-            for(u32 m = 0; m < count(misplaced); m++)
+            auto& ir_reg = reg_from_local(func,local);
+            const u32 global_reg = find_reg_allocation(ir_reg,exit.pc_start);
+            if(global_reg != ir_reg.local_reg)
             {
-                const auto& reg_alloc = misplaced[m];
-                auto& ir_reg = reg_from_slot(reg_alloc.slot,alloc);
-                auto& reg_file = get_register_file(alloc,ir_reg);
-
-                // Not inside a register just go ahead and spill it.
-                if(reg_alloc.reg == REG_FREE)
-                {
-                    if(is_reg_locally_allocated(ir_reg))
-                    {
-                        spill_reg(alloc,block,block.list.finish,ir_reg.reg_slot,ir_reg.local_reg,insert_type);
-                    }
-
-                    remove_out_of_place(misplaced,m);
-                    copied_register = true;
-                }
-
-                // Register we want it go into is free
-                else if(is_reg_free(reg_file,reg_alloc.reg))
-                {
-                    // If this is not locally allocated we need to issue a reload into it.
-                    if(!is_reg_locally_allocated(ir_reg))
-                    {
-                        reload_reg(alloc,block,block.list.finish,ir_reg.reg_slot,reg_alloc.reg,insert_type);
-                    }
-
-                    // Otherwise just move it
-                    else
-                    {
-                        auto opcode = make_mov_reg_lowered_instr(reg_alloc.reg,ir_reg.local_reg,rtype_from_ir(ir_reg));
-                        insert_relative_opcode(block.list,block.list.finish,opcode,insert_type);
-
-                        log_reg(alloc,"Copying %r from %s to %s\n",ir_reg.reg_slot,
-                            reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,reg_alloc.reg));
-
-                        free_ir_reg(ir_reg,reg_file);
-                    }
-
-                    take_local_reg(reg_file,ir_reg,reg_alloc.reg);
-
-                    remove_out_of_place(misplaced,m);
-                    copied_register = true;
-                }
+                log_reg(alloc,"misplaced %r %s %s\n",ir_reg.reg_slot,reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,global_reg));
+                const MisplacedAllocation reg_alloc = {local,ir_reg.local_reg,global_reg};
+                push_var(misplaced, reg_alloc);
             }
         }
 
-        // If we are still not done evict the first register then start copying again
-        // As we have allready done copies any register free that we use will not be needed for live out.
-        for(u32 m = 0; m < count(misplaced); m++)
+        if(misplaced)
         {
-            auto& ir_reg = reg_from_slot(misplaced[m].slot,alloc);
-            if(is_reg_locally_allocated(ir_reg))
-            {
-                auto& reg_file = get_register_file(alloc,ir_reg);
-                save_reg(alloc,block,block.list.finish,reg_file,ir_reg.local_reg,insert_type);
-                break;
-            }
+            correct_misplaced_block(entry,exit,misplaced);
+            clear_arr(misplaced);
         }
     }
-
-    destroy_arr(misplaced);
 }
 
 
