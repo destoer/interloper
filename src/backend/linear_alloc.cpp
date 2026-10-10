@@ -1486,7 +1486,7 @@ void reset_misplaced_allocation(const LinearAlloc& alloc,MisplacedAllocation& re
     reset_misplaced_allocation_file(alloc.gpr,reg_alloc.gpr);
 }
 
-void correct_live_out(Function& func, LinearAlloc& alloc, Block* entry)
+void correct_live_out(Function& func, LinearAlloc& alloc, BlockSlot entry_slot)
 {
     // No need to correct across blocks
     if(alloc.stack_only)
@@ -1494,19 +1494,26 @@ void correct_live_out(Function& func, LinearAlloc& alloc, Block* entry)
         return;
     }
 
-    // nothing to correct
-    if(!entry->list.start || entry->flags & HAS_FUNC_EXIT)
-    {
-        return;
-    }
+    Array<BlockSlot> exits;
 
-    const BlockSlot entry_slot = entry->block_slot;
+    // This will get invalidated dont leak it
+    {
+        const auto& entry = block_from_slot(func,entry_slot);
+
+        // nothing to correct
+        if(!entry.list.start || entry.flags & HAS_FUNC_EXIT)
+        {
+            return;
+        }
+
+        exits = entry.exit;
+    }
 
     MisplacedAllocation reg_alloc;
 
-    for(u32 e = 0; e < count(entry->exit); e++)
+    for(const auto& exit_slot : exits)
     {
-        auto& exit = block_from_slot(func,entry->exit[e]);
+        auto& exit = block_from_slot(func,exit_slot);
         reset_misplaced_allocation(alloc,reg_alloc);
 
         for(const auto& local : exit.live_in)
@@ -1527,11 +1534,8 @@ void correct_live_out(Function& func, LinearAlloc& alloc, Block* entry)
 
         if(reg_alloc.gpr.misplaced || reg_alloc.fpr.misplaced)
         {
-            correct_misplaced_block(func,alloc,*entry,exit,reg_alloc);
-            // This may have been invalidated
-            // TODO: We want to move this logic into the allocator
-            // not rewriting
-            entry = &block_from_slot(func,entry_slot);
+            auto& entry = block_from_slot(func,entry_slot);
+            correct_misplaced_block(func,alloc,entry,exit,reg_alloc);
         }
     }
 }

@@ -157,7 +157,7 @@ void allocation_reg_pass(Interloper& itl,Function &func, LinearAlloc& alloc)
         }
 
         clean_dead_regs(alloc);
-        correct_live_out(func,alloc,&block);
+        correct_live_out(func,alloc,block.block_slot);
     }
 }
 
