@@ -1902,7 +1902,16 @@ void emit_func(Interloper& itl, Function& func)
 {
     const u32 func_idx = add_func(itl.asm_emitter,func);
 
-    for(auto& block : func.emitter.program)
+    
+    Array<Block> in_order = copy_array(func.emitter.program);
+
+    // Emit blocks in terms of increasing PC
+    // heap_sort(in_order,[](const Block& v1, const Block& v2)
+    // {
+    //     return v1.pc_start > v2.pc_start;
+    // });
+
+    for(auto& block : in_order)
     {
         // store cur relative offset to finalise later
         write_cur_rel_offset(itl,block.label_slot);
@@ -1912,6 +1921,8 @@ void emit_func(Interloper& itl, Function& func)
             emit_opcode(itl.asm_emitter,node.value);
         }
     }
+
+    destroy_arr(in_order);
 
     end_func(itl.asm_emitter,func_idx);
 }
