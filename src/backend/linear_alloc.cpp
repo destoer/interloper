@@ -534,14 +534,18 @@ void free_ir_reg(Reg& ir_reg,RegisterFile& regs)
     ir_reg.local_reg = REG_FREE;
 }
 
-void insert_relative_opcode(OpcodeList& list,OpcodeNode* node,Opcode& opcode,  insertion_type type)
+OpcodeNode* insert_relative_opcode(OpcodeList& list,OpcodeNode* node,Opcode& opcode,  insertion_type type)
 {
     opcode.pc = node->value.pc;
-    opcode.pc += type == insertion_type::before? -1 : +1;
-    insert_node(list,node,opcode,type);
+
+    if((opcode.pc & 1) == 0)
+    {
+        opcode.pc += type == insertion_type::before? -1 : +1;
+    }
+    return insert_node(list,node,opcode,type);
 }
 
-void force_spill_local(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg, insertion_type type)
+OpcodeNode* force_spill(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg, insertion_type type)
 {
     auto& ir_reg = reg_from_slot(slot,alloc);
 
@@ -551,7 +555,7 @@ void force_spill_local(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot
     }
 
     auto opcode = make_spill(reg,slot,alloc.stack_alloc.stack_offset);
-    insert_relative_opcode(block.list,node,opcode,type);
+    return insert_relative_opcode(block.list,node,opcode,type);
 }
 
 // Spill a register to memory
@@ -1298,27 +1302,35 @@ struct MisplacedAllocation
 // TODO: We are going to write a really bad version of this to begin with because it will make life easier for testing
 // we can write one that generates nice code later.
 
-void correct_misplaced_registers(OpcodeList& list, OpcodeNode* node, Array<MisplacedAllocation>& misplaced, insertion_type type)
+void correct_misplaced_registers(LinearAlloc& alloc, Block& block, OpcodeNode* node, Array<MisplacedAllocation>& misplaced, insertion_type type)
 {
-    UNUSED(list); UNUSED(node); UNUSED(misplaced); UNUSED(type);
-
     // Keep running passes until we are done
     while(count(misplaced))
     {
-        assert(false);
         // TODO: This is just dumb code to prove this will function. this should copy / swap first
         // and we need a data structure for doing so.
+        const auto reg_alloc = pop(misplaced);
 
-        // TODO: We may need to use raw primitives here that bypass the reg state
-        // spill the incorrect reg
+        // Spill anything occupying the reg we want
+        if(!is_special_reg(reg_alloc.occupant))
+        {
+            node = force_spill(alloc,block,node,reg_alloc.occupant,reg_alloc.global,type);
+            type = insertion_type::after;
+        }
+
+        // Spill the local register we are holding.
+        if(reg_alloc.local != REG_FREE)
+        {
+            force_spill(alloc,block,node,reg_alloc.slot,reg_alloc.local,type);
+            type = insertion_type::after;
+        }
 
         // reload into the correct reg
+        reload_reg(alloc,block,node,reg_alloc.slot,reg_alloc.global,type);
     }
-
-    clear_arr(misplaced);
 }
 
-void correct_misplaced_block(Block& entry, Block& exit, Array<MisplacedAllocation>& misplaced)
+void correct_misplaced_block(LinearAlloc& alloc,Block& entry, Block& exit, Array<MisplacedAllocation>& misplaced)
 {
     UNUSED(misplaced);
 
@@ -1332,10 +1344,13 @@ void correct_misplaced_block(Block& entry, Block& exit, Array<MisplacedAllocatio
     else if(count(exit.entry) == 1)
     {
         // Correct at start of next block
-        correct_misplaced_registers(exit.list,exit.list.start,misplaced,insertion_type::before);
+        correct_misplaced_registers(alloc,exit,exit.list.start,misplaced,insertion_type::before);
     }
 
     // critical edge (rewrite the blocks)
+    // TODO: For now we will dump this on the end in reality we should try put it near this one
+    // (reordering may be something we can do in a post pass? :P)
+
     // TODO: Technically live out can be broken in the same way across several blocks.
     // but we will discount this for now
     else
@@ -1383,8 +1398,7 @@ void correct_live_out(Function& func, LinearAlloc& alloc, Block& entry)
 
         if(misplaced)
         {
-            correct_misplaced_block(entry,exit,misplaced);
-            clear_arr(misplaced);
+            correct_misplaced_block(alloc,entry,exit,misplaced);
         }
     }
 }
