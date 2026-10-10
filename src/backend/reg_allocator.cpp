@@ -132,8 +132,16 @@ OpcodeNode* allocate_opcode_addr_pass(Interloper& itl,Function &func, LinearAllo
 
 void allocation_reg_pass(Interloper& itl,Function &func, LinearAlloc& alloc)
 {
-    for(auto& block : func.emitter.program)
+    
+    for(u32 b = 0; b < count(func.emitter.program); b++)
     {
+        auto& block = func.emitter.program[b];
+
+        if(block.flags & SPLIT_BLOCK)
+        {
+            continue;
+        }
+
         log(alloc.print,"\nprocessing L%d:\n\n",block.label_slot.handle);
 
         linear_setup_new_block(alloc,block);
@@ -149,7 +157,7 @@ void allocation_reg_pass(Interloper& itl,Function &func, LinearAlloc& alloc)
         }
 
         clean_dead_regs(alloc);
-        correct_live_out(func,alloc,block);
+        correct_live_out(func,alloc,&block);
     }
 }
 

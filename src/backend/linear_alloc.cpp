@@ -1375,10 +1375,9 @@ void disass_opcode(LinearAlloc& alloc, const Opcode& opcode)
     disass_opcode(opcode,disass);
 }
 
-Block& new_basic_block(LinearAlloc& alloc, Function& func)
+BlockSlot new_basic_block(LinearAlloc& alloc, Function& func)
 {
-    const auto slot = new_basic_block(func,*alloc.table,alloc.list_allocator);
-    return block_from_slot(func,slot);
+    return new_basic_block(func,*alloc.table,alloc.list_allocator);
 }
 
 // TODO: This list has a low number of items but we may want to switch to a bitset?
@@ -1393,10 +1392,15 @@ void replace_block_link(Array<BlockSlot>& list, BlockSlot target, BlockSlot repl
     }
 }
 
-Block& split_exit(LinearAlloc& alloc, Function& func, Block& entry,LabelSlot& entry_label, Block& exit)
+Block& split_exit(LinearAlloc& alloc, Function& func, BlockSlot entry_slot,LabelSlot& entry_label, BlockSlot exit_slot)
 {
-    auto& split_block = new_basic_block(alloc,func);
+    // NOTE: We need to take slots as this will invalidate all the old refs
+    const BlockSlot split_block_slot = new_basic_block(alloc,func);
+    auto& split_block = block_from_slot(func,split_block_slot);
     split_block.flags |= SPLIT_BLOCK;
+
+    auto& entry = block_from_slot(func,entry_slot);
+    auto& exit = block_from_slot(func,exit_slot);
 
     emit_branch(func,split_block.block_slot,exit.block_slot);  
     split_block.pc_start = exit.pc_start - 1;
@@ -1414,7 +1418,7 @@ void correct_critical_edge_registers(Function& func, LinearAlloc& alloc,Block& e
 {
     if(exit.label_slot == entry_label)
     {
-        auto& split_block = split_exit(alloc,func,entry,entry_label,exit);
+        auto& split_block = split_exit(alloc,func,entry.block_slot,entry_label,exit.block_slot);
         correct_misplaced_registers(alloc,split_block,split_block.list.start,reg_alloc,insertion_type::before);
     }
 
@@ -1463,7 +1467,7 @@ void correct_misplaced_block(Function& func, LinearAlloc& alloc,Block& entry, Bl
             default:
             {
                 disass_opcode(alloc,opcode);
-                assert(false);
+                unimplemented("Cannot split critical edge");
                 break;           
             }
         }
@@ -1482,7 +1486,7 @@ void reset_misplaced_allocation(const LinearAlloc& alloc,MisplacedAllocation& re
     reset_misplaced_allocation_file(alloc.gpr,reg_alloc.gpr);
 }
 
-void correct_live_out(Function& func, LinearAlloc& alloc, Block& entry)
+void correct_live_out(Function& func, LinearAlloc& alloc, Block* entry)
 {
     // No need to correct across blocks
     if(alloc.stack_only)
@@ -1491,16 +1495,18 @@ void correct_live_out(Function& func, LinearAlloc& alloc, Block& entry)
     }
 
     // nothing to correct
-    if(!entry.list.start || entry.flags & HAS_FUNC_EXIT || entry.flags & SPLIT_BLOCK)
+    if(!entry->list.start || entry->flags & HAS_FUNC_EXIT)
     {
         return;
     }
 
+    const BlockSlot entry_slot = entry->block_slot;
+
     MisplacedAllocation reg_alloc;
 
-    for(u32 e = 0; e < count(entry.exit); e++)
+    for(u32 e = 0; e < count(entry->exit); e++)
     {
-        auto& exit = block_from_slot(func,entry.exit[e]);
+        auto& exit = block_from_slot(func,entry->exit[e]);
         reset_misplaced_allocation(alloc,reg_alloc);
 
         for(const auto& local : exit.live_in)
@@ -1521,7 +1527,11 @@ void correct_live_out(Function& func, LinearAlloc& alloc, Block& entry)
 
         if(reg_alloc.gpr.misplaced || reg_alloc.fpr.misplaced)
         {
-            correct_misplaced_block(func,alloc,entry,exit,reg_alloc);
+            correct_misplaced_block(func,alloc,*entry,exit,reg_alloc);
+            // This may have been invalidated
+            // TODO: We want to move this logic into the allocator
+            // not rewriting
+            entry = &block_from_slot(func,entry_slot);
         }
     }
 }
