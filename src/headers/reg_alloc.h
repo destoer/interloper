@@ -58,7 +58,8 @@ struct LinearAlloc
     // allocation info of locals for current function
     // NOTE: this is owned by the func and we dont have to free it
     RegTable local;
-    SymbolTable* table;
+    SymbolTable* table = nullptr;
+    ArenaAllocator* list_allocator = nullptr;
 
     b32 print = false;
 

@@ -31,20 +31,23 @@ String label_name(SymbolTable& table,u32 slot)
     return make_string(*table.string_allocator,name,len);
 }
 
-BlockSlot new_basic_block(Interloper &itl,Function &func)
+BlockSlot new_basic_block(Function& func, SymbolTable& table, ArenaAllocator* list_allocator)
 {
-    const u32 label_count = count(itl.symbol_table.label_lookup);
+    const u32 label_count = count(table.label_lookup);
 
-
-    const LabelSlot label_slot = add_label(itl.symbol_table,label_name(itl.symbol_table,label_count));
-    const BlockSlot block_slot = new_block(&itl.list_allocator,func,label_slot);
+    const LabelSlot label_slot = add_label(table,label_name(table,label_count));
+    const BlockSlot block_slot = new_block(list_allocator,func,label_slot);
 
     // offset is the block slot until full resolution
-    itl.symbol_table.label_lookup[label_slot.handle].offset = block_slot.handle;
+    table.label_lookup[label_slot.handle].offset = block_slot.handle;
 
     return block_slot;   
 }
 
+BlockSlot new_basic_block(Interloper &itl,Function &func)
+{
+    return new_basic_block(func,itl.symbol_table,&itl.list_allocator);
+}
 
 
 BlockSlot block_from_idx(u32 v)
@@ -157,9 +160,8 @@ BlockSlot add_fall(Interloper& itl,Function& func)
     return exit;
 }
 
-void check_block_branch(Interloper& itl,Function& func, BlockSlot& block_slot)
+void check_block_branch(Function& func, BlockSlot& block_slot)
 {
-    UNUSED(itl);
     auto& block = block_from_slot(func,block_slot);
     block.branch_count += 1;
 
@@ -179,7 +181,7 @@ void emit_cond_branch(Interloper& itl,Function& func, BlockSlot block,BlockSlot 
     // build links into the cfg 
     add_cond_exit(func,block,target,fall);
 
-    check_block_branch(itl,func,block);
+    check_block_branch(func,block);
 }
 
 void branch_nez(Interloper& itl,Function& func, BlockSlot block,BlockSlot target,BlockSlot fall, RegSlot reg_slot)
@@ -192,16 +194,18 @@ void branch_eqz(Interloper& itl,Function& func, BlockSlot block,BlockSlot target
     emit_cond_branch(itl,func,block,target,fall,reg_slot,branch_cond_type::eqz);
 }
 
-void emit_branch(Interloper& itl, Function& func, BlockSlot block,BlockSlot target)
+void emit_branch(Function& func, BlockSlot block_slot,BlockSlot target)
 {
     const auto& target_block = block_from_slot(func,target);
 
     const Opcode opcode = make_branch_label(branch_type::branch,target_block.label_slot);
-    emit_block_internal(itl,func,block,opcode);
-    add_block_exit(func,block,target);
-    add_branch_exit(func,block);
 
-    check_block_branch(itl,func,block);
+    auto& block = block_from_slot(func,block_slot);
+    append(block.list,opcode);
+    add_block_exit(func,block_slot,target);
+    add_branch_exit(func,block_slot);
+
+    check_block_branch(func,block_slot);
 }
 
 struct BlockWorkList

@@ -264,7 +264,6 @@ func alloc_heap(heap : Heap@, count : usize, size : usize) byte?
         {
             return NULL;
         }
-        
     }
 
     cur_reference := cast_ref(cur);

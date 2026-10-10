@@ -123,7 +123,7 @@ void compile_if(Interloper& itl, Function& func, AstNode* node)
 
         if(block.flags & EXIT_BLOCK_EMIT)
         {
-            emit_branch(itl,func,block.block_slot,compile.exit_block);
+            emit_branch(func,block.block_slot,compile.exit_block);
             block.flags &= ~EXIT_BLOCK_EMIT;
         }
     }
@@ -496,7 +496,7 @@ void compile_switch_jump_table(Interloper& itl, Function& func, SwitchNode* swit
             case_idx++;
 
             // add jump to the exit block
-            emit_branch(itl,func,stmt.end_block,exit_block);
+            emit_branch(func,stmt.end_block,exit_block);
         }
 
         // as statements as sorted this means there is no match emit default

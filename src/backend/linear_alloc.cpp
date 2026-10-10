@@ -128,7 +128,7 @@ void mark_used(RegisterFile& regs, u32 reg)
     regs.used_set = set_bit(regs.used_set,reg);
 }
 
-LinearAlloc make_linear_alloc(b32 print,b32 stack_only, b32 debug, RegTable local, SymbolTable* table,arch_target arch)
+LinearAlloc make_linear_alloc(b32 print,b32 stack_only, b32 debug, RegTable local, SymbolTable* table,ArenaAllocator* list_allocator,arch_target arch)
 {
     LinearAlloc alloc;
 
@@ -138,6 +138,7 @@ LinearAlloc make_linear_alloc(b32 print,b32 stack_only, b32 debug, RegTable loca
     alloc.arch = arch;
     alloc.local = local;
     alloc.table = table;
+    alloc.list_allocator = list_allocator;
     alloc.stack_only = stack_only;
     alloc.debug = debug;
 
@@ -503,7 +504,7 @@ bool alloc_ir_reg(RegisterFile& regs, Reg& ir_reg, u32 pc)
     const u32 global_reg = find_reg_allocation(ir_reg,pc);
 
     // If global register is free prefer its allocation
-    if(global_reg != REG_FREE)
+    if(global_reg != REG_FREE && is_reg_free(regs,global_reg))
     {
         take_local_reg(regs,ir_reg,global_reg);
         mark_clean(regs,global_reg);
@@ -534,20 +535,33 @@ void free_ir_reg(Reg& ir_reg,RegisterFile& regs)
     ir_reg.local_reg = REG_FREE;
 }
 
-OpcodeNode* insert_relative_opcode(OpcodeList& list,OpcodeNode* node,Opcode& opcode,  insertion_type type)
+OpcodeNode* insert_relative_opcode(Block& block,OpcodeNode* node,Opcode& opcode,  insertion_type type)
 {
-    opcode.pc = node->value.pc;
-
-    if((opcode.pc & 1) == 0)
+    // If this is at the start of the list
+    // we need to just use the block pc
+    if(!node)
     {
-        opcode.pc += type == insertion_type::before? -1 : +1;
+        opcode.pc = block.pc_start;
     }
-    return insert_node(list,node,opcode,type);
+
+    else
+    {
+        opcode.pc = node->value.pc;
+
+        if((opcode.pc & 1) == 0)
+        {
+            opcode.pc += type == insertion_type::before? -1 : +1;
+        }
+    }
+
+    return insert_node(block.list,node,opcode,type);
 }
 
 OpcodeNode* force_spill(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg, insertion_type type)
 {
     auto& ir_reg = reg_from_slot(slot,alloc);
+
+    log_reg(alloc,"Force spill %r from %s (size %d)\n",ir_reg.reg_slot,reg_name(alloc.arch,reg),ir_reg.size);
 
     if(is_mem_unallocated(ir_reg))
     {
@@ -555,7 +569,7 @@ OpcodeNode* force_spill(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlo
     }
 
     auto opcode = make_spill(reg,slot,alloc.stack_alloc.stack_offset);
-    return insert_relative_opcode(block.list,node,opcode,type);
+    return insert_relative_opcode(block,node,opcode,type);
 }
 
 // Spill a register to memory
@@ -588,7 +602,7 @@ void spill_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u
     if(is_dirty(regs,reg) || alloc.stack_only)
     {
         auto opcode = make_spill(reg,slot,alloc.stack_alloc.stack_offset);
-        insert_relative_opcode(block.list,node,opcode,type);
+        insert_relative_opcode(block,node,opcode,type);
     }
 
     // Mark the register as freed
@@ -892,7 +906,7 @@ void destroy_linear_alloc(LinearAlloc& alloc)
     destroy_stack_alloc(alloc.stack_alloc);
 }
 
-void reload_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg,insertion_type type)
+OpcodeNode* reload_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg,insertion_type type)
 {
     auto& ir_reg = reg_from_slot(slot,alloc);
     auto opcode = make_load(reg,slot,alloc.stack_alloc.stack_offset);
@@ -902,9 +916,9 @@ void reload_reg(LinearAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, 
     auto& reg_file = get_register_file(alloc,ir_reg);
     mark_clean(reg_file,reg);
 
-    insert_relative_opcode(block.list,node,opcode,type);
-
     assert(!is_mem_unallocated(ir_reg));
+
+    return insert_relative_opcode(block,node,opcode,type);
 }
 
 
@@ -1284,16 +1298,25 @@ void finish_stack_alloc(LinearAlloc& alloc)
     }
 }
 
-struct MisplacedAllocation
+struct MisplacedRegister
 {
     RegSlot slot;
+    u32 local = REG_FREE;
+    u32 global = REG_FREE;
+};
 
-    // What slot occupies the register
-    // we want
-    RegSlot occupant;
+// TODO: This is not a good format for attempting swaps as we want to be able to reference misplaced by register
+// but leave it for now as we are tying to get a simple impl off the ground.
+struct MisplacedAllocationFile
+{
+    RegSlot allocated[MACHINE_REG_SIZE];
+    Array<MisplacedRegister> misplaced;
+};
 
-    lowered_reg_t global;
-    lowered_reg_t local;
+struct MisplacedAllocation
+{
+    MisplacedAllocationFile gpr;
+    MisplacedAllocationFile fpr;
 };
 
 // TODO: I would suspect we are going to need proper critical edge splitting!
@@ -1302,62 +1325,161 @@ struct MisplacedAllocation
 // TODO: We are going to write a really bad version of this to begin with because it will make life easier for testing
 // we can write one that generates nice code later.
 
-void correct_misplaced_registers(LinearAlloc& alloc, Block& block, OpcodeNode* node, Array<MisplacedAllocation>& misplaced, insertion_type type)
+void correct_misplaced_register_file(LinearAlloc& alloc, Block& block, OpcodeNode* node, MisplacedAllocationFile& reg_file, insertion_type type)
 {
-    // Keep running passes until we are done
-    while(count(misplaced))
+    while(reg_file.misplaced)
     {
-        // TODO: This is just dumb code to prove this will function. this should copy / swap first
-        // and we need a data structure for doing so.
-        const auto reg_alloc = pop(misplaced);
+        const MisplacedRegister misplaced = pop(reg_file.misplaced);
+
+        const RegSlot slot = misplaced.slot;
+        const u32 global = misplaced.global;
+        const u32 local = misplaced.local;
 
         // Spill anything occupying the reg we want
-        if(!is_special_reg(reg_alloc.occupant))
+        if(!is_null_reg(reg_file.allocated[global]))
         {
-            node = force_spill(alloc,block,node,reg_alloc.occupant,reg_alloc.global,type);
+            node = force_spill(alloc,block,node,reg_file.allocated[global],global,type);
             type = insertion_type::after;
+
+            reg_file.allocated[global] = spec_reg::null;
         }
 
-        // Spill the local register we are holding.
-        if(reg_alloc.local != REG_FREE)
+        // Spill the local register we are holding. 
+        if(local != REG_FREE && reg_file.allocated[local] == slot)
         {
-            force_spill(alloc,block,node,reg_alloc.slot,reg_alloc.local,type);
+            node = force_spill(alloc,block,node,slot,local,type);
             type = insertion_type::after;
+
+            reg_file.allocated[local] = spec_reg::null;
         }
 
         // reload into the correct reg
-        reload_reg(alloc,block,node,reg_alloc.slot,reg_alloc.global,type);
+        node = reload_reg(alloc,block,node,slot,global,type);
+        type = insertion_type::after;
+
+        reg_file.allocated[global] = slot;
+    }
+
+}
+
+void correct_misplaced_registers(LinearAlloc& alloc, Block& block, OpcodeNode* node, MisplacedAllocation& reg_alloc, insertion_type type)
+{
+    correct_misplaced_register_file(alloc,block,node,reg_alloc.gpr,type);
+    correct_misplaced_register_file(alloc,block,node,reg_alloc.fpr,type);
+}
+
+
+void disass_opcode(LinearAlloc& alloc, const Opcode& opcode)
+{
+    Disass disass = Disass(*alloc.table,alloc.local,alloc.arch);
+    disass_opcode(opcode,disass);
+}
+
+Block& new_basic_block(LinearAlloc& alloc, Function& func)
+{
+    const auto slot = new_basic_block(func,*alloc.table,alloc.list_allocator);
+    return block_from_slot(func,slot);
+}
+
+// TODO: This list has a low number of items but we may want to switch to a bitset?
+void replace_block_link(Array<BlockSlot>& list, BlockSlot target, BlockSlot replacement)
+{
+    for(auto& v : list)
+    {
+        if(v == target)
+        {
+            target = replacement;
+        }
     }
 }
 
-void correct_misplaced_block(LinearAlloc& alloc,Block& entry, Block& exit, Array<MisplacedAllocation>& misplaced)
+Block& split_exit(LinearAlloc& alloc, Function& func, Block& entry,LabelSlot& entry_label, Block& exit)
 {
-    UNUSED(misplaced);
+    auto& split_block = new_basic_block(alloc,func);
+    split_block.flags |= SPLIT_BLOCK;
 
+    emit_branch(func,split_block.block_slot,exit.block_slot);  
+    split_block.pc_start = exit.pc_start - 1;
+    split_block.pc_end = exit.pc_start;
+    
+    entry_label = split_block.label_slot;
+    replace_block_link(entry.exit,exit.block_slot,split_block.block_slot);
+    replace_block_link(exit.entry,entry.block_slot,split_block.block_slot);
+
+    return split_block;
+}
+
+void correct_critical_edge_registers(Function& func, LinearAlloc& alloc,Block& entry, LabelSlot& entry_label, 
+    Block& exit, MisplacedAllocation& reg_alloc)
+{
+    if(exit.label_slot == entry_label)
+    {
+        auto& split_block = split_exit(alloc,func,entry,entry_label,exit);
+        correct_misplaced_registers(alloc,split_block,split_block.list.start,reg_alloc,insertion_type::before);
+    }
+
+    // This is via the fall, we can probably get away with putting fixup code after the branch.
+    // By putting a block with pc + exit
+    // TODO: We should insert an extra fall block between these.
+    else
+    {
+        correct_misplaced_registers(alloc,entry,entry.list.finish,reg_alloc,insertion_type::after);
+    }
+}
+
+void correct_misplaced_block(Function& func, LinearAlloc& alloc,Block& entry, Block& exit, MisplacedAllocation& reg_alloc)
+{
     // single exit
     if(count(entry.exit) == 1)
     {
-        assert(false);
+        correct_misplaced_registers(alloc,entry,entry.list.finish,reg_alloc,insertion_type::after);
     }
 
     // single entry
     else if(count(exit.entry) == 1)
     {
-        // Correct at start of next block
-        correct_misplaced_registers(alloc,exit,exit.list.start,misplaced,insertion_type::before);
+        correct_misplaced_registers(alloc,exit,exit.list.start,reg_alloc,insertion_type::before);
     }
 
     // critical edge (rewrite the blocks)
-    // TODO: For now we will dump this on the end in reality we should try put it near this one
-    // (reordering may be something we can do in a post pass? :P)
+    // TODO: For now we will dump this on the end of the blocks
+    // we should reordering of the blocks at some stage but it shouldn't matter...
 
     // TODO: Technically live out can be broken in the same way across several blocks.
     // but we will discount this for now
     else
     {
-        assert(false);
-    }
+        auto last = entry.list.finish;
+        auto& opcode = last->value;
 
+        switch(opcode.group)
+        {
+            case op_group::branch_cmp_flag:
+            {
+                correct_critical_edge_registers(func,alloc,entry,opcode.branch_cmp_flag.label,exit,reg_alloc);
+                break;
+            }
+
+            default:
+            {
+                disass_opcode(alloc,opcode);
+                assert(false);
+                break;           
+            }
+        }
+    }
+}
+
+void reset_misplaced_allocation_file(const RegisterFile& reg_file,MisplacedAllocationFile& reg_alloc)
+{
+    memcpy(reg_alloc.allocated,reg_file.allocated,sizeof(reg_file.allocated));
+    clear_arr(reg_alloc.misplaced);
+}
+
+void reset_misplaced_allocation(const LinearAlloc& alloc,MisplacedAllocation& reg_alloc)
+{
+    reset_misplaced_allocation_file(alloc.fpr,reg_alloc.fpr);
+    reset_misplaced_allocation_file(alloc.gpr,reg_alloc.gpr);
 }
 
 void correct_live_out(Function& func, LinearAlloc& alloc, Block& entry)
@@ -1368,37 +1490,38 @@ void correct_live_out(Function& func, LinearAlloc& alloc, Block& entry)
         return;
     }
 
-    Array<MisplacedAllocation> misplaced;
-    
     // nothing to correct
-    if(!entry.list.start || entry.flags & HAS_FUNC_EXIT)
+    if(!entry.list.start || entry.flags & HAS_FUNC_EXIT || entry.flags & SPLIT_BLOCK)
     {
         return;
     }
 
-    for(auto& exit_slot: entry.exit)
+    MisplacedAllocation reg_alloc;
+
+    for(u32 e = 0; e < count(entry.exit); e++)
     {
-        auto& exit = block_from_slot(func,exit_slot);
+        auto& exit = block_from_slot(func,entry.exit[e]);
+        reset_misplaced_allocation(alloc,reg_alloc);
 
         for(const auto& local : exit.live_in)
         {
             auto& ir_reg = reg_from_local(func,local);
             const u32 global_reg = find_reg_allocation(ir_reg,exit.pc_start);
-            if(global_reg != ir_reg.local_reg)
-            {
-                log_reg(alloc,"misplaced %r %s %s\n",ir_reg.reg_slot,reg_name(alloc.arch,ir_reg.local_reg),reg_name(alloc.arch,global_reg));
-                
-                auto& register_file = get_register_file(alloc,ir_reg);
-                RegSlot occupant = register_file.allocated[global_reg];
+            if(global_reg != REG_FREE &&  global_reg != ir_reg.local_reg)
+            {   
+                auto& misplaced_file = ir_rtype(ir_reg) == reg_type::fpr? reg_alloc.fpr : reg_alloc.gpr;
 
-                const MisplacedAllocation reg_alloc = {ir_reg.reg_slot,occupant,ir_reg.local_reg,global_reg};
-                push_var(misplaced, reg_alloc);
+                const MisplacedRegister misplaced = {ir_reg.reg_slot,ir_reg.local_reg,global_reg};
+                push_var(misplaced_file.misplaced,misplaced);
+
+                log_reg(alloc,"misplaced %r(%s,%s) -> L%d\n",misplaced.slot,reg_name(alloc.arch,misplaced.global),
+                    reg_name(alloc.arch,misplaced.local),exit.label_slot.handle);
             }
         }
 
-        if(misplaced)
+        if(reg_alloc.gpr.misplaced || reg_alloc.fpr.misplaced)
         {
-            correct_misplaced_block(alloc,entry,exit,misplaced);
+            correct_misplaced_block(func,alloc,entry,exit,reg_alloc);
         }
     }
 }
