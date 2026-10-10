@@ -1403,8 +1403,8 @@ Block& split_exit(LinearAlloc& alloc, Function& func, BlockSlot entry_slot,Label
     auto& exit = block_from_slot(func,exit_slot);
 
     emit_branch(func,split_block.block_slot,exit.block_slot);  
-    split_block.pc_start = exit.pc_start - 1;
-    split_block.pc_end = exit.pc_start;
+    split_block.pc_start = exit.pc_end - 1;
+    split_block.pc_end = split_block.pc_start;
     
     entry_label = split_block.label_slot;
     replace_block_link(entry.exit,exit.block_slot,split_block.block_slot);

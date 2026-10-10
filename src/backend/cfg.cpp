@@ -571,3 +571,16 @@ void destroy_liveness_info(Function& func)
         destroy_bit_set(block.links);
     }
 }
+
+Array<Block> ordered_cfg(Function& func)
+{
+    Array<Block> in_order = copy_array(func.emitter.program);
+
+    // // Emit blocks in terms of increasing PC
+    // heap_sort(in_order,[](const Block& v1, const Block& v2)
+    // {
+    //     return v1.pc_start > v2.pc_start;
+    // });
+
+    return in_order;
+}

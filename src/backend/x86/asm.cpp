@@ -1903,13 +1903,7 @@ void emit_func(Interloper& itl, Function& func)
     const u32 func_idx = add_func(itl.asm_emitter,func);
 
     
-    Array<Block> in_order = copy_array(func.emitter.program);
-
-    // Emit blocks in terms of increasing PC
-    // heap_sort(in_order,[](const Block& v1, const Block& v2)
-    // {
-    //     return v1.pc_start > v2.pc_start;
-    // });
+    Array<Block> in_order = ordered_cfg(func);
 
     for(auto& block : in_order)
     {
