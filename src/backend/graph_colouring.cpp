@@ -1,3 +1,5 @@
+#include "backend/stack_only_alloc.cpp"
+
 GraphAlloc make_graph_alloc(b32 print,b32 stack_only, b32 debug, RegTable local, SymbolTable* table,arch_target arch)
 {
     GraphAlloc alloc;
@@ -28,7 +30,7 @@ ConstLoweredRegSpan graph_allocate_registers(GraphAlloc& alloc,Block& block,Opco
 
 void graph_allocate(GraphAlloc& alloc,Interloper& itl, Function& func)
 {
-    // Don't need to do precomputation for stack allocation
+    // Don't need to do pre computation for stack allocation
     if(alloc.stack_only)
     {
         return;
