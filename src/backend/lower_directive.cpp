@@ -32,7 +32,7 @@ void lower_directive_regs(Directive& directive, const ConstLoweredRegSpan& regs)
 }
 
 
-OpcodeNode* lower_directive_addr_pass(Interloper& itl, LinearAlloc& alloc,Block& block, OpcodeNode* node)
+OpcodeNode* lower_directive_addr_pass(Interloper& itl, GraphAlloc& alloc,Block& block, OpcodeNode* node)
 {
     UNUSED(block);
     auto& directive = node->value.directive;
@@ -60,7 +60,7 @@ OpcodeNode* lower_directive_addr_pass(Interloper& itl, LinearAlloc& alloc,Block&
         case directive_type::spill:
         {
             RegSlot slot = directive.operand[1].ir_reg;
-            auto& reg = reg_from_slot(slot,alloc);
+            auto& reg = reg_from_slot(alloc,slot);
 
             const s32 stack_offset = directive.operand[2].imm;
             const lowered_reg_t src = directive.operand[0].reg;
@@ -87,7 +87,7 @@ OpcodeNode* lower_directive_addr_pass(Interloper& itl, LinearAlloc& alloc,Block&
             const lowered_reg_t dst = directive.operand[0].reg;
 
             RegSlot slot = directive.operand[1].ir_reg;
-            auto& reg = reg_from_slot(slot,alloc);
+            auto& reg = reg_from_slot(alloc,slot);
 
             const s32 stack_offset = directive.operand[2].imm;
             const auto [offset_reg,offset] = reg_offset(itl,reg,stack_offset);
@@ -128,7 +128,7 @@ OpcodeNode* lower_directive_addr_pass(Interloper& itl, LinearAlloc& alloc,Block&
     return node->next;
 }
 
-OpcodeNode* lower_directive_reg_pass(Interloper& itl, LinearAlloc& alloc,Block& block, OpcodeNode* node)
+OpcodeNode* lower_directive_reg_pass(Interloper& itl, GraphAlloc& alloc,Block& block, OpcodeNode* node)
 {
     auto& directive = node->value.directive;
 
@@ -148,90 +148,11 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, LinearAlloc& alloc,Block& 
             return node->next;
         }
 
-        case directive_type::live_var:
-        {
-            const auto slot = directive.operand[0].ir_reg;
-            auto& ir_reg = reg_from_slot(slot,alloc);
-
-            // issue a reload
-            if(is_reg_locally_allocated(ir_reg))
-            {
-                reload_reg(alloc,block,node,slot,ir_reg.local_reg,insertion_type::before);
-            }
-
-            return remove(block.list,node);
-        }
-
-        case directive_type::lock_reg:
-        {
-            const auto reg = directive.operand[0].ir_reg;
-            lock_special_reg(alloc,block,node,reg.spec);
-
-            return remove(block.list,node);
-        }
-
-        case directive_type::mov_unlock:
-        {
-            const auto reg = directive.operand[1].ir_reg;
-            const auto dst = directive.operand[0].ir_reg;
-            unlock_special_reg(alloc,reg.spec);
-            node->value = mov_reg_ir(dst,reg,reg_type::gpr);
-
-            allocate_and_rewrite_opcode(alloc,block,node);
-            return node->next;
-        }
-
-        case directive_type::lock_reg_set:
-        {
-            const auto set = directive.operand[0].reg_set;
-
-            for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
-            {
-                if(is_set(set,r))
-                {
-                    lock_reg(alloc.gpr,r);
-                }
-            }
-
-            return remove(block.list,node);
-        }
-
-        case directive_type::unlock_reg_set:
-        {
-            const auto set = directive.operand[0].reg_set;
-
-            for(u32 r = 0; r < MACHINE_REG_SIZE; r++)
-            {
-                if(is_set(set,r))
-                {
-                    unlock_reg(alloc.gpr,r);
-                }
-            }
-
-            return remove(block.list,node);
-        }
-
         case directive_type::load_func_addr:
         {
             // Just rewrite the dst for now
             allocate_and_rewrite_opcode(alloc,block,node);
             return node->next;
-        }
-        
-        case directive_type::reload_slot:
-        {
-            const auto slot = directive.operand[0].ir_reg;
-            reload_slot(alloc,block,node,slot);
-
-            return remove(block.list,node);
-        }
-
-        case directive_type::spill_slot:
-        {
-            const auto slot = directive.operand[0].ir_reg;
-            spill(alloc,block,node,slot,insertion_type::before);
-
-            return remove(block.list,node);
         }
 
         case directive_type::push_arg:
@@ -290,7 +211,7 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, LinearAlloc& alloc,Block& 
         case directive_type::alloc_slot:
         {
             const auto slot = directive.operand[0].ir_reg;
-            auto& reg = reg_from_slot(slot,alloc);
+            auto& reg = reg_from_slot(alloc,slot);
 
             const b32 force_lower = directive.operand[1].imm;
 
@@ -324,13 +245,6 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, LinearAlloc& alloc,Block& 
         {
             assert(false);
             break;
-        }
-
-        case directive_type::spill_func_bounds:
-        {
-            // clear our any caller saved regs
-            save_caller_saved_regs(alloc,block,node);
-            return remove(block.list,node);
         }
 
         default:

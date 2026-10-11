@@ -34,12 +34,6 @@ struct RegisterFile
     // what registers are we allowed to use?
     u32 free_set = 0;
 
-    // which regs are currently unusable
-    u32 locked_set = 0;
-
-    // Has this register been modified?
-    u32 dirty = 0;
-
     // What registers are saved by the current function?
     u32 saved_set = 0;
 
@@ -47,34 +41,24 @@ struct RegisterFile
     RegSlot allocated[MACHINE_REG_SIZE];
 };
 
-// http://web.cs.ucla.edu/~palsberg/course/cs132/linearscan.pdf
-struct LinearAlloc
+struct GraphAlloc
 {
     arch_target arch;
-
-    // what instruction are we on?
-    u32 pc = 0;
 
     // allocation info of locals for current function
     // NOTE: this is owned by the func and we dont have to free it
     RegTable local;
-    SymbolTable* table = nullptr;
-    ArenaAllocator* list_allocator = nullptr;
-
-    b32 print = false;
+    SymbolTable* table;
 
     RegisterFile gpr;
     RegisterFile fpr;
-
-    // Registers marked for expiry
-    RegSlot dead_slot[3];
-    u32 dead_count = 0;
-    u32 total_misplaced = 0;
 
     StackAlloc stack_alloc;
 
     b32 stack_only = false;
     b32 debug = false;
+
+    b32 print = false;
 
     IrRegSpanStorage ir_reg_span_storage;
     IrRegSpan ir_reg_span = make_ir_reg_span(ir_reg_span_storage);
@@ -82,3 +66,6 @@ struct LinearAlloc
     LoweredRegSpanStorage lowered_reg_span_storage;
     LoweredRegSpan lowered_reg_span = make_lowered_reg_span(lowered_reg_span_storage);
 };
+
+Reg& reg_from_slot(GraphAlloc& alloc, LocalSlot slot);
+Reg& reg_from_slot(GraphAlloc& alloc, RegSlot slot);

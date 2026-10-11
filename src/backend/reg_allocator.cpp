@@ -1,15 +1,50 @@
 #include "backend/lower_reg.cpp"
 
-void allocate_and_rewrite_opcode(LinearAlloc& alloc, Block& block, OpcodeNode* node)
+
+Reg& reg_from_slot(GraphAlloc& alloc, LocalSlot slot)
+{
+    return reg_from_local(alloc.local,slot);
+}
+
+Reg& reg_from_slot(GraphAlloc& alloc, RegSlot slot)
+{
+    return reg_from_slot(*alloc.table,alloc.local,slot);
+}
+
+
+RegisterFile& get_register_file(GraphAlloc& alloc, reg_type rtype)
+{
+    switch(rtype)
+    {
+        case reg_type::fpr:
+        {
+            return alloc.fpr;
+        }
+
+        case reg_type::gpr:
+        {
+            return alloc.gpr;
+        }
+    }
+
+    assert(false);
+}
+
+RegisterFile& get_register_file(GraphAlloc& alloc, Reg& reg)
+{
+    return get_register_file(alloc,ir_rtype(reg));
+}
+
+void allocate_and_rewrite_opcode(GraphAlloc& alloc, Block& block, OpcodeNode* node)
 {
     const auto ir_span = opcode_ir_reg_span(node->value,alloc.ir_reg_span);
-    const auto lowered_reg_span = linear_allocate_registers(alloc,block,node,ir_span,alloc.lowered_reg_span);
+    const auto lowered_reg_span = graph_allocate_registers(alloc,block,node,ir_span);
 
     auto& opcode = node->value;
     lower_opcode(alloc,opcode,lowered_reg_span);
 }
 
-OpcodeNode* allocate_opcode_reg_pass(Interloper& itl,Function &func, LinearAlloc& alloc, Block& block, OpcodeNode* node)
+OpcodeNode* allocate_opcode_reg_pass(Interloper& itl,Function &func, GraphAlloc& alloc, Block& block, OpcodeNode* node)
 {
     UNUSED(func); 
 
@@ -40,7 +75,7 @@ OpcodeNode* allocate_opcode_reg_pass(Interloper& itl,Function &func, LinearAlloc
     return node;
 }
 
-OpcodeNode* allocate_opcode_addr_pass(Interloper& itl,Function &func, LinearAlloc& alloc, Block& block, OpcodeNode* node, const Opcode& stack_clean)
+OpcodeNode* allocate_opcode_addr_pass(Interloper& itl,Function &func, GraphAlloc& alloc, Block& block, OpcodeNode* node, const Opcode& stack_clean)
 {
     UNUSED(func); UNUSED(itl); UNUSED(alloc); UNUSED(stack_clean);
 
@@ -130,7 +165,7 @@ OpcodeNode* allocate_opcode_addr_pass(Interloper& itl,Function &func, LinearAllo
 }
 
 
-void allocation_reg_pass(Interloper& itl,Function &func, LinearAlloc& alloc)
+void allocation_reg_pass(Interloper& itl,Function &func, GraphAlloc& alloc)
 {
     
     for(u32 b = 0; b < count(func.emitter.program); b++)
@@ -144,39 +179,22 @@ void allocation_reg_pass(Interloper& itl,Function &func, LinearAlloc& alloc)
 
         log(alloc.print,"\nprocessing L%d:\n\n",block.label_slot.handle);
 
-        linear_setup_new_block(alloc,block);
 
         OpcodeNode *node = block.list.start;
-
+        
         while(node)
         {
-            clean_dead_regs(alloc);
-
             node = allocate_opcode_reg_pass(itl,func,alloc,block,node);
-            alloc.pc++;
         }
-
-        clean_dead_regs(alloc);
-        correct_live_out(func,alloc,block.block_slot);
     }
 }
 
-void allocation_addr_pass(Interloper& itl,Function &func, LinearAlloc& alloc)
+void allocation_addr_pass(Interloper& itl,Function &func, GraphAlloc& alloc)
 {
-    if(alloc.total_misplaced != 0)
-    {
-        log(alloc.print,"%s: Total misplaced %d\n",func.name.buf,alloc.total_misplaced);
-    }
-
     // Figure out how large a stack we need and put everything on it
     finish_stack_alloc(alloc);
 
     log(alloc.stack_alloc.print,"calling stack size: %d\n",func.sig.call_stack_size + GPR_SIZE);
-
-    if(alloc.print)
-    {
-        print_reg_alloc(alloc);
-    }
 
     auto& entry = func.emitter.program[0];
     const u32 SP = arch_sp(itl.arch);
@@ -266,7 +284,7 @@ void allocation_addr_pass(Interloper& itl,Function &func, LinearAlloc& alloc)
         }
     }
 
-    destroy_linear_alloc(alloc);
+    destroy_graph_alloc(alloc);
 }
 
 void setup_passing_constraints(Function& func)
@@ -291,12 +309,12 @@ void setup_passing_constraints(Function& func)
 
 void allocate_registers(Interloper& itl,Function &func)
 {
-    auto alloc = make_linear_alloc(itl.print_reg_allocation,itl.stack_alloc,itl.debug,
-        func.local,&itl.symbol_table,&itl.list_allocator,itl.arch);
+    auto alloc = make_graph_alloc(itl.print_reg_allocation,itl.stack_alloc,itl.debug,
+        func.local,&itl.symbol_table,itl.arch);
 
     log(alloc.print,"allocating registers for %s\n",func.name.buf);
 
-    linear_allocate(alloc,itl,func);
+    graph_allocate(alloc,itl,func);
 
     // Done after allocation pass to ensure these instructions are first!
     setup_passing_constraints(func);

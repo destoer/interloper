@@ -11,7 +11,7 @@
 #include "backend/disass.cpp"
 #include "backend/lower_ir.cpp"
 #include "backend/x86/ir_x86.cpp"
-#include "backend/linear_alloc.cpp"
+#include "backend/graph_colouring.cpp"
 #include "backend/reg_allocator.cpp"
 #include "backend/elf.cpp"
 #include "backend/intrin.cpp"

@@ -340,7 +340,7 @@ void print_reg_name_internal(const Reg& reg,SymbolTable& table)
 }
 
 
-void print_reg_name(LinearAlloc& alloc, RegSlot slot)
+void print_reg_name(GraphAlloc& alloc, RegSlot slot)
 {
     switch(slot.kind)
     {
@@ -360,7 +360,7 @@ void print_reg_name(LinearAlloc& alloc, RegSlot slot)
     }
 }
 
-void log_reg(LinearAlloc& alloc, const String fmt_string, ...)
+void log_reg(GraphAlloc& alloc, const String fmt_string, ...)
 {  
     if(!alloc.print)
     {

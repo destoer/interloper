@@ -837,7 +837,6 @@ enum class directive_type
     alloc_local_array,
     alloc_global_array,
     load_const_float,
-    live_var,
     spill,
     load,
     spill_func_bounds
@@ -861,7 +860,6 @@ static const char* DIRECTIVE_NAMES[] =
     "alloc_local_array",
     "alloc_global_array",
     "load_const_float",
-    "live_var",
     "spill",
     "load",
     "spill_func_bounds"

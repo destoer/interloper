@@ -1,11 +1,11 @@
-void allocate_and_rewrite_opcode(LinearAlloc& alloc, Block& block, OpcodeNode* node);
+void allocate_and_rewrite_opcode(GraphAlloc& alloc, Block& block, OpcodeNode* node);
 
 #include "x86/lower_reg_x86.cpp"
 #include "lower_directive.cpp"
 
 
 template<typename T,typename Y>
-OpcodeNode* lower_struct_addr_pass2(Interloper& itl, LinearAlloc& alloc,OpcodeNode* node, const Y& addr_op)
+OpcodeNode* lower_struct_addr_pass2(Interloper& itl, GraphAlloc& alloc,OpcodeNode* node, const Y& addr_op)
 {
     const RegSlot slot = addr_op.addr.base_ir;
     const lowered_reg_t v1 = addr_op.v1.reg;
@@ -15,7 +15,7 @@ OpcodeNode* lower_struct_addr_pass2(Interloper& itl, LinearAlloc& alloc,OpcodeNo
     const u32 base_offset = addr_op.addr.offset;
     const auto type = addr_op.type;
 
-    auto &reg = reg_from_slot(slot,alloc);
+    auto &reg = reg_from_slot(alloc,slot);
 
     assert(is_mem_allocated(reg));
 
@@ -27,7 +27,7 @@ OpcodeNode* lower_struct_addr_pass2(Interloper& itl, LinearAlloc& alloc,OpcodeNo
 }
 
 template<typename op_type,const bool IS_LOAD, const bool IS_STRUCT, op_group group>
-void lower_addr_reg_pass(LinearAlloc& alloc, AddrOpcode<op_type,IS_LOAD,IS_STRUCT,group>& addr_op, const ConstLoweredRegSpan& regs)
+void lower_addr_reg_pass(GraphAlloc& alloc, AddrOpcode<op_type,IS_LOAD,IS_STRUCT,group>& addr_op, const ConstLoweredRegSpan& regs)
 {    
     const u32 scale = addr_op.addr_ir.scale;
     const u32 offset = addr_op.addr_ir.offset;
@@ -53,7 +53,7 @@ void lower_addr_reg_pass(LinearAlloc& alloc, AddrOpcode<op_type,IS_LOAD,IS_STRUC
     if constexpr(IS_STRUCT)
     {
         addr_op.addr.base_ir = base;
-        auto& reg = reg_from_slot(base,alloc);
+        auto& reg = reg_from_slot(alloc,base);
 
         if(is_mem_unallocated(reg))
         {
@@ -145,7 +145,7 @@ void lower_branch_reg(BranchReg& branch, const ConstLoweredRegSpan& regs)
     branch.src.reg = regs.src[0];
 }
 
-void lower_opcode(LinearAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan& regs)
+void lower_opcode(GraphAlloc& alloc, Opcode& opcode, const ConstLoweredRegSpan& regs)
 {
     if(opcode.state == opcode_state::lowered)
     {

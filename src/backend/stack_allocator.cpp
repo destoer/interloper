@@ -25,7 +25,7 @@ u32 stack_reserve_internal(StackAlloc& alloc, u32 size, u32 count)
     return cur;    
 }
 
-u32 allocate_stack_array(LinearAlloc& alloc, RegSlot slot, u32 size, u32 alloc_count)
+u32 allocate_stack_array(GraphAlloc& alloc, RegSlot slot, u32 size, u32 alloc_count)
 {
     auto& stack_alloc = alloc.stack_alloc;
 
@@ -164,7 +164,7 @@ void calc_allocation(StackAlloc& alloc)
 
 // TODO: need to rethink this when we do register passing
 // and when we push off determining stack size to a later pass
-void alloc_args(Function &func, LinearAlloc& alloc, SymbolTable& table, u32 saved_regs_offset)
+void alloc_args(Function &func, GraphAlloc& alloc, SymbolTable& table, u32 saved_regs_offset)
 {
     const u32 FRAME_OFFSET = alloc.debug? GPR_SIZE * 2 : GPR_SIZE;
 
@@ -261,4 +261,28 @@ void finalise_global_offset(Interloper& itl)
     }
 
     // finalised offsets on any fixed size array allocations handled by global_array_alloc
+}
+
+
+void finish_alloc(GraphAlloc& alloc, Reg& reg)
+{
+    log_reg(alloc,"pending stack alloc %r\n",reg.reg_slot);
+    assert(pending_stack_allocation(reg));
+
+    finalise_offset(alloc.stack_alloc,reg);
+
+    log_reg(alloc,"final offset %r = [%x,%x] -> 0x%x\n",reg.reg_slot,reg.size,reg.count,reg.offset);
+}
+
+void finish_stack_alloc(GraphAlloc& alloc)
+{
+    calc_allocation(alloc.stack_alloc);
+
+    auto& stack_alloc = alloc.stack_alloc;
+
+    for(const RegSlot slot : stack_alloc.pending_allocation)
+    {
+        auto& ir_reg = reg_from_slot(alloc,slot);
+        finish_alloc(alloc,ir_reg);
+    }
 }
