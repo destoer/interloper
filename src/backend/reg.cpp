@@ -3,7 +3,7 @@
 
 void destroy_reg(Reg& ir_reg)
 {
-    destroy_arr(ir_reg.local_uses);
+    destroy_arr(ir_reg.global_alloc);
 }
 
 u32 gpr_count(u32 size)
@@ -212,13 +212,6 @@ void print(const Reg& reg)
     for(auto& alloc: reg.global_alloc)
     {
         printf("global reg[%x,%x]: r%x\n",alloc.start,alloc.end,alloc.reg);
-    }
-
-    printf("uses: %d\n",reg.cur_local_uses);
-    
-    for(u32 i = 0; i < count(reg.local_uses); i++)
-    {
-        printf("use[%d] -> %d\n",i,reg.local_uses[i]);
     }
 }
 
