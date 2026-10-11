@@ -28,6 +28,13 @@ ConstLoweredRegSpan graph_allocate_registers(GraphAlloc& alloc,Block& block,Opco
     assert(false);
 }
 
+
+// We don't want a two stage allocator here, this should handle allocation decisions for EVERY variable.
+// Along with spilling and loads, a big problem with the old allocator is that it has no insight
+// on very costly allocation decisions.
+// in the program and save the result including ones that can't be held in long term storage.
+// It should also have logging that leaves no step major undocumented.
+
 void graph_allocate(GraphAlloc& alloc,Interloper& itl, Function& func)
 {
     // Don't need to do pre computation for stack allocation
