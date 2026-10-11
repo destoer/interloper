@@ -79,9 +79,6 @@ struct Reg
     // Where is this register globally allocated for each range
     Array<RegAllocation> global_alloc;
 
-    // Where does this register reside in the current block?
-    lowered_reg_t local_reg = REG_FREE;
-
     // Registers that it has fixed interactions with
     // Attempt to allocate register into here to avoid shuffles.
     u32 hint = 0;
