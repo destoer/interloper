@@ -172,11 +172,6 @@ void allocation_reg_pass(Interloper& itl,Function &func, GraphAlloc& alloc)
     {
         auto& block = func.emitter.program[b];
 
-        if(block.flags & SPLIT_BLOCK)
-        {
-            continue;
-        }
-
         log(alloc.print,"\nprocessing L%d:\n\n",block.label_slot.handle);
 
 
