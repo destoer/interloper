@@ -37,6 +37,9 @@ struct RegisterFile
     // What registers are saved by the current function?
     u32 saved_set = 0;
 
+    // What registers are current fixed in place?
+    u32 locked_set = 0;
+
     // What slot is being used by a register?
     RegSlot allocated[MACHINE_REG_SIZE];
 };
