@@ -86,9 +86,6 @@ struct Reg
     // Attempt to allocate register into here to avoid shuffles.
     u32 hint = 0;
 
-    u32 cur_local_uses = 0;
-    Array<u32> local_uses;
-
     u32 flags = 0;
 };
 
