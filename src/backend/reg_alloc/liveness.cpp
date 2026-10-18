@@ -121,17 +121,15 @@ ProgramRange find_program_ranges(Interloper& itl, Function& func)
     // for each block
     for(auto& block : func.emitter.program)
     {
-        OpcodeNode* node = block.list.start;
-
         for(const LocalSlot slot : block.live_in)
         {
             update_range(program,slot,block,block.pc_start);
         }
 
         // for each opcode
-        while(node)
+        for(const OpcodeNode& node : block.list)
         {
-            const auto& opcode = node->value;
+            const auto& opcode = node.value;
 
             const auto regs = opcode_ir_reg_span(opcode,itl.reg_span);
 
@@ -140,10 +138,6 @@ ProgramRange find_program_ranges(Interloper& itl, Function& func)
 
             // dst only regs have have a later pc
             update_regs_range(program,block,opcode.pc + 1,regs.dst);
-
-
-            // next opcode
-            node = node->next;
         }
         
 
