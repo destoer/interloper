@@ -32,11 +32,26 @@ void rewrite_directive_regs(Directive& directive, const ConstIrRegSpan& regs)
     }
 }
 
+void rewrite_mov_gpr_imm(MovGprImm& mov, const ConstIrRegSpan& regs)
+{
+    mov.dst.ir = regs.dst[0];
+}
+
+template<typename op_type, op_group group>
+void rewrite_unary_reg2(UnaryReg2<op_type,group>& unary, const ConstIrRegSpan& regs)
+{
+    unary.dst.ir = regs.dst[0];
+    unary.src.ir = regs.src[0];
+}
+
+
 void rewrite_opcode(Opcode& opcode, const ConstIrRegSpan& regs)
 {
     switch(opcode.group)
     {
         case op_group::directive: rewrite_directive_regs(opcode.directive,regs); break;
+        case op_group::mov_gpr_imm: rewrite_mov_gpr_imm(opcode.mov_gpr_imm,regs); break;
+        case op_group::unary_reg2: rewrite_unary_reg2(opcode.unary_reg2,regs); break;
 
         default:
         {
@@ -47,7 +62,7 @@ void rewrite_opcode(Opcode& opcode, const ConstIrRegSpan& regs)
 }
 
 // TODO: For obvious reasons we can speed this up by using the same TMP across the instruction.
-// but we will leave this for now
+// but we will leave this for now as it will not affect correctness
 void rewrite_spill_span_arg(Interloper& itl, Function& func, Block& block, OpcodeNode* node, 
     const ConstSpan<RegSlot>& span,  Span<RegSlot> &rewritten, reg_arg_kind kind, u32 arg)
 {
