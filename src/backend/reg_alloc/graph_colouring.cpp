@@ -100,7 +100,8 @@ ConstLoweredRegSpan graph_allocate_registers(GraphAlloc& alloc,Block& block,Opco
 struct VariableGraphNode
 {
     lowered_reg_t color = REG_FREE;
-    LocalRegSet adjacent; 
+    LocalRegSet adjacent_set;
+    Array<LocalSlot> adjacent_list; 
     LocalSlot slot;
 };
 
@@ -117,7 +118,7 @@ VariableGraph make_variable_graph(Function& func)
     for(u32 n = 0; n < count(graph.node); n++)
     {
         auto& node = graph.node[n];
-        node.adjacent = make_local_reg_set(func.local);
+        node.adjacent_set = make_local_reg_set(func.local);
         node.slot = {n};
     }
 
@@ -136,9 +137,11 @@ void build_interference_graph(VariableGraph& graph, ProgramRange& program)
                 continue;
             }
 
+            // TODO: Can add a edge to the other node here for speed
             if(variable_ranges_overlap(var,other))
             {
-                add(node.adjacent,other.slot);
+                add(node.adjacent_set,other.slot);
+                push_var(node.adjacent_list,other.slot);
             }
         }
     }
