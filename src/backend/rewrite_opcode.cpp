@@ -44,6 +44,18 @@ void rewrite_unary_reg2(UnaryReg2<op_type,group>& unary, const ConstIrRegSpan& r
     unary.src.ir = regs.src[0];
 }
 
+void rewrite_branch_cond(BranchCond& branch, const ConstIrRegSpan& regs)
+{
+    branch.src.ir = regs.src[0];
+}
+
+template<typename op_type,op_group group>
+void rewrite_reg3(RegThree<op_type,group>& reg3, const ConstIrRegSpan& regs)
+{
+    reg3.dst.ir = regs.dst[0];
+    reg3.v1.ir = regs.src[0];
+    reg3.v2.ir = regs.src[1];
+}
 
 void rewrite_opcode(Opcode& opcode, const ConstIrRegSpan& regs)
 {
@@ -52,6 +64,8 @@ void rewrite_opcode(Opcode& opcode, const ConstIrRegSpan& regs)
         case op_group::directive: rewrite_directive_regs(opcode.directive,regs); break;
         case op_group::mov_gpr_imm: rewrite_mov_gpr_imm(opcode.mov_gpr_imm,regs); break;
         case op_group::unary_reg2: rewrite_unary_reg2(opcode.unary_reg2,regs); break;
+        case op_group::branch_cond: rewrite_branch_cond(opcode.branch_cond,regs); break;
+        case op_group::arith_fpr3: rewrite_reg3(opcode.arith_fpr3,regs); break;
 
         default:
         {
