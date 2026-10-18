@@ -31,35 +31,15 @@ OpcodeNode* lower_x86_fixed(GraphAlloc& alloc,Block& block, OpcodeNode* node)
     switch(fixed.type)
     {
         case x86_fixed_type::lsl:
-        {
-            return rewrite_x86_fixed_shift(alloc,block,node);
-        }
-
         case x86_fixed_type::asr:
-        {
-            return rewrite_x86_fixed_shift(alloc,block,node);
-        }
-
         case x86_fixed_type::lsr:
         {
             return rewrite_x86_fixed_shift(alloc,block,node);
         }
 
         case x86_fixed_type::udiv:
-        {
-            return rewrite_x86_fixed_arith(alloc,block,node);
-        }
-
         case x86_fixed_type::sdiv:
-        {
-            return rewrite_x86_fixed_arith(alloc,block,node);
-        }
-
         case x86_fixed_type::umod:
-        {
-            return rewrite_x86_fixed_arith(alloc,block,node);
-        }
-
         case x86_fixed_type::smod:
         {
             return rewrite_x86_fixed_arith(alloc,block,node);
