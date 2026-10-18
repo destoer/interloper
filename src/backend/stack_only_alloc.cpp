@@ -15,24 +15,14 @@ lowered_reg_t stack_allocate_and_rewrite_var(GraphAlloc& alloc, Block& block, Op
     // This allocation should never fail for the stack.
     assert(scratch_reg != FFS_EMPTY);
 
-    const b32 is_dst = is_arg_dst(kind);
-    const b32 is_src = is_arg_src(kind);
-
     // src do a reload
-    if(is_src) 
+    if(is_arg_src(kind)) 
     {
-        // issue a load
         reload_reg(alloc,block,node,slot,scratch_reg,insertion_type::before);
-
-        // do the writeback as well
-        if(is_dst)
-        {
-            spill_reg(alloc,block,node,slot,scratch_reg,insertion_type::after);
-        }
     }
 
-    // just a dst
-    else if(is_dst)
+    // If this is also a dst just spill
+    if(is_arg_dst(kind))
     {
         spill_reg(alloc,block,node,slot,scratch_reg,insertion_type::after);      
     }
