@@ -1109,12 +1109,18 @@ void cqo(AsmEmitter& emitter)
 
 void udiv_x86(AsmEmitter& emitter, x86_reg src)
 {
+    // mov rdx, 0
+    mov_imm(emitter,x86_reg::rdx,0);
+
     // udiv r64
     emit_arith_fixed(emitter,src,6);
 }
 
 void sdiv_x86(AsmEmitter& emitter, x86_reg src)
 {
+    // cqo
+    cqo(emitter);
+
     // idiv r64
     emit_arith_fixed(emitter,src,7);
 }

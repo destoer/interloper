@@ -59,17 +59,9 @@ OpcodeNode* rewrite_x86_fixed_arith_stack(GraphAlloc& alloc,Block& block, Opcode
     // Rewrite flexible operand
     fixed.src.reg = graph_allocate_reg(alloc,block,node,fixed.src.ir,reg_arg_kind::src);
     
-    // NOTE: these are both fully rewritten so we can just dump them in into the instruction stream
-    static const Opcode UNSIGNED_SETUP = mov_imm_lowered(x86_reg::rdx,0);
-    static const Opcode SIGNED_SETUP = make_lowered_implicit_instr(implicit_type::cqo);
-
-    const auto type = fixed.type;
-
-    const bool is_unsigned = type == x86_fixed_type::udiv || type == x86_fixed_type::umod;
-    insert_at(block.list,node,is_unsigned? UNSIGNED_SETUP : SIGNED_SETUP);
-
     if(dst.kind != reg_kind::spec)
     { 
+        const auto type = fixed.type;
         const bool rdx_out = type == x86_fixed_type::umod || type == x86_fixed_type::smod;
         const x86_reg out_reg = rdx_out? x86_reg::rdx : x86_reg::rax;
 
