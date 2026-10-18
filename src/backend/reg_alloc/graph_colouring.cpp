@@ -97,6 +97,31 @@ ConstLoweredRegSpan graph_allocate_registers(GraphAlloc& alloc,Block& block,Opco
 // Then we need to look at doing coloring.
 
 
+struct VariableGraphNode
+{
+    lowered_reg_t color = REG_FREE;
+    LocalRegSet adjacent; 
+};
+
+struct VariableGraph
+{
+    Array<VariableGraphNode> nodes;
+};
+
+VariableGraph make_variable_graph(Function& func)
+{
+    VariableGraph graph;
+    resize(graph.nodes,count(func.local.registers));
+
+    for(auto& node : graph.nodes)
+    {
+        node.adjacent = make_local_reg_set(func.local);
+    }
+
+    return graph;
+}
+
+
 void graph_allocate(GraphAlloc& alloc,Interloper& itl, Function& func)
 {
     // Don't need to do pre computation for stack allocation
@@ -106,7 +131,8 @@ void graph_allocate(GraphAlloc& alloc,Interloper& itl, Function& func)
     }
 
     ProgramRange program = find_program_ranges(itl,func);
+    VariableGraph graph = make_variable_graph(func);
 
-    UNUSED(program);
+    UNUSED(program); UNUSED(graph);
     assert(false);
 }
