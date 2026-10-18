@@ -309,6 +309,7 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, GraphAlloc& alloc,Block& b
             }
 
             // NOTE: This will probably trip a bug
+            // for standard reg alloc if unhandled
             return node->next;
         }
 
