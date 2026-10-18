@@ -1,18 +1,17 @@
 #include <interloper.h>
 
 #include "backend/pool.cpp"
-#include "backend/reg.cpp"
+#include "backend/reg_alloc/reg.cpp"
 #include "backend/emitter.cpp"
 #include "backend/cfg.cpp"
 #include "backend/asm.cpp"
 #include "backend/x86/asm.cpp"
 
-#include "backend/stack_allocator.cpp"
+#include "backend/reg_alloc/stack_allocator.cpp"
 #include "backend/disass.cpp"
 #include "backend/lower_ir.cpp"
 #include "backend/x86/ir_x86.cpp"
-#include "backend/reg_allocator.cpp"
-#include "backend/graph_colouring.cpp"
+#include "backend/reg_alloc/graph_colouring.cpp"
 #include "backend/elf.cpp"
 #include "backend/intrin.cpp"
 #include "backend/memory.cpp"

@@ -1,4 +1,4 @@
-#include "backend/register_file.cpp"
+#include "backend/reg_alloc/register_file.cpp"
 #include "backend/lower_reg.cpp"
 
 GraphAlloc make_graph_alloc(b32 print,b32 stack_only, b32 debug, RegTable local, SymbolTable* table,arch_target arch);

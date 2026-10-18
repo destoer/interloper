@@ -1,6 +1,9 @@
-#include "backend/stack_only_alloc.cpp"
+#include "backend/reg_alloc/reg_allocator.cpp"
+#include "backend/reg_alloc/stack_only_alloc.cpp"
+#include "backend/reg_alloc/liveness.cpp"
 
 void init_regs(GraphAlloc& alloc);
+
 
 GraphAlloc make_graph_alloc(b32 print,b32 stack_only, b32 debug, RegTable local, SymbolTable* table,arch_target arch)
 {
@@ -83,11 +86,16 @@ ConstLoweredRegSpan graph_allocate_registers(GraphAlloc& alloc,Block& block,Opco
 }
 
 
+
+
 // We don't want a two stage allocator here, this should handle allocation decisions for EVERY variable.
 // Along with spilling and loads, a big problem with the old allocator is that it has no insight
 // on very costly allocation decisions.
 // in the program and save the result including ones that can't be held in long term storage.
 // It should also have logging that leaves no step major undocumented.
+// First step is to build up the ranges and then the interference graph
+// Then we need to look at doing coloring.
+
 
 void graph_allocate(GraphAlloc& alloc,Interloper& itl, Function& func)
 {
@@ -97,6 +105,8 @@ void graph_allocate(GraphAlloc& alloc,Interloper& itl, Function& func)
         return;
     }
 
-    UNUSED(itl); UNUSED(func);
+    ProgramRange program = find_program_ranges(itl,func);
+
+    UNUSED(program);
     assert(false);
 }
