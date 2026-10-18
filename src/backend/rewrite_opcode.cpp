@@ -1,12 +1,47 @@
+
+void rewrite_directive_regs(Directive& directive, const ConstIrRegSpan& regs)
+{
+    u32 src = 0;
+    u32 dst = 0;
+    u32 dst_src = 0;
+
+    for(auto& operand : directive.operand)
+    {
+        switch(operand.type)
+        {
+            case directive_operand_type::dst_src:
+            {
+                operand = make_reg_operand(regs.dst_src[dst_src++], ir_reg_type::dst_src);
+                break;
+            }
+
+            case directive_operand_type::dst:
+            {
+                operand = make_reg_operand(regs.dst[dst++], ir_reg_type::dst);
+                break;
+            }
+
+            case directive_operand_type::src:
+            {
+                operand = make_reg_operand(regs.src[src++], ir_reg_type::src);
+                break;
+            }
+
+            default: break;
+        }
+    }
+}
+
 void rewrite_opcode(Opcode& opcode, const ConstIrRegSpan& regs)
 {
-    UNUSED(regs);
-
     switch(opcode.group)
     {
+        case op_group::directive: rewrite_directive_regs(opcode.directive,regs); break;
+
         default:
         {
             unimplemented("[Rewrite opcode]: Invalid group: %s",OP_GROUP_NAMES[u32(opcode.group)]);
+            break;
         }
     }
 }

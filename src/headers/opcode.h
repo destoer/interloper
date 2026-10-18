@@ -727,7 +727,6 @@ const char* OP_GROUP_NAMES[] =
     "branch_label",
     "branch_reg",
     "branch_cond",
-    "branch_cond_flag",
     "branch_cmp",
     "branch_cmp_imm",
     "branch_cmp_flag",
