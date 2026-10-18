@@ -147,6 +147,12 @@ void build_interference_graph(VariableGraph& graph, ProgramRange& program)
     }
 }
 
+
+// TODO:
+// - Coloring
+// - Make live range analysis spill aware. 
+// We require a fix for globals and for aliased variables so they can be tracked at proper ranges
+
 void graph_allocate(GraphAlloc& alloc,Interloper& itl, Function& func)
 {
     // Don't need to do pre computation for stack allocation
