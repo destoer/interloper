@@ -5,36 +5,6 @@ void spill_slot(Interloper& itl, Function& func, const Reg& src);
 ConstIrRegSpan opcode_ir_reg_span(const Opcode& opcode, IrRegSpan& reg);
 
 
-void handle_src_storage(Interloper& itl, Function& func, RegSlot src)
-{
-    if(is_special_reg(src))
-    {
-        return;
-    }
-
-    auto& reg = reg_from_slot(itl.symbol_table,func,src);
-
-    if(is_aliased(reg))
-    {
-        reload_slot(itl,func,reg);
-    }
-}
-
-void handle_dst_storage(Interloper& itl, Function& func, RegSlot dst_slot)
-{
-    if(is_special_reg(dst_slot))
-    {
-        return;
-    }
-
-    auto& reg = reg_from_slot(itl.symbol_table,func,dst_slot);
-
-    if(is_aliased(reg))
-    {
-        spill_slot(itl,func,reg);
-    }
-}
-
 const ConstIrRegSpan blank_ir_reg_span(IrRegSpan& reg)
 {
     reg.dst.size = 0;
@@ -56,22 +26,12 @@ const ConstLoweredRegSpan blank_lowered_reg_span(LoweredRegSpan& reg)
 // NOTE: these are the bottom level emitter only use directly if you need to gen code yourself
 OpcodeNode* emit_block_internal(Interloper& itl, Function& func,BlockSlot block_slot, const Opcode& opcode)
 {
-    const auto reg = opcode_ir_reg_span(opcode,itl.reg_span);
-
-    for(const auto& src: reg.src)
-    {
-        handle_src_storage(itl,func,src);
-    }
+    UNUSED(itl);
 
     auto& block = block_from_slot(func,block_slot);
 
     auto &list = block.list;
     append(list,opcode);
-    
-    for(const auto& dst: reg.dst)
-    {
-        handle_dst_storage(itl,func,dst);
-    }
 
     return list.finish;    
 }
@@ -119,6 +79,16 @@ RegSlot opcode_res2_gpr(Interloper& itl,Function& func, const T& v1, const Y& v2
 #include "emitter/addr.cpp"
 #include "emitter/unary.cpp"
 #include "emitter/cmp.cpp"
+
+IrRegSpan copy_ir_reg_span(IrRegSpanStorage& storage, const ConstIrRegSpan& span)
+{
+    IrRegSpan out = make_ir_reg_span(storage);
+    copy_const_span(out.src,span.src);
+    copy_const_span(out.dst,span.dst);
+    copy_const_span(out.dst_src,span.dst_src);
+
+    return out;
+}
 
 ConstIrRegSpan opcode_ir_reg_span(const Opcode& opcode, IrRegSpan& reg)
 {

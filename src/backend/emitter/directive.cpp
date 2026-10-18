@@ -238,26 +238,28 @@ void push_float_arg(Interloper& itl, Function& func, ArgPass& pass, RegSlot src)
     emit_directive_reg1(itl,func,directive_type::push_float_arg,v1);
 }
 
+Opcode make_reload_slot_into(RegSlot dst,RegSlot src)
+{
+    const auto dst_operand = make_reg_operand(dst,ir_reg_type::dst);
+    const auto src_operand = make_reg_operand(src,ir_reg_type::directive);
+    return make_directive_two(directive_type::reload_slot_into,dst_operand,src_operand);
+}
 
 void reload_slot(Interloper& itl, Function& func, const Reg& reg)
 {
-    if(stored_in_mem(reg))
-    {
-        return;
-    }
-
-    const DirectiveReg v1 = {reg.reg_slot,ir_reg_type::directive};
+    const DirectiveReg v1 = {reg.reg_slot,ir_reg_type::dst};
     emit_directive_reg1(itl,func,directive_type::reload_slot,v1);
+}
+
+Opcode make_spill_slot(RegSlot slot)
+{
+    const auto operand = make_reg_operand(slot,ir_reg_type::src);
+    return make_directive_one(directive_type::spill_slot,operand);
 }
 
 void spill_slot(Interloper& itl, Function& func, const Reg& reg)
 {
-    if(stored_in_mem(reg))
-    {
-        return;
-    }
-
-    const DirectiveReg v1 = {reg.reg_slot,ir_reg_type::directive};
+    const DirectiveReg v1 = {reg.reg_slot,ir_reg_type::src};
     emit_directive_reg1(itl,func,directive_type::spill_slot,v1);
 }
 

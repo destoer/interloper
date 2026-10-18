@@ -6,6 +6,7 @@
 #include "backend/cfg.cpp"
 #include "backend/asm.cpp"
 #include "backend/x86/asm.cpp"
+#include "backend/rewrite_opcode.cpp"
 
 #include "backend/reg_alloc/stack_allocator.cpp"
 #include "backend/disass.cpp"
@@ -32,7 +33,6 @@ TypedAddr index_arr(Interloper& itl, Function& func, IndexNode* index);
 #include "arith/compile.cpp"
 
 
-
 Option<itl_error> func_graph_pass(Interloper& itl, Function& func)
 {
     // if final block has no return and this is a void func insert one
@@ -45,6 +45,8 @@ Option<itl_error> func_graph_pass(Interloper& itl, Function& func)
             ret(itl,func);
         }
     }
+
+    correct_aliased_regs(itl,func);
 
     // connect up the cfg
     connect_flow_graph(func); 

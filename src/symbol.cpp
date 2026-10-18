@@ -130,6 +130,12 @@ SymSlot add_symbol_reg(Interloper& itl,RegTable* local, Symbol& sym, reg_segment
             auto reg = make_reg_sym(itl,global,sym,flags);
             reserve_global_alloc(itl,reg);
             reg.segment = segment;
+            
+            // Treat globals as aliased
+            if(segment == reg_segment::global)
+            {
+                reg.flags |= ALIASED;
+            }
 
             push_var(table.global.registers,reg);
             break;
