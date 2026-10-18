@@ -247,6 +247,71 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, GraphAlloc& alloc,Block& b
             break;
         }
 
+        case directive_type::unlock_reg_set:
+        {
+            if(alloc.stack_only)
+            {
+                const auto set = directive.operand[0].reg_set;
+                alloc.gpr.locked_set &= ~set;
+                return remove(block.list,node);
+            }
+
+            return node->next;
+        }
+
+        case directive_type::lock_reg_set:
+        {
+            if(alloc.stack_only)
+            {
+                const auto set = directive.operand[0].reg_set;
+                alloc.gpr.locked_set |= set;
+                return remove(block.list,node);
+            }
+
+            return node->next;
+        }
+
+        case directive_type::lock_reg:
+        {
+            if(alloc.stack_only)
+            {
+                const auto reg = directive.operand[0].ir_reg;
+                lock_special_reg(alloc,reg.spec);
+                return remove(block.list,node);
+            }
+
+            return node->next;
+        }
+
+        case directive_type::mov_unlock:
+        {
+            if(alloc.stack_only)
+            {
+                const auto reg = directive.operand[1].ir_reg;
+                const auto dst = directive.operand[0].ir_reg;
+                unlock_special_reg(alloc,reg.spec);
+                node->value = mov_reg_ir(dst,reg,reg_type::gpr);
+
+                allocate_and_rewrite_opcode(alloc,block,node);
+            }
+
+            return node->next;
+        }
+        
+        // These are for memory moves and are not relevant for the stack
+        case directive_type::spill_slot:
+        case directive_type::reload_slot:
+        case directive_type::spill_func_bounds:
+        {
+            if(alloc.stack_only)
+            {
+                return remove(block.list,node);
+            }
+
+            // NOTE: This will probably trip a bug
+            return node->next;
+        }
+
         default:
         {
             allocate_and_rewrite_opcode(alloc,block,node);

@@ -33,6 +33,24 @@ void unlock_reg(RegisterFile& regs, u32 reg)
     regs.locked_set = deset_bit(regs.locked_set,reg);
 }
 
+void unlock_special_reg(GraphAlloc& alloc, spec_reg reg)
+{
+    const u32 location = special_reg_to_reg(alloc.arch,reg);
+    RegisterFile& reg_file = get_register_file(alloc,spec_rtype(reg));
+
+    log_reg(alloc,"Unlocking special register %s\n",spec_reg_name(reg));
+
+    unlock_reg(reg_file,location);
+}
+
+void lock_special_reg(GraphAlloc& alloc,spec_reg reg)
+{
+    const u32 location = special_reg_to_reg(alloc.arch,reg);
+    RegisterFile& reg_file = get_register_file(alloc,spec_rtype(reg));
+
+    lock_reg(reg_file,location);
+}
+
 bool is_locked(RegisterFile& regs,u32 reg)
 {
     return is_set(regs.locked_set,reg);
