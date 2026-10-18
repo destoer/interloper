@@ -46,6 +46,8 @@ void rewrite_opcode(Opcode& opcode, const ConstIrRegSpan& regs)
     }
 }
 
+// TODO: For obvious reasons we can speed this up by using the same TMP across the instruction.
+// but we will leave this for now
 void rewrite_spill_span_arg(Interloper& itl, Function& func, Block& block, OpcodeNode* node, 
     const ConstSpan<RegSlot>& span,  Span<RegSlot> &rewritten, reg_arg_kind kind, u32 arg)
 {
