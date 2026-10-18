@@ -31,14 +31,17 @@ struct RegisterFile
     // what registers have we used total for this function?
     u32 used_set = 0;
 
-    // what registers are we allowed to use?
+    // what is the default set of register that are free?
+    u32 free_set_full = 0;
+
+    // what registers are we currently allowed to use?
     u32 free_set = 0;
 
     // What registers are saved by the current function?
     u32 saved_set = 0;
 
     // What registers are current fixed in place?
-    u32 locked_set = 0;
+    u32 locked_set = 0xffff'ffff;
 };
 
 struct GraphAlloc
@@ -61,10 +64,10 @@ struct GraphAlloc
     b32 print = false;
 
     IrRegSpanStorage ir_reg_span_storage;
-    IrRegSpan ir_reg_span = make_ir_reg_span(ir_reg_span_storage);
+    IrRegSpan ir_reg = make_ir_reg_span(ir_reg_span_storage);
 
     LoweredRegSpanStorage lowered_reg_span_storage;
-    LoweredRegSpan lowered_reg_span = make_lowered_reg_span(lowered_reg_span_storage);
+    LoweredRegSpan lowered_reg = make_lowered_reg_span(lowered_reg_span_storage);
 };
 
 Reg& reg_from_slot(GraphAlloc& alloc, LocalSlot slot);

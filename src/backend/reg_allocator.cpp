@@ -1,5 +1,10 @@
+#include "backend/register_file.cpp"
 #include "backend/lower_reg.cpp"
 
+GraphAlloc make_graph_alloc(b32 print,b32 stack_only, b32 debug, RegTable local, SymbolTable* table,arch_target arch);
+void destroy_graph_alloc(GraphAlloc& alloc);
+ConstLoweredRegSpan graph_allocate_registers(GraphAlloc& alloc,Block& block,OpcodeNode* node, const ConstIrRegSpan& ir_reg);
+void graph_allocate(GraphAlloc& alloc,Interloper& itl, Function& func);
 
 Reg& reg_from_slot(GraphAlloc& alloc, LocalSlot slot)
 {
@@ -12,32 +17,9 @@ Reg& reg_from_slot(GraphAlloc& alloc, RegSlot slot)
 }
 
 
-RegisterFile& get_register_file(GraphAlloc& alloc, reg_type rtype)
-{
-    switch(rtype)
-    {
-        case reg_type::fpr:
-        {
-            return alloc.fpr;
-        }
-
-        case reg_type::gpr:
-        {
-            return alloc.gpr;
-        }
-    }
-
-    assert(false);
-}
-
-RegisterFile& get_register_file(GraphAlloc& alloc, Reg& reg)
-{
-    return get_register_file(alloc,ir_rtype(reg));
-}
-
 void allocate_and_rewrite_opcode(GraphAlloc& alloc, Block& block, OpcodeNode* node)
 {
-    const auto ir_span = opcode_ir_reg_span(node->value,alloc.ir_reg_span);
+    const auto ir_span = opcode_ir_reg_span(node->value,alloc.ir_reg);
     const auto lowered_reg_span = graph_allocate_registers(alloc,block,node,ir_span);
 
     auto& opcode = node->value;
@@ -180,6 +162,13 @@ void allocation_reg_pass(Interloper& itl,Function &func, GraphAlloc& alloc)
         while(node)
         {
             node = allocate_opcode_reg_pass(itl,func,alloc,block,node);
+
+            // In a stack alloc we are actively using the allocation sets
+            // and we need to reset them every instruction
+            if(alloc.stack_only)
+            {
+                reset_register_files(alloc);
+            }
         }
     }
 }
