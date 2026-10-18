@@ -3,14 +3,13 @@ struct VariableRange
 {
     u32 start = 0xffff'ffff;
     u32 end = 0;
-    LocalSlot slot = {INVALID_HANDLE};
-    u32 global_reg = REG_FREE;
     BlockSlot block_slot = {INVALID_HANDLE};
 };
 
-
+// TODO: Probably want a complete range for optimization reasons.
 struct VariableLive
 {
+    LocalSlot slot = {INVALID_HANDLE};
     Array<VariableRange> range;
 };
 
@@ -30,6 +29,10 @@ ProgramRange make_linear_program(Function& func)
     ProgramRange program;
 
     resize(program.var,count(func.local.registers));
+    for(u32 v = 0; v < count(program.var); v++)
+    {
+        program.var[v].slot = {v};
+    }
 
     return program;
 }
@@ -55,6 +58,27 @@ void number_cfg(Function& func)
     }
 }
 
+bool variable_range_overlaps(const VariableRange& v1, const VariableRange& v2)
+{
+    return in_range(v1.start,v2.start,v2.end) || in_range(v2.start,v1.start,v2.end);
+}
+
+bool variable_ranges_overlap(const VariableLive& var, const VariableLive& other)
+{
+    for(const auto& range : var.range)
+    {
+        for(const auto& other_range: other.range)
+        {
+            if(variable_range_overlaps(range,other_range))
+            {
+                return true;
+            }
+        }   
+    }
+
+    return false;
+}
+
 void collapse_ranges(VariableLive& variable)
 {
     // TODO: There will be more efficient ways to do this
@@ -63,7 +87,7 @@ void collapse_ranges(VariableLive& variable)
         auto& cur = variable.range[r];
         auto& next = variable.range[r + 1];
 
-        if(in_range(cur.start,next.start,next.end) || in_range(next.start,cur.start,cur.end))
+        if(variable_range_overlaps(cur,next))
         {
             cur.end = max(cur.end,next.end);
             cur.start = min(cur.start,next.start);
@@ -85,7 +109,6 @@ void update_range(ProgramRange& program, LocalSlot slot, Block& block,u32 pc)
     }
 
     auto& range = variable.range[count(variable.range) - 1];
-    range.slot = slot;
 
     if(pc < range.start)
     {

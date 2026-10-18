@@ -101,26 +101,48 @@ struct VariableGraphNode
 {
     lowered_reg_t color = REG_FREE;
     LocalRegSet adjacent; 
+    LocalSlot slot;
 };
 
 struct VariableGraph
 {
-    Array<VariableGraphNode> nodes;
+    Array<VariableGraphNode> node;
 };
 
 VariableGraph make_variable_graph(Function& func)
 {
     VariableGraph graph;
-    resize(graph.nodes,count(func.local.registers));
+    resize(graph.node,count(func.local.registers));
 
-    for(auto& node : graph.nodes)
+    for(u32 n = 0; n < count(graph.node); n++)
     {
+        auto& node = graph.node[n];
         node.adjacent = make_local_reg_set(func.local);
+        node.slot = {n};
     }
 
     return graph;
 }
 
+void build_interference_graph(VariableGraph& graph, ProgramRange& program)
+{
+    for(auto& node : graph.node)
+    {
+        auto& var = program.var[node.slot.handle];
+        for(auto& other : program.var)
+        {
+            if(other.slot == var.slot)
+            {
+                continue;
+            }
+
+            if(variable_ranges_overlap(var,other))
+            {
+                add(node.adjacent,other.slot);
+            }
+        }
+    }
+}
 
 void graph_allocate(GraphAlloc& alloc,Interloper& itl, Function& func)
 {
@@ -133,6 +155,7 @@ void graph_allocate(GraphAlloc& alloc,Interloper& itl, Function& func)
     ProgramRange program = find_program_ranges(itl,func);
     VariableGraph graph = make_variable_graph(func);
 
-    UNUSED(program); UNUSED(graph);
+    build_interference_graph(graph,program);
+
     assert(false);
 }
