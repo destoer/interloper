@@ -88,13 +88,13 @@ void rewrite_spill_span_arg(Interloper& itl, Function& func, Block& block, Opcod
 
     if(is_arg_src(kind))
     {
-        const auto opcode = make_reload_slot_into(tmp,slot);
+        const auto opcode = make_reload_slot_to(tmp,slot);
         insert_at(block.list,node,opcode);
     }
 
     if(is_arg_dst(kind))
     {
-        const auto opcode = make_spill_slot(tmp);
+        const auto opcode = make_spill_slot_to(tmp,slot);
         insert_after(block.list,node,opcode);         
     }
 }
