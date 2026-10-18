@@ -164,7 +164,7 @@ u32 alloc_reg(RegisterFile& regs, u32 pref)
     return reg;
 }
 
-void reload_reg(GraphAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg,insertion_type type)
+lowered_reg_t reload_reg(GraphAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u32 reg,insertion_type type)
 {
     auto& ir_reg = reg_from_slot(alloc,slot);
     const auto opcode = make_load(reg,slot,alloc.stack_alloc.stack_offset);
@@ -173,6 +173,8 @@ void reload_reg(GraphAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u
     insert_node(block.list,node,opcode,type);
 
     assert(!is_mem_unallocated(ir_reg));
+
+    return reg;
 }
 
 void reserve_offset(GraphAlloc& alloc, Reg& ir_reg,u32 reg)

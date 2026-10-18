@@ -57,7 +57,7 @@ void lower_addr_reg_pass(GraphAlloc& alloc, AddrOpcode<op_type,IS_LOAD,IS_STRUCT
 
         if(is_mem_unallocated(reg))
         {
-            assert(stored_in_mem(reg));
+            assert(is_stored_in_mem(reg));
 
             stack_reserve_reg(alloc.stack_alloc,reg);
         }

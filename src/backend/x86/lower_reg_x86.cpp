@@ -1,15 +1,27 @@
-
+lowered_reg_t graph_allocate_reg(GraphAlloc& alloc,Block& block,OpcodeNode* node, RegSlot reg, reg_arg_kind arg_kind);
+OpcodeNode* rewrite_x86_fixed_arith_stack(GraphAlloc& alloc,Block& block, OpcodeNode* node);
+OpcodeNode* rewrite_x86_fixed_shift_stack(GraphAlloc& alloc,Block& block, OpcodeNode* node);
 
 OpcodeNode* rewrite_x86_fixed_arith(GraphAlloc& alloc,Block& block, OpcodeNode* node)
 {
-    UNUSED(alloc); UNUSED(block); UNUSED(node);
+    if(alloc.stack_only)
+    {
+        return rewrite_x86_fixed_arith_stack(alloc,block,node);
+    }
+
     assert(false);
+    return node->next;
 }   
 
 OpcodeNode* rewrite_x86_fixed_shift(GraphAlloc& alloc,Block& block, OpcodeNode* node)
 {
-    UNUSED(alloc); UNUSED(block); UNUSED(node);
+    if(alloc.stack_only)
+    {
+        return rewrite_x86_fixed_shift_stack(alloc,block,node);
+    }
+
     assert(false);
+    return node->next;
 }
 
 OpcodeNode* lower_x86_fixed(GraphAlloc& alloc,Block& block, OpcodeNode* node)
