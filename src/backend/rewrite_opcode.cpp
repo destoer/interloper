@@ -272,11 +272,10 @@ void correct_aliased_block(Interloper& itl, Function& func, Block& block, Opcode
 
 void correct_aliased_regs(Interloper& itl, Function& func)
 {
-    // TODO: This is not actually required on a stack allocator but is useful for testing
-    // if(itl.stack_alloc)
-    // {
-    //     return;
-    // }
+    if(itl.stack_alloc)
+    {
+        return;
+    }
 
     for(auto& block: func.emitter.program)
     {
