@@ -1,3 +1,8 @@
+load_type determine_load_type_from_reg_flags(u32 size, u32 flags);
+store_type determine_store_type_from_reg_flags(u32 size, u32 flags);
+Opcode make_load_struct(RegSlot dst, RegSlot base, load_type type);
+Opcode make_store_struct(RegSlot src, RegSlot base, store_type type);
+
 void lower_directive_regs(Directive& directive, const ConstLoweredRegSpan& regs)
 {
     u32 src = 0;
@@ -316,12 +321,32 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, GraphAlloc& alloc,Block& b
 
         case directive_type::reload_slot_to:
         {
-            assert(false);
+            // Sugar to a load struct
+            const auto dst = directive.operand[0].ir_reg;
+            const auto base = directive.operand[1].ir_reg;
+            const auto& ir_reg = reg_from_slot(alloc,base);
+
+            const auto load_type = determine_load_type_from_reg_flags(ir_reg.size,ir_reg.flags);
+
+            node->value = make_load_struct(dst,base,load_type);
+
+            // Rewrite the same node
+            return node;
         }
 
         case directive_type::spill_slot_to:
         {
-            assert(false);
+            // Sugar a store store
+            const auto src = directive.operand[0].ir_reg;
+            const auto base = directive.operand[1].ir_reg;
+            const auto& ir_reg = reg_from_slot(alloc,base);
+
+            const auto store_type = determine_store_type_from_reg_flags(ir_reg.size,ir_reg.flags);
+
+            node->value = make_store_struct(src,base,store_type);
+
+            // Rewrite the same node
+            return node;
         }
 
         default:
