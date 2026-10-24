@@ -336,7 +336,7 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, GraphAlloc& alloc,Block& b
 
         case directive_type::spill_slot_to:
         {
-            // Sugar a store store
+            // Sugar a store struct
             const auto src = directive.operand[0].ir_reg;
             const auto base = directive.operand[1].ir_reg;
             const auto& ir_reg = reg_from_slot(alloc,base);
