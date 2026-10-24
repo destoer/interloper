@@ -106,6 +106,7 @@ void rewrite_opcode(Opcode& opcode, const ConstIrRegSpan& regs)
         case op_group::lea: rewrite_addr(opcode.lea,regs); break;
         case op_group::addrof: rewrite_addr(opcode.addrof,regs); break;
         case op_group::arith_imm3: rewrite_imm3(opcode.arith_imm3,regs); break;
+        case op_group::cmp_imm3: rewrite_imm3(opcode.cmp_imm3,regs); break;
 
         default:
         {
