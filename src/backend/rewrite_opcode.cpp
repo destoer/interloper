@@ -117,18 +117,21 @@ void rewrite_opcode(Opcode& opcode, const ConstIrRegSpan& regs)
 // but we will leave this for now as it will not affect correctness
 void rewrite_spill_span_arg(Function& func, Block& block, OpcodeNode* node, const Reg& reg,  RegSlot* target, reg_arg_kind kind)
 {
+    const auto reg_slot = reg.reg_slot;
+
+    // This will invalidate the held registers
     const auto tmp = copy_reg_unaliased(func,reg);
     *target = tmp;
 
     if(is_arg_src(kind))
     {
-        const auto opcode = make_reload_slot_to(tmp,reg.reg_slot);
+        const auto opcode = make_reload_slot_to(tmp,reg_slot);
         insert_at(block.list,node,opcode);
     }
 
     if(is_arg_dst(kind))
     {
-        const auto opcode = make_spill_slot_to(tmp,reg.reg_slot);
+        const auto opcode = make_spill_slot_to(tmp,reg_slot);
         insert_after(block.list,node,opcode);         
     }
 }
