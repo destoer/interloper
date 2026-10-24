@@ -436,9 +436,6 @@ void compile_addrof_expr(Interloper& itl,Function &func,AstNode *addr_expr, RegS
 
             // get addr on symbol
             auto &reg = reg_from_slot(itl,func,sym_node->slot.reg);
-
-            spill_slot(itl,func,reg);
-
             const StructAddr struct_addr = {make_addr(reg.reg_slot,0)};
 
             // actually  get the addr of the ptr

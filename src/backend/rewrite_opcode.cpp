@@ -57,6 +57,38 @@ void rewrite_reg3(RegThree<op_type,group>& reg3, const ConstIrRegSpan& regs)
     reg3.v2.ir = regs.src[1];
 }
 
+template<typename type,const bool IS_LOAD, const bool STRUCT_ADDR,op_group group>
+void rewrite_addr(AddrOpcode<type,IS_LOAD,STRUCT_ADDR,group>& addr_op, const ConstIrRegSpan& regs)
+{
+    u32 dst = 0;
+    u32 src = 0;
+
+    if constexpr(IS_LOAD)
+    {
+        addr_op.v1.ir = regs.dst[dst++];
+    }
+
+    if constexpr(!IS_LOAD)
+    {
+        addr_op.v1.ir = regs.src[src++];
+    }
+
+    if constexpr(!STRUCT_ADDR)
+    {
+        addr_op.addr_ir.base = regs.src[src++];
+    }
+
+    addr_op.addr_ir.index = regs.src[src++];
+}
+
+template<typename type, op_group group>
+void rewrite_imm3(ImmThree<type,group>& imm, const ConstIrRegSpan& regs)
+{
+    imm.src.ir = regs.src[0];
+    imm.dst.ir = regs.dst[0];
+}
+
+
 void rewrite_opcode(Opcode& opcode, const ConstIrRegSpan& regs)
 {
     switch(opcode.group)
@@ -66,6 +98,12 @@ void rewrite_opcode(Opcode& opcode, const ConstIrRegSpan& regs)
         case op_group::unary_reg2: rewrite_unary_reg2(opcode.unary_reg2,regs); break;
         case op_group::branch_cond: rewrite_branch_cond(opcode.branch_cond,regs); break;
         case op_group::arith_fpr3: rewrite_reg3(opcode.arith_fpr3,regs); break;
+        case op_group::arith_gpr3: rewrite_reg3(opcode.arith_gpr3,regs); break;
+        case op_group::cmp_fpr3: rewrite_reg3(opcode.cmp_fpr3,regs); break;
+        case op_group::cmp_gpr3: rewrite_reg3(opcode.cmp_gpr3,regs); break;
+        case op_group::store: rewrite_addr(opcode.store,regs); break;
+        case op_group::lea: rewrite_addr(opcode.lea,regs); break;
+        case op_group::arith_imm3: rewrite_imm3(opcode.arith_imm3,regs); break;
 
         default:
         {
@@ -77,24 +115,20 @@ void rewrite_opcode(Opcode& opcode, const ConstIrRegSpan& regs)
 
 // TODO: For obvious reasons we can speed this up by using the same TMP across the instruction.
 // but we will leave this for now as it will not affect correctness
-void rewrite_spill_span_arg(Interloper& itl, Function& func, Block& block, OpcodeNode* node, 
-    const ConstSpan<RegSlot>& span,  Span<RegSlot> &rewritten, reg_arg_kind kind, u32 arg)
+void rewrite_spill_span_arg(Function& func, Block& block, OpcodeNode* node, const Reg& reg,  RegSlot* target, reg_arg_kind kind)
 {
-    const auto& slot = span[arg];
-    auto& reg = reg_from_slot(itl.symbol_table,func, slot);
-
     const auto tmp = copy_reg_unaliased(func,reg);
-    rewritten[arg] = tmp;
+    *target = tmp;
 
     if(is_arg_src(kind))
     {
-        const auto opcode = make_reload_slot_to(tmp,slot);
+        const auto opcode = make_reload_slot_to(tmp,reg.reg_slot);
         insert_at(block.list,node,opcode);
     }
 
     if(is_arg_dst(kind))
     {
-        const auto opcode = make_spill_slot_to(tmp,slot);
+        const auto opcode = make_spill_slot_to(tmp,reg.reg_slot);
         insert_after(block.list,node,opcode);         
     }
 }
@@ -122,7 +156,7 @@ bool rewrite_aliased_span(Interloper& itl, Function& func, Block& block, OpcodeN
 
         modified = true;
 
-        rewrite_spill_span_arg(itl,func,block,node,span,rewritten,kind,arg);
+        rewrite_spill_span_arg(func,block,node,reg,&rewritten[arg],kind);
     }
 
     return modified;
@@ -150,9 +184,14 @@ void correct_aliased_block(Interloper& itl, Function& func, Block& block, Opcode
     }
 }
 
-// TODO: This is not actually required on a stack allocator but is useful for testing
 void correct_aliased_regs(Interloper& itl, Function& func)
 {
+    // TODO: This is not actually required on a stack allocator but is useful for testing
+    // if(itl.stack_alloc)
+    // {
+    //     return;
+    // }
+
     for(auto& block: func.emitter.program)
     {
         OpcodeNode* node = block.list.start;

@@ -848,7 +848,7 @@ static const char* DIRECTIVE_NAMES[] =
     "push_arg",
     "push_float_arg",
     "reload_slot",
-    "reload_slot_into",
+    "reload_slot_to",
     "spill_slot",
     "spill_slot_to",
     "clean_args",

@@ -259,16 +259,9 @@ RegSlot add_untyped_local_reg(Function& func, u32 size, u32 flags)
 
 RegSlot copy_reg_unaliased(Function& func, const Reg& reg)
 {
-    Reg copy = reg;
-    copy.global_alloc = {};
-    copy.sym_slot = {INVALID_HANDLE};
-    const LocalSlot local = {count(func.local.registers)};
-    copy.reg_slot = local;
-    copy.flags &= ~(ALIASED);
+    const u32 copy_mask = REG_FLOAT | SIGNED_FLAG | CONST;
 
-    push_var(func.local.registers,copy);
-
-    return copy.reg_slot;
+    return add_untyped_local_reg(func,reg.size * reg.count, reg.flags & copy_mask);
 }
 
 RegSlot new_tmp(Function& func, u32 size)

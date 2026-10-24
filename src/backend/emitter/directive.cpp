@@ -255,9 +255,8 @@ Opcode make_spill_slot_to(RegSlot src,RegSlot slot)
 {
     const auto src_operand = make_reg_operand(src,ir_reg_type::src);
     const auto slot_operand = make_reg_operand(slot,ir_reg_type::directive);
-    return make_directive_two(directive_type::reload_slot_to,src_operand,slot_operand);
+    return make_directive_two(directive_type::spill_slot_to,src_operand,slot_operand);
 }
-
 
 Opcode make_spill_slot(RegSlot slot)
 {

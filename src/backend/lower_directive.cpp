@@ -309,8 +309,19 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, GraphAlloc& alloc,Block& b
             }
 
             // NOTE: This will probably trip a bug
-            // for standard reg alloc if unhandled
+            // for standard reg alloc if unhandled.
+            // this will be caught by a later assert however.
             return node->next;
+        }
+
+        case directive_type::reload_slot_to:
+        {
+            assert(false);
+        }
+
+        case directive_type::spill_slot_to:
+        {
+            assert(false);
         }
 
         default:
