@@ -88,31 +88,111 @@ void rewrite_imm3(ImmThree<type,group>& imm, const ConstIrRegSpan& regs)
     imm.dst.ir = regs.dst[0];
 }
 
+void rewrite_branch_reg(BranchReg& branch, const ConstIrRegSpan& regs)
+{
+    branch.src.ir = regs.src[0];
+}
+
+void rewrite_branch_cmp(BranchCmp& branch, const ConstIrRegSpan& regs)
+{
+    branch.v1.ir = regs.src[0];
+    branch.v2.ir = regs.src[1];
+}
+
+void rewrite_branch_cmp_imm(BranchCmpImm&  branch, const ConstIrRegSpan& regs)
+{
+    branch.src.ir = regs.src[0];
+}
+
+template<typename type,op_group group>
+void rewrite_imm2_dst(ImmTwoDst<type,group>& imm, const ConstIrRegSpan& regs)
+{
+    imm.dst.ir = regs.dst_src[0];
+}
+
+void rewrite_imm2_src(ImmTwoSrc& imm, const ConstIrRegSpan& regs)
+{
+    imm.src.ir = regs.src[0];
+}
+
+
+template<typename type,op_group group>
+void rewrite_reg2_dst(RegTwoDst<type,group>& reg, const ConstIrRegSpan& regs)
+{
+    reg.src.ir = regs.src[0];
+    reg.dst.ir = regs.dst_src[0];
+}
+
+void rewrite_mov_fpr_imm(MovFprImm& mov_imm, const ConstIrRegSpan& regs)
+{
+    mov_imm.dst.ir = regs.dst[0];
+}
+
+template<typename op_type,op_group group>
+void rewrite_unary_reg1(UnaryReg1<op_type,group>& unary, const ConstIrRegSpan& regs)
+{
+    unary.dst.ir = regs.dst[0]; 
+}
+
+void rewrite_reg2_src(RegTwoSrc& reg, const ConstIrRegSpan& regs)
+{
+    reg.v1.ir = regs.src[0];
+    reg.v2.ir = regs.src[1];
+}
+
+void rewrite_reg1_src(RegOneSrc& reg, const ConstIrRegSpan& regs)
+{
+    reg.src.ir = regs.src[0];
+}
+
+void rewrite_reg1_dst(RegOneDst& reg, const ConstIrRegSpan& regs)
+{
+    reg.dst.ir = regs.dst[0];
+}
 
 void rewrite_opcode(Opcode& opcode, const ConstIrRegSpan& regs)
 {
     switch(opcode.group)
     {
+        case op_group::implicit: break;
+        case op_group::branch_label: break;
+        case op_group::branch_cmp_flag: break;
+        case op_group::branch_cmp_imm: rewrite_branch_cmp_imm(opcode.branch_cmp_imm,regs); break;
+        case op_group::branch_reg: rewrite_branch_reg(opcode.branch_reg,regs); break;
+        case op_group::branch_cmp: rewrite_branch_cmp(opcode.branch_cmp,regs); break;
         case op_group::directive: rewrite_directive_regs(opcode.directive,regs); break;
         case op_group::mov_gpr_imm: rewrite_mov_gpr_imm(opcode.mov_gpr_imm,regs); break;
         case op_group::unary_reg2: rewrite_unary_reg2(opcode.unary_reg2,regs); break;
+        case op_group::sign_extend: rewrite_unary_reg2(opcode.sign_extend,regs); break;
         case op_group::branch_cond: rewrite_branch_cond(opcode.branch_cond,regs); break;
         case op_group::arith_fpr3: rewrite_reg3(opcode.arith_fpr3,regs); break;
         case op_group::arith_gpr3: rewrite_reg3(opcode.arith_gpr3,regs); break;
+        case op_group::shift_reg3: rewrite_reg3(opcode.shift_reg3,regs); break;
+        case op_group::shift_reg2: rewrite_reg2_dst(opcode.shift_reg2,regs); break;
+        case op_group::arith_imm2: rewrite_imm2_dst(opcode.arith_imm2,regs); break;
         case op_group::cmp_fpr3: rewrite_reg3(opcode.cmp_fpr3,regs); break;
         case op_group::cmp_gpr3: rewrite_reg3(opcode.cmp_gpr3,regs); break;
+        case op_group::arith_gpr2: rewrite_reg2_dst(opcode.arith_gpr2,regs); break;
+        case op_group::arith_fpr2: rewrite_reg2_dst(opcode.arith_fpr2,regs); break;
+        case op_group::shift_imm3: rewrite_imm3(opcode.shift_imm3,regs); break;
+        case op_group::shift_imm2: rewrite_imm2_dst(opcode.shift_imm2,regs); break;
         case op_group::store: rewrite_addr(opcode.store,regs); break;
         case op_group::load: rewrite_addr(opcode.load,regs); break;
+        case op_group::load_struct: rewrite_addr(opcode.load_struct,regs); break;
+        case op_group::store_struct: rewrite_addr(opcode.store_struct,regs); break;
         case op_group::lea: rewrite_addr(opcode.lea,regs); break;
         case op_group::addrof: rewrite_addr(opcode.addrof,regs); break;
         case op_group::arith_imm3: rewrite_imm3(opcode.arith_imm3,regs); break;
         case op_group::cmp_imm3: rewrite_imm3(opcode.cmp_imm3,regs); break;
-
-        default:
-        {
-            unimplemented("[Rewrite opcode]: Invalid group: %s",OP_GROUP_NAMES[u32(opcode.group)]);
-            break;
-        }
+        case op_group::mov_fpr_imm: rewrite_mov_fpr_imm(opcode.mov_fpr_imm,regs); break;
+        case op_group::unary_reg1: rewrite_unary_reg1(opcode.unary_reg1,regs); break;
+        case op_group::set_from_flag_gpr: rewrite_unary_reg1(opcode.set_from_flag_gpr, regs); break;
+        case op_group::set_from_flag_fpr: rewrite_unary_reg1(opcode.set_from_flag_fpr, regs); break;
+        case op_group::reg2_src: rewrite_reg2_src(opcode.reg2_src,regs); break;
+        case op_group::reg1_src: rewrite_reg1_src(opcode.reg1_src,regs); break;
+        case op_group::reg1_dst: rewrite_reg1_dst(opcode.reg1_dst,regs); break;
+        case op_group::imm2_src: rewrite_imm2_src(opcode.imm2_src,regs); break;
+        case op_group::x86_fixed: rewrite_reg2_dst(opcode.x86_fixed,regs); break;
     }
 }
 
