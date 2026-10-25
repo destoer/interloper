@@ -68,10 +68,6 @@ void addrof(Interloper& itl,Function& func, RegSlot dst, const StructAddr& struc
 {
     assert(struct_addr.addr.scale <= 8);
 
-    // mark reg as aliased
-    auto& reg = reg_from_slot(itl,func,struct_addr.addr.base);
-    reg.flags |= ALIASED;
-
     const auto opcode = Opcode(make_addr_op<AddrOf>(dst,struct_addr.addr,take_addr_type::take_addr),opcode_state::ir);
     emit_block_func(itl,func,opcode);
 }

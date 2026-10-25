@@ -119,6 +119,7 @@ SymSlot add_symbol_reg(Interloper& itl,RegTable* local, Symbol& sym, reg_segment
         {
             LocalSlot local_slot = {count(local->registers)};
             push_var(local->registers,make_reg_sym(itl,local_slot,sym,flags));
+            sym.local = local;
             break;
         }
 
@@ -349,9 +350,9 @@ Reg& reg_from_local(Function& func, LocalSlot slot)
     return reg_from_local(func.local,slot);
 }
 
-Reg& local_reg_from_sym(Function& func, const Symbol& sym)
+Reg& local_reg_from_sym(const Symbol& sym)
 {
-    return reg_from_local(func,sym.reg_slot.local);
+    return reg_from_local(*sym.local,sym.reg_slot.local);
 }
 
 Reg& global_reg_from_sym(Interloper& itl, const Symbol& sym)

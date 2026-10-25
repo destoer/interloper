@@ -16,10 +16,11 @@ struct FileContext
 struct Symbol
 {
     String name;
-    Type* type;
+    Type* type = nullptr;
 
     RegSlot reg_slot;
     SymSlot sym_slot;
+    RegTable* local = nullptr;
 
     u32 arg_offset = NON_ARG;
     u32 references = 0;

@@ -270,6 +270,7 @@ void correct_aliased_block(Interloper& itl, Function& func, Block& block, Opcode
     }
 }
 
+// TODO: We can probably avoid doing this as a separate pass.
 void correct_aliased_regs(Interloper& itl, Function& func)
 {
     if(itl.stack_alloc)

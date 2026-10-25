@@ -599,6 +599,8 @@ TypeResult type_check_arith_unary(Interloper& itl, AstNode* expr)
     return make_builtin(itl,builtin_type::void_t);
 }
 
+Reg& local_reg_from_sym(const Symbol& sym);
+
 TypeResult type_check_addrof(Interloper& itl, AstNode* expr)
 {
     AddrOfNode* addr = (AddrOfNode*)expr;
@@ -614,6 +616,24 @@ TypeResult type_check_addrof(Interloper& itl, AstNode* expr)
     {
         return res.error();
     }
+
+    // If we take an addr on a locally defined symbol then we need to mark it as aliased
+    if(addr->expr->type == ast_type::symbol)
+    {
+        SymbolNode* sym_node = (SymbolNode*)addr->expr;
+
+        if(sym_node->type == sym_node_type::sym_slot)
+        {
+            auto& sym = sym_from_slot(itl.symbol_table,sym_node->slot.sym);
+
+            if(sym.local)
+            {
+                auto& reg = local_reg_from_sym(sym);
+                reg.flags |= ALIASED;
+            }
+        }
+    }
+
 
     auto type = *res;
     if(type->flags & TYPE_CONST_STRUCT_ARG_FLAG)
