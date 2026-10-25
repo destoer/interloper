@@ -1,3 +1,5 @@
+Reg& local_reg_from_sym(const Symbol& sym);
+
 struct BinType
 {
     Type* ltype;
@@ -599,7 +601,6 @@ TypeResult type_check_arith_unary(Interloper& itl, AstNode* expr)
     return make_builtin(itl,builtin_type::void_t);
 }
 
-Reg& local_reg_from_sym(const Symbol& sym);
 
 TypeResult type_check_addrof(Interloper& itl, AstNode* expr)
 {
