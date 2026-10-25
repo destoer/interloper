@@ -50,6 +50,29 @@ AddrSlot generate_indexed_pointer(Interloper& itl, Function& func, RegSlot base,
     return rescale_addr(itl,func,pointer);
 }
 
+void mark_symbol_aliased(Interloper& itl, AstNode* expr)
+{
+    // Mark tuple assign as aliased as we will take a pointer on it
+    if(expr->type != ast_type::symbol)
+    {
+        return;
+    }
+    
+    SymbolNode* sym_node = (SymbolNode*)expr;
+    if(sym_node->type != sym_node_type::sym_slot)
+    {
+        return;
+    }
+
+    auto& sym = sym_from_slot(itl.symbol_table,sym_node->slot.sym);
+
+    if(sym.local)
+    {
+        auto& reg = local_reg_from_sym(sym);
+        reg.flags |= ALIASED;
+    }
+}
+
 void collapse_struct_addr(Interloper& itl, Function& func, RegSlot dst_slot, const AddrSlot struct_slot)
 {
     if(struct_slot.struct_addr)

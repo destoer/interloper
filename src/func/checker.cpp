@@ -1,6 +1,6 @@
 void print_func_sig(Interloper& itl, const FuncSig& sig);
 void print_generic_overload(Interloper& itl, const ConstSpan<Generic>& generic_overload);
-Reg& local_reg_from_sym(const Symbol& sym);
+void mark_symbol_aliased(Interloper& itl, AstNode* expr);
 
 
 FuncCall call_info_from_type(FuncPointerType* func_type, u32 flags)
@@ -341,8 +341,6 @@ Option<itl_error> type_check_return(Interloper& itl, Function& func, AstNode* st
 
 Option<itl_error> type_check_tuple_assign(Interloper& itl, Function& func, AstNode* stmt)
 {
-    UNUSED(func);
-
     TupleAssignNode* tuple_assign = (TupleAssignNode*)stmt;
 
     const auto func_res = type_check_function_call(itl,(FuncCallNode*)tuple_assign->func_call,func_assign_type::tuple);
@@ -402,18 +400,7 @@ Option<itl_error> type_check_tuple_assign(Interloper& itl, Function& func, AstNo
             return left_res.error();
         }
 
-        // Mark tuple assign as aliased as we will take a pointer on it
-        if(symbol.expr->type == ast_type::symbol)
-        {
-            SymbolNode* sym_node = (SymbolNode*)symbol.expr;
-            auto& sym = sym_from_slot(itl.symbol_table,sym_node->slot.sym);
-
-            if(sym.local)
-            {
-                auto& reg = local_reg_from_sym(sym);
-                reg.flags |= ALIASED;
-            }
-        }
+        mark_symbol_aliased(itl,symbol.expr);
 
         const auto ltype = *left_res;
         const auto err = check_assign_init(itl,ltype,rtype);

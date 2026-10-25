@@ -1,4 +1,4 @@
-Reg& local_reg_from_sym(const Symbol& sym);
+void mark_symbol_aliased(Interloper& itl, AstNode* expr);
 
 struct BinType
 {
@@ -619,22 +619,7 @@ TypeResult type_check_addrof(Interloper& itl, AstNode* expr)
     }
 
     // If we take an addr on a locally defined symbol then we need to mark it as aliased
-    if(addr->expr->type == ast_type::symbol)
-    {
-        SymbolNode* sym_node = (SymbolNode*)addr->expr;
-
-        if(sym_node->type == sym_node_type::sym_slot)
-        {
-            auto& sym = sym_from_slot(itl.symbol_table,sym_node->slot.sym);
-
-            if(sym.local)
-            {
-                auto& reg = local_reg_from_sym(sym);
-                reg.flags |= ALIASED;
-            }
-        }
-    }
-
+    mark_symbol_aliased(itl,addr->expr);
 
     auto type = *res;
     if(type->flags & TYPE_CONST_STRUCT_ARG_FLAG)
