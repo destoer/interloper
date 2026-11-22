@@ -42,6 +42,9 @@ struct RegisterFile
     // what is the default set of register that are free?
     u32 free_set_full = 0;
 
+    // how many registers do we have free max
+    u32 max_colours = 0;
+
     // What registers are saved by the current function?
     u32 saved_set = 0;
 

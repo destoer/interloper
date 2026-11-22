@@ -23,6 +23,13 @@ RegisterFile& get_register_file(GraphAlloc& alloc, Reg& reg)
 }
 
 
+RegisterFile& get_register_file(GraphAlloc& alloc, RegSlot slot)
+{
+    auto& reg = reg_from_slot(alloc,slot);   
+    return get_register_file(alloc,ir_rtype(reg));
+}
+
+
 void lock_reg(LocalRegisterFile& regs, u32 reg)
 {
     regs.locked_set = set_bit(regs.locked_set,reg);

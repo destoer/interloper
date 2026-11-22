@@ -1,4 +1,5 @@
 // https://www.lighterra.com/papers/graphcoloring/
+// https://www.epfl.ch/labs/lamp/wp-content/uploads/2019/01/acc14_10_register-allocation_4.pdf
 
 #include "backend/reg_alloc/reg_allocator.cpp"
 #include "backend/reg_alloc/stack_only_alloc.cpp"
@@ -101,7 +102,7 @@ ConstLoweredRegSpan graph_allocate_registers(GraphAlloc& alloc,Block& block,Opco
 
 struct VariableGraphNode
 {
-    lowered_reg_t color = REG_FREE;
+    lowered_reg_t colour = REG_FREE;
     LocalRegSet adjacent_set;
     Array<LocalSlot> adjacent_list; 
     LocalSlot slot;
@@ -110,8 +111,10 @@ struct VariableGraphNode
 struct VariableGraph
 {
     Array<VariableGraphNode> node;
-    Array<LocalSlot> ignored_list;
-    LocalRegSet ignored_set;
+    // Nodes we are currently ignoring and need to color later
+    LocalRegSet to_colour_set;
+    Array<LocalSlot> to_colour_list;
+    Array<LocalSlot> potential_spill;
 };
 
 VariableGraph make_variable_graph(Function& func)
@@ -126,7 +129,7 @@ VariableGraph make_variable_graph(Function& func)
         node.slot = {n};
     }
 
-    graph.ignored_set = make_local_reg_set(func.local);
+    graph.to_colour_set = make_local_reg_set(func.local);
 
     return graph;
 }
@@ -153,14 +156,78 @@ void build_interference_graph(VariableGraph& graph, ProgramRange& program)
     }
 }
 
+u32 get_filtered_degree(VariableGraph& graph, VariableGraphNode& node)
+{
+    u32 count = 0;
 
-// void simplify(VariableGraph& graph, GraphAlloc& alloc)
-// {
-//     for(auto& node : graph.node)
-//     {
+    for(const auto& adjacent : node.adjacent_list)
+    {
+        if(!contains(graph.to_colour_set,adjacent))
+        {
+            count += 1;
+        }
+    }
+
+    return count;
+}
+
+void simplify_prune_nodes(VariableGraph& graph, GraphAlloc& alloc)
+{
+    // Prune the graph so the nodes with the highest level of interference are colored first.
+    // this is done by pushing the nodes with the lowest level of interference first.
+    // so that when we come to colour the graph nodes that at most have k-1 colours are colored last.
+    // where we will have a free colour to use.
+
+    b32 modified = true;
     
-//     }
-// }
+    // Remove all nodes with less than k colors.
+    
+    // TODO: Probably better doing this selectively against nodes we have just modified.
+    // but this will be foolproof for now.
+    while(modified)
+    {
+        modified = false;
+        for(auto& node : graph.node)
+        {
+            if(contains(graph.to_colour_set,node.slot))
+            {
+                continue;
+            }
+
+            auto& file = get_register_file(alloc,node.slot);
+
+            // Add to list of nodes that are ignored if it has a degree less than max
+            // this means that when we re add it, we should have a colour spare.
+            if(get_filtered_degree(graph,node) < file.max_colours)
+            {
+                add(graph.to_colour_set,node.slot);
+                push_var(graph.to_colour_list,node.slot);
+                modified = true;
+            }
+        }
+    }
+}
+
+void simplify(VariableGraph& graph, GraphAlloc& alloc)
+{
+    b32 done = false;
+
+    while(!done)
+    {
+        done = true;
+        simplify_prune_nodes(graph,alloc);
+
+        // If the there are variables still unqueued for colouring if means one has a higher degree than our available colours
+        // and we may have to spill it, pick one and add it as a candidate.
+        // we will not spill it yet as it may turn out some of its incident nodes share the same colour and we can colour it anyways.
+        if(count(graph.node) != count(graph.to_colour_list))
+        {
+            assert(false);
+            done = false;
+        }
+    }
+}
+
 
 // TODO:
 // - Coloring
@@ -183,6 +250,8 @@ void graph_allocate(GraphAlloc& alloc,Interloper& itl, Function& func)
     VariableGraph graph = make_variable_graph(func);
 
     build_interference_graph(graph,program);
+
+    simplify(graph,alloc);
 
     assert(false);
 }
