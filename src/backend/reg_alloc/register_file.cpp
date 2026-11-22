@@ -23,50 +23,32 @@ RegisterFile& get_register_file(GraphAlloc& alloc, Reg& reg)
 }
 
 
-void lock_reg(RegisterFile& regs, u32 reg)
+void lock_reg(LocalRegisterFile& regs, u32 reg)
 {
     regs.locked_set = set_bit(regs.locked_set,reg);
 }
 
-void unlock_reg(RegisterFile& regs, u32 reg)
+void unlock_reg(LocalRegisterFile& regs, u32 reg)
 {
     regs.locked_set = deset_bit(regs.locked_set,reg);
 }
 
-void unlock_special_reg(GraphAlloc& alloc, spec_reg reg)
-{
-    const u32 location = special_reg_to_reg(alloc.arch,reg);
-    RegisterFile& reg_file = get_register_file(alloc,spec_rtype(reg));
-
-    log_reg(alloc,"Unlocking special register %s\n",spec_reg_name(reg));
-
-    unlock_reg(reg_file,location);
-}
-
-void lock_special_reg(GraphAlloc& alloc,spec_reg reg)
-{
-    const u32 location = special_reg_to_reg(alloc.arch,reg);
-    RegisterFile& reg_file = get_register_file(alloc,spec_rtype(reg));
-
-    lock_reg(reg_file,location);
-}
-
-bool is_locked(RegisterFile& regs,u32 reg)
+bool is_locked(LocalRegisterFile& regs,u32 reg)
 {
     return is_set(regs.locked_set,reg);
 }
 
-void remove_reg(RegisterFile& regs, u32 reg)
+void remove_reg(LocalRegisterFile& regs, u32 reg)
 {
     regs.free_set = deset_bit(regs.free_set,reg);
 }
 
-void free_reg(RegisterFile& regs,u32 reg)
+void free_reg(LocalRegisterFile& regs,u32 reg)
 {
     regs.free_set = set_bit(regs.free_set,reg);
 }
 
-void add_reg(RegisterFile& regs, x86_reg reg)
+void add_reg(LocalRegisterFile& regs, x86_reg reg)
 {
     free_reg(regs,u32(reg));
     unlock_reg(regs,u32(reg));
@@ -81,13 +63,13 @@ void mark_used(RegisterFile& regs, u32 reg)
 void reset_stack_only_registers(GraphAlloc& alloc)
 {
     // just add the scratch registers
-    add_reg(alloc.gpr,x86_reg::r11);
-    add_reg(alloc.gpr,x86_reg::r12);
-    add_reg(alloc.gpr,x86_reg::r13);
+    add_reg(alloc.gpr.local,x86_reg::r11);
+    add_reg(alloc.gpr.local,x86_reg::r12);
+    add_reg(alloc.gpr.local,x86_reg::r13);
 
-    add_reg(alloc.fpr,x86_reg::xmm5);
-    add_reg(alloc.fpr,x86_reg::xmm6);
-    add_reg(alloc.fpr,x86_reg::xmm7);
+    add_reg(alloc.fpr.local,x86_reg::xmm5);
+    add_reg(alloc.fpr.local,x86_reg::xmm6);
+    add_reg(alloc.fpr.local,x86_reg::xmm7);
 }
 
 void init_regs(GraphAlloc& alloc)
@@ -99,49 +81,49 @@ void init_regs(GraphAlloc& alloc)
     }
 
     // add grps
-    add_reg(alloc.gpr,x86_reg::rax);
-    add_reg(alloc.gpr,x86_reg::rcx);
-    add_reg(alloc.gpr,x86_reg::rdx);
-    add_reg(alloc.gpr,x86_reg::rbx);
+    add_reg(alloc.gpr.local,x86_reg::rax);
+    add_reg(alloc.gpr.local,x86_reg::rcx);
+    add_reg(alloc.gpr.local,x86_reg::rdx);
+    add_reg(alloc.gpr.local,x86_reg::rbx);
 
     // Frame pointer is reserved in debug
     if(!alloc.debug)
     {
-        add_reg(alloc.gpr,x86_reg::rbp);
+        add_reg(alloc.gpr.local,x86_reg::rbp);
     }
 
-    add_reg(alloc.gpr,x86_reg::rsi);
-    add_reg(alloc.gpr,x86_reg::rdi);
+    add_reg(alloc.gpr.local,x86_reg::rsi);
+    add_reg(alloc.gpr.local,x86_reg::rdi);
 
-    add_reg(alloc.gpr,x86_reg::r8);
-    add_reg(alloc.gpr,x86_reg::r9);
-    add_reg(alloc.gpr,x86_reg::r10);
-    add_reg(alloc.gpr,x86_reg::r11);
-    add_reg(alloc.gpr,x86_reg::r12);
-    add_reg(alloc.gpr,x86_reg::r13);
-    add_reg(alloc.gpr,x86_reg::r14);
-    add_reg(alloc.gpr,x86_reg::r15);
+    add_reg(alloc.gpr.local,x86_reg::r8);
+    add_reg(alloc.gpr.local,x86_reg::r9);
+    add_reg(alloc.gpr.local,x86_reg::r10);
+    add_reg(alloc.gpr.local,x86_reg::r11);
+    add_reg(alloc.gpr.local,x86_reg::r12);
+    add_reg(alloc.gpr.local,x86_reg::r13);
+    add_reg(alloc.gpr.local,x86_reg::r14);
+    add_reg(alloc.gpr.local,x86_reg::r15);
 
     // add sse regs
-    add_reg(alloc.fpr,x86_reg::xmm0);
-    add_reg(alloc.fpr,x86_reg::xmm1);
-    add_reg(alloc.fpr,x86_reg::xmm2);
-    add_reg(alloc.fpr,x86_reg::xmm3);
-    add_reg(alloc.fpr,x86_reg::xmm4);
-    add_reg(alloc.fpr,x86_reg::xmm5);
-    add_reg(alloc.fpr,x86_reg::xmm6);
-    add_reg(alloc.fpr,x86_reg::xmm7);
+    add_reg(alloc.fpr.local,x86_reg::xmm0);
+    add_reg(alloc.fpr.local,x86_reg::xmm1);
+    add_reg(alloc.fpr.local,x86_reg::xmm2);
+    add_reg(alloc.fpr.local,x86_reg::xmm3);
+    add_reg(alloc.fpr.local,x86_reg::xmm4);
+    add_reg(alloc.fpr.local,x86_reg::xmm5);
+    add_reg(alloc.fpr.local,x86_reg::xmm6);
+    add_reg(alloc.fpr.local,x86_reg::xmm7);
 }
 
-void reset_register_file(RegisterFile& file)
+void reset_register_file(RegisterFile& file, LocalRegisterFile& local)
 {
-    file.free_set = file.free_set_full;
+    local.free_set = file.free_set_full;
 }
 
 void reset_register_files(GraphAlloc& alloc)
 {
-    reset_register_file(alloc.gpr);
-    reset_register_file(alloc.fpr);
+    reset_register_file(alloc.gpr,alloc.gpr.local);
+    reset_register_file(alloc.fpr,alloc.fpr.local);
 }
 
 u32 find_pref_register(u32 set, u32 pref)
@@ -169,14 +151,14 @@ u32 find_free_register(u32 set, u32 used, u32 pref)
 }
 
 
-u32 alloc_reg(RegisterFile& regs, u32 pref)
+u32 alloc_reg(RegisterFile& file, LocalRegisterFile& local, u32 pref)
 {
-    const u32 reg = find_free_register(regs.free_set & ~regs.locked_set,regs.used_set,pref);
+    const u32 reg = find_free_register(local.free_set & ~local.locked_set,file.used_set,pref);
 
     if(reg != FFS_EMPTY)
     {
-        remove_reg(regs,reg);
-        mark_used(regs,reg);
+        remove_reg(local,reg);
+        mark_used(file,reg);
     }
 
     return reg;
@@ -213,7 +195,7 @@ void spill_reg(GraphAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u3
     if(ir_reg.segment == reg_segment::constant)
     {
         log_reg(alloc,"Constant %r deallocated from %s (size %d)\n",ir_reg.reg_slot,reg_name(alloc.arch,reg),ir_reg.size);
-        free_reg(regs,reg);
+        free_reg(regs.local,reg);
         return;
     }
 
@@ -236,6 +218,6 @@ void spill_reg(GraphAlloc& alloc,Block& block,OpcodeNode* node, RegSlot slot, u3
     // Mark the register as freed
     if(!alloc.stack_only)
     {
-        free_reg(regs,reg);
+        free_reg(regs.local,reg);
     }
 }

@@ -25,6 +25,14 @@ struct StackAlloc
     b32 print = false;
 };
 
+struct LocalRegisterFile
+{
+    // what registers are we currently allowed to use?
+    u32 free_set = 0;
+
+    // What registers are current fixed in place?
+    u32 locked_set = 0xffff'ffff;
+};
 
 struct RegisterFile
 {
@@ -34,14 +42,11 @@ struct RegisterFile
     // what is the default set of register that are free?
     u32 free_set_full = 0;
 
-    // what registers are we currently allowed to use?
-    u32 free_set = 0;
-
     // What registers are saved by the current function?
     u32 saved_set = 0;
 
-    // What registers are current fixed in place?
-    u32 locked_set = 0xffff'ffff;
+    // NOTE: This should only be used by the stack allocator in place.
+    LocalRegisterFile local;
 };
 
 struct GraphAlloc

@@ -22,8 +22,8 @@ GraphAlloc make_graph_alloc(b32 print,b32 stack_only, b32 debug, RegTable local,
 
     init_regs(alloc);
 
-    alloc.fpr.free_set_full = alloc.fpr.free_set;
-    alloc.gpr.free_set_full = alloc.gpr.free_set;
+    alloc.fpr.free_set_full = alloc.fpr.local.free_set;
+    alloc.gpr.free_set_full = alloc.gpr.local.free_set;
 
     return alloc;
 }
@@ -110,6 +110,8 @@ struct VariableGraphNode
 struct VariableGraph
 {
     Array<VariableGraphNode> node;
+    Array<LocalSlot> ignored_list;
+    LocalRegSet ignored_set;
 };
 
 VariableGraph make_variable_graph(Function& func)
@@ -123,6 +125,8 @@ VariableGraph make_variable_graph(Function& func)
         node.adjacent_set = make_local_reg_set(func.local);
         node.slot = {n};
     }
+
+    graph.ignored_set = make_local_reg_set(func.local);
 
     return graph;
 }
@@ -149,6 +153,14 @@ void build_interference_graph(VariableGraph& graph, ProgramRange& program)
     }
 }
 
+
+// void simplify(VariableGraph& graph, GraphAlloc& alloc)
+// {
+//     for(auto& node : graph.node)
+//     {
+    
+//     }
+// }
 
 // TODO:
 // - Coloring

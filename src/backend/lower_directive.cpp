@@ -256,8 +256,6 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, GraphAlloc& alloc,Block& b
         {
             if(alloc.stack_only)
             {
-                const auto set = directive.operand[0].reg_set;
-                alloc.gpr.locked_set &= ~set;
                 return remove(block.list,node);
             }
 
@@ -268,8 +266,6 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, GraphAlloc& alloc,Block& b
         {
             if(alloc.stack_only)
             {
-                const auto set = directive.operand[0].reg_set;
-                alloc.gpr.locked_set |= set;
                 return remove(block.list,node);
             }
 
@@ -280,8 +276,6 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, GraphAlloc& alloc,Block& b
         {
             if(alloc.stack_only)
             {
-                const auto reg = directive.operand[0].ir_reg;
-                lock_special_reg(alloc,reg.spec);
                 return remove(block.list,node);
             }
 
@@ -294,7 +288,6 @@ OpcodeNode* lower_directive_reg_pass(Interloper& itl, GraphAlloc& alloc,Block& b
             {
                 const auto reg = directive.operand[1].ir_reg;
                 const auto dst = directive.operand[0].ir_reg;
-                unlock_special_reg(alloc,reg.spec);
                 node->value = mov_reg_ir(dst,reg,reg_type::gpr);
 
                 allocate_and_rewrite_opcode(alloc,block,node);

@@ -2,7 +2,7 @@ lowered_reg_t stack_allocate_and_rewrite_var(GraphAlloc& alloc, Block& block, Op
 {
     auto& ir_reg = reg_from_slot(alloc,slot);
     auto& file = get_register_file(alloc,ir_reg);
-    const auto scratch_reg = alloc_reg(file,ir_reg.hint);
+    const auto scratch_reg = alloc_reg(file,file.local,ir_reg.hint);
 
     // This allocation should never fail for the stack.
     assert(scratch_reg != FFS_EMPTY);
