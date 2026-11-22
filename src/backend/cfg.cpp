@@ -1,3 +1,4 @@
+#include <math.h>
 
 Block make_block(LabelSlot label_slot,BlockSlot block_slot,ArenaAllocator* list_allocator)
 {
@@ -414,6 +415,8 @@ void handle_src_regs(Function& func, Block& block, const ConstSpan<RegSlot>& src
         const auto local = src.local;
         auto& ir_reg = reg_from_local(func,local);
 
+        ir_reg.spill_cost += pow(10,block.loop_depth);
+
         // ir reg, that is not stored in memory
         if(!stored_in_mem(ir_reg) && !contains(block.def,local))
         {
@@ -436,6 +439,8 @@ void handle_dst_regs(Function& func, Block& block, const ConstSpan<RegSlot>& dst
 
         const auto local = dst.local;
         auto& ir_reg = reg_from_local(func,local);
+
+        ir_reg.spill_cost += pow(10,block.loop_depth);
 
         // used as dst before use, def 
         if(!stored_in_mem(ir_reg) && !contains(block.use,local))

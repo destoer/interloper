@@ -341,14 +341,26 @@ void compile_stmt_unk(Interloper& itl, Function& func, AstNode* node)
     (void)compile_panic(itl,itl_error::invalid_expr,"[COMPILE]: Unknown statement: %s",AST_INFO[u32(node->type)].name);   
 }
 
-void compile_block(Interloper& itl, Function& func,AstBlock& block)
+void compile_block(Interloper& itl, Function& func,AstBlock& block, bool in_loop = false)
 {
+    const u32 old = itl.loop_depth;
+
+    if(in_loop)
+    {
+        itl.loop_depth += 1;
+    }
+
+    auto& ir_block = block_from_slot(func,cur_block(func));
+    ir_block.loop_depth = itl.loop_depth;
+
     for(AstNode* stmt : block.statement)
     {
         itl.ctx.expr = stmt;
         const auto& ast_info = AST_INFO[u32(stmt->type)];
         ast_info.compile_stmt(itl,func,stmt);
     }
+
+    itl.loop_depth = old;
 
     compile_defer(itl,func,block.defer_start,block.defer_end);
 }

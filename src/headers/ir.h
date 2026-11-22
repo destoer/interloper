@@ -84,6 +84,8 @@ struct Reg
     u32 hint = 0;
 
     u32 flags = 0;
+
+    u32 spill_cost = 0;
 };
 
 struct RegTable
@@ -211,6 +213,8 @@ struct Block
 {
     OpcodeList list;
     u32 branch_count = 0;
+
+    u32 loop_depth = 0;
 
     // Kept as centralized copies in the emitter sets
     u32 flags = 0;

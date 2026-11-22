@@ -111,16 +111,22 @@ struct VariableGraphNode
 struct VariableGraph
 {
     Array<VariableGraphNode> node;
+
     // Nodes we are currently ignoring and need to color later
     LocalRegSet to_colour_set;
     Array<LocalSlot> to_colour_list;
+
     Array<LocalSlot> potential_spill;
+
+    Array<u32> spill_cost;
+    u32 spilled_registers = 0;
 };
 
 VariableGraph make_variable_graph(Function& func)
 {
     VariableGraph graph;
     resize(graph.node,count(func.local.registers));
+    resize(graph.spill_cost,(count(func.local.registers)));
 
     for(u32 n = 0; n < count(graph.node); n++)
     {
@@ -156,6 +162,28 @@ void build_interference_graph(VariableGraph& graph, ProgramRange& program)
     }
 }
 
+void calc_spill_costs(VariableGraph& graph, GraphAlloc& alloc)
+{
+    for(size_t v = 0; v < count(graph.node); v++)
+    {
+        const auto& ir_reg = reg_from_local(alloc.local,graph.node[v].slot);
+
+        // Total access according to loop depth / degree of node
+        const u32 degree = count(graph.node[v].adjacent_list);
+        graph.spill_cost[v] = ir_reg.spill_cost;
+
+        if(degree > 1)
+        {
+            graph.spill_cost[v] /= degree;
+        }
+    }
+
+    heap_sort(graph.spill_cost,[](const u32& v1, const u32& v2)
+    {
+        return v1 > v2;
+    });
+}
+
 u32 get_filtered_degree(VariableGraph& graph, VariableGraphNode& node)
 {
     u32 count = 0;
@@ -169,6 +197,12 @@ u32 get_filtered_degree(VariableGraph& graph, VariableGraphNode& node)
     }
 
     return count;
+}
+
+void push_slot_to_colour(VariableGraph& graph, LocalSlot slot)
+{
+    add(graph.to_colour_set,slot);
+    push_var(graph.to_colour_list,slot);
 }
 
 void simplify_prune_nodes(VariableGraph& graph, GraphAlloc& alloc)
@@ -200,8 +234,7 @@ void simplify_prune_nodes(VariableGraph& graph, GraphAlloc& alloc)
             // this means that when we re add it, we should have a colour spare.
             if(get_filtered_degree(graph,node) < file.max_colours)
             {
-                add(graph.to_colour_set,node.slot);
-                push_var(graph.to_colour_list,node.slot);
+                push_slot_to_colour(graph,node.slot);
                 modified = true;
             }
         }
@@ -222,7 +255,17 @@ void simplify(VariableGraph& graph, GraphAlloc& alloc)
         // we will not spill it yet as it may turn out some of its incident nodes share the same colour and we can colour it anyways.
         if(count(graph.node) != count(graph.to_colour_list))
         {
-            assert(false);
+            for(u32 v = 0; v < count(graph.spill_cost); v++)
+            {
+                LocalSlot local = {v};
+                if(contains(graph.to_colour_set,local))
+                {
+                    continue;
+                }
+
+                push_slot_to_colour(graph,local);
+                break;
+            }
             done = false;
         }
     }
@@ -250,8 +293,11 @@ void graph_allocate(GraphAlloc& alloc,Interloper& itl, Function& func)
     VariableGraph graph = make_variable_graph(func);
 
     build_interference_graph(graph,program);
+    calc_spill_costs(graph,alloc);
 
     simplify(graph,alloc);
+
+    // TODO: Actually attempt to colour it.
 
     assert(false);
 }

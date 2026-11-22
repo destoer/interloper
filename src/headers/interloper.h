@@ -20,7 +20,7 @@ struct Interloper
     u32 max_error_count = 15;
     itl_error first_error_code;
 
-    u32 arith_depth = 0;
+    u32 loop_depth = 0;
 
     String stl_path = "";
 

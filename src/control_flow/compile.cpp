@@ -20,10 +20,10 @@ IfCompile make_if_compile(Function &func,IfNode* node)
     return out;
 }
 
-BlockSlot compile_basic_block(Interloper& itl, Function& func, AstBlock& block)
+BlockSlot compile_basic_block(Interloper& itl, Function& func, AstBlock& block, b32 in_loop = false)
 {
     const BlockSlot block_slot = new_basic_block(itl,func);
-    compile_block(itl,func,block);
+    compile_block(itl,func,block,in_loop);
 
     return block_slot;
 }
@@ -153,7 +153,7 @@ void compile_range_for_idx(Interloper& itl, Function& func, ForRangeNode* range)
     emit_integer_compare(itl,func,cmp_type,sign,entry_cond,index.slot,end.slot);
 
     // compile the main loop body
-    const auto for_block = compile_basic_block(itl,func,range->block); 
+    const auto for_block = compile_basic_block(itl,func,range->block,true); 
 
     // compile post inc / dec
     if(is_inc)
@@ -268,7 +268,7 @@ void compile_range_for_array(Interloper& itl, Function& func, ForRangeNode* rang
         mov_reg(itl,func,data,arr_data);
     }
 
-    compile_block(itl,func,range->block);
+    compile_block(itl,func,range->block, true);
 
     // compile body check
     const BlockSlot end_block = cur_block(func);
@@ -337,7 +337,7 @@ void compile_for_iter(Interloper& itl, Function& func, AstNode* stmt)
   
 
     // compile the body
-    const BlockSlot for_block = compile_basic_block(itl,func,iter->block);    
+    const BlockSlot for_block = compile_basic_block(itl,func,iter->block,true);    
 
     compile_stmt(itl,func,iter->post);
 
@@ -368,7 +368,7 @@ void compile_while_node(Interloper& itl, Function& func, AstNode* stmt)
     }
 
     // compile body
-    const BlockSlot while_block = compile_basic_block(itl,func,while_node->block); 
+    const BlockSlot while_block = compile_basic_block(itl,func,while_node->block,true); 
 
     auto exit_cond = compile_oper(itl,func,while_node->expr);
     if(while_node->cond_type == while_cond_type::not_zero_t)
